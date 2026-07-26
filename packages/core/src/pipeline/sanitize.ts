@@ -16,5 +16,7 @@ export function sanitizeFileName(fileName: string): string {
     .replace(WHITESPACE, '-')
     .replace(LEADING_DOTS, '')
 
-  return sanitized.length > 0 ? sanitized : 'file'
+  // A result of only dashes (e.g. from whitespace/control-only input) is
+  // effectively empty — fall back rather than returning a bare "-" filename.
+  return /^-*$/.test(sanitized) ? 'file' : sanitized
 }

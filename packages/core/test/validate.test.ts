@@ -47,6 +47,24 @@ describe('validateFile', () => {
     const file: IncomingFile = { fileName: 'big.jpg', mimeType: 'image/jpeg', size: 200 }
     expect(() => validateFile(file, ctx)).toThrow(UnacceptableFileError)
   })
+
+  it('throws DisallowedExtensionError when the final extension is not in allowedExtensions', () => {
+    const ctx = baseCtx({ allowedExtensions: ['png'] })
+    const file: IncomingFile = { fileName: 'evil.jpg', mimeType: 'image/jpeg', size: 10 }
+    expect(() => validateFile(file, ctx)).toThrow(DisallowedExtensionError)
+  })
+
+  it('passes when the final extension is in allowedExtensions', () => {
+    const ctx = baseCtx({ allowedExtensions: ['png'] })
+    const file: IncomingFile = { fileName: 'ok.png', mimeType: 'image/png', size: 10 }
+    expect(() => validateFile(file, ctx)).not.toThrow()
+  })
+})
+
+describe('DEFAULT_DISALLOWED_EXTENSIONS', () => {
+  it('is frozen', () => {
+    expect(Object.isFrozen(DEFAULT_DISALLOWED_EXTENSIONS)).toBe(true)
+  })
 })
 
 describe('sanitizeFileName', () => {
@@ -54,5 +72,9 @@ describe('sanitizeFileName', () => {
     const result = sanitizeFileName('../../etc/pass wd<x>.png')
     expect(result).not.toMatch(/[\/\\<>]/)
     expect(result).toMatch(/\.png$/)
+  })
+
+  it('falls back to "file" for whitespace-only input', () => {
+    expect(sanitizeFileName('   ')).toBe('file')
   })
 })

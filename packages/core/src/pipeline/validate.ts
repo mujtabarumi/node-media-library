@@ -2,12 +2,17 @@ import { IncomingFile } from '../types.js'
 import { CollectionDefinition, matchesMime } from '../definitions/collection.js'
 import { FileTooLargeError, DisallowedExtensionError, UnacceptableFileError } from '../errors.js'
 
-export const DEFAULT_DISALLOWED_EXTENSIONS = ['php', 'phtml', 'phar', 'htaccess']
+export const DEFAULT_DISALLOWED_EXTENSIONS: readonly string[] = Object.freeze([
+  'php',
+  'phtml',
+  'phar',
+  'htaccess',
+])
 
 export interface ValidationContext {
   maxFileSize: number
-  disallowedExtensions: string[]
-  allowedExtensions: string[] | null // when set, FINAL extension must be in it
+  disallowedExtensions: readonly string[]
+  allowedExtensions: readonly string[] | null // when set, FINAL extension must be in it
   collection: CollectionDefinition
 }
 
