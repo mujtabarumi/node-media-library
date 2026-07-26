@@ -1,5 +1,5 @@
 node_modules/
 dist/
-storage/
+/storage/
 *.tsbuildinfo
 .DS_Store
