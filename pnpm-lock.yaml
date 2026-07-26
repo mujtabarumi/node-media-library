@@ -14,8 +14,8 @@ importers:
         specifier: ^19.0.0
         version: 19.6.0
       flydrive:
-        specifier: ^2.1.0
-        version: 2.1.0
+        specifier: ^1.3.0
+        version: 1.3.0
     devDependencies:
       typescript:
         specifier: ^5.5.0
@@ -184,11 +184,9 @@ packages:
   '@poppinss/string@1.7.2':
     resolution: {integrity: sha512-A182GLDfi36iDCbhDrHB0xzrPM1fO3GHnhCDIdadf8C6eycgct4m7zusbLwEh6GPaj2Pz5BVos7XK16w7tZ7wQ==}
 
-  '@poppinss/types@1.2.1':
-    resolution: {integrity: sha512-qUYnzl0m9HJTWsXtr8Xo7CwDx6wcjrvo14bOVbIMIlKJCzKrm3LX55dRTDr1/x4PpSvKVgmxvC6Ly2YiqXKOvQ==}
-
-  '@poppinss/utils@7.0.1':
-    resolution: {integrity: sha512-mveSvLI2YPC114mK5HCuSYfUtjpClf1wHG1VCqZJCp4U2ypPhIt62Iku5urh0kPAFvnvCVHx2bXBSH14qMTOlQ==}
+  '@poppinss/utils@6.10.1':
+    resolution: {integrity: sha512-da+MMyeXhBaKtxQiWPfy7+056wk3lVIhioJnXHXkJ2/OHDaZfFcyKHNl1R06sdYO8lIRXcXdoZ6LO2ARmkAREA==}
+    engines: {node: '>=18.16.0'}
 
   '@rollup/rollup-android-arm-eabi@4.62.2':
     resolution: {integrity: sha512-6o7ZLZK+BeenkZCFNDXqpbjw9bD6nuWonvS/lwQJp7NoVVxm6p3qE7qQ5jGuBjiFsgvqjD8mZAU5oWxTmbOeOg==}
@@ -416,9 +414,9 @@ packages:
     resolution: {integrity: sha512-9UbaD6XdAL97+k/n+N7JwX46K/M6Zc6KcFYskrYL8wbBV/Uyk0CTAMY0VT+qiK5PM7AIc9aTWYtq65U7T+aCNQ==}
     engines: {node: '>=8'}
 
-  flydrive@2.1.0:
-    resolution: {integrity: sha512-464Y3vfAZKI3h+LodtjjFMnMxiItyHTKVGzfb2RBYzPfFl1gG7/RstlXH7bhUgB34h44lO9Cm4ZDW8UEk6Jd5g==}
-    engines: {node: '>=24.0.0'}
+  flydrive@1.3.0:
+    resolution: {integrity: sha512-B0wsqrZR76d+J2ce6AxNcA1JDo4pViluaaFp5Fjso52zGY+s19uF8rKsQS8TJJsiyySKPI1b8K1w2j3RAUxd1Q==}
+    engines: {node: '>=20.6.0'}
     peerDependencies:
       '@aws-sdk/client-s3': ^3.577.0
       '@aws-sdk/s3-request-presigner': ^3.577.0
@@ -495,6 +493,13 @@ packages:
     resolution: {integrity: sha512-RFnrW4lhXA3s3eqHDZvN654g8OTjzRfqpIRJYczCGB6HzphckVAi/Qh4tbPUbRuDi7s1Llv8g/NspLkttY3gTA==}
     engines: {node: '>=18.0.0', npm: '>=8.0.0'}
     hasBin: true
+
+  safe-stable-stringify@2.5.0:
+    resolution: {integrity: sha512-b3rppTKm9T+PsVCBEOUR46GWI7fdOs00VKZ1+9c1EWDaDMvjQc6tUwuFyIprgGgTcWoVHSKrU8H31ZHA2e0RHA==}
+    engines: {node: '>=10'}
+
+  secure-json-parse@4.1.0:
+    resolution: {integrity: sha512-l4KnYfEyqYJxDwlNVyRfO2E4NTHfMKAWdUuA8J0yve2Dz/E/PdBepY03RvyJpssIpRFwJoCD55wA+mEDs6ByWA==}
 
   siginfo@2.0.0:
     resolution: {integrity: sha512-ybx0WO1/8bSBLEWXZvEd7gMW3Sn3JFlW3TvX1nREbDLRNQNaeNN8WK0meBwPdAaOI7TtRRRJn/Es1zhrrCHu7g==}
@@ -702,15 +707,14 @@ snapshots:
       pluralize: 8.0.0
       slugify: 1.6.9
 
-  '@poppinss/types@1.2.1': {}
-
-  '@poppinss/utils@7.0.1':
+  '@poppinss/utils@6.10.1':
     dependencies:
       '@poppinss/exception': 1.2.3
       '@poppinss/object-builder': 1.1.0
       '@poppinss/string': 1.7.2
-      '@poppinss/types': 1.2.1
       flattie: 1.1.1
+      safe-stable-stringify: 2.5.0
+      secure-json-parse: 4.1.0
 
   '@rollup/rollup-android-arm-eabi@4.62.2':
     optional: true
@@ -902,10 +906,10 @@ snapshots:
 
   flattie@1.1.1: {}
 
-  flydrive@2.1.0:
+  flydrive@1.3.0:
     dependencies:
       '@humanwhocodes/retry': 0.4.3
-      '@poppinss/utils': 7.0.1
+      '@poppinss/utils': 6.10.1
       etag: 1.8.1
       mime-types: 3.0.2
 
@@ -983,6 +987,10 @@ snapshots:
       '@rollup/rollup-win32-x64-gnu': 4.62.2
       '@rollup/rollup-win32-x64-msvc': 4.62.2
       fsevents: 2.3.3
+
+  safe-stable-stringify@2.5.0: {}
+
+  secure-json-parse@4.1.0: {}
 
   siginfo@2.0.0: {}
 

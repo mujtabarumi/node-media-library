@@ -6,7 +6,7 @@
 
 **Architecture:** ORM-agnostic core per spec `docs/superpowers/specs/2026-07-26-node-media-library-design.md` §3–§7, §10. Everything DB-specific hides behind `MediaRepository`; everything storage-specific behind FlyDrive `Disk` + `PathGenerator`/`UrlGenerator`. Fluent handle API: `media.for(type, id).add(src)...toCollection(name)`.
 
-**Tech Stack:** TypeScript (strict, ESM), pnpm workspaces, vitest, `flydrive` v2, `file-type`.
+**Tech Stack:** TypeScript (strict, ESM), pnpm workspaces, vitest, `flydrive` v1.3 (v2 requires Node >=24; ruled 2026-07-26: keep Node >=20 floor), `file-type`.
 
 ## Global Constraints
 
@@ -72,7 +72,7 @@ Root `package.json`:
   "type": "module",
   "exports": { ".": "./src/index.ts", "./testing": "./src/testing/index.ts" },
   "scripts": { "test": "vitest run", "typecheck": "tsc --noEmit" },
-  "dependencies": { "flydrive": "^2.1.0", "file-type": "^19.0.0" },
+  "dependencies": { "flydrive": "^1.3.0", "file-type": "^19.0.0" },
   "devDependencies": { "typescript": "^5.5.0", "vitest": "^2.0.0" }
 }
 ```
