@@ -1,0 +1,9 @@
+{
+  "name": "@node-media-library/core",
+  "version": "0.0.0",
+  "type": "module",
+  "exports": { ".": "./src/index.ts", "./testing": "./src/testing/index.ts" },
+  "scripts": { "test": "vitest run", "typecheck": "tsc --noEmit" },
+  "dependencies": { "flydrive": "^2.1.0", "file-type": "^19.0.0" },
+  "devDependencies": { "typescript": "^5.5.0", "vitest": "^2.0.0" }
+}
