@@ -1,6 +1,10 @@
 import type { MediaRecord } from './types.js'
 
-export interface MediaEventMap {
+// A `type` alias (not `interface`) is required here: TypedEmitter<T>'s
+// `T extends Record<string, unknown>` constraint is only satisfied by
+// object-literal types referenced by name when declared via `type` — an
+// `interface` with the same shape fails with "index signature is missing".
+export type MediaEventMap = {
   'media:added': { media: MediaRecord }
   'media:deleting': { media: MediaRecord }
   'media:deleted': { media: MediaRecord }
