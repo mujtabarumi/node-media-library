@@ -1,18 +1,20 @@
-import { MediaLibraryError } from './errors.js'
+import { FileAdder } from './pipeline/file-adder.js'
+import type { MediaSource } from './pipeline/source.js'
+import type { MediaLibrary } from './library.js'
 
 /**
  * Handle bound to a single (modelType, modelId) pair, scoped to operate on
- * that model's media. This is a Task 11 stub: only the identity fields are
- * wired up here; `add()` (and future collection-scoped operations) are
- * implemented in Task 11.
+ * that model's media.
  */
 export class ModelMediaHandle {
   constructor(
     public readonly modelType: string,
     public readonly modelId: string,
+    private readonly library: MediaLibrary,
   ) {}
 
-  async add(..._args: unknown[]): Promise<unknown> {
-    throw new MediaLibraryError('not implemented')
+  /** Returns a `FileAdder` builder; call `.toCollection()` to run the pipeline. */
+  add(source: MediaSource): FileAdder {
+    return new FileAdder(this.library, this.modelType, this.modelId, source)
   }
 }

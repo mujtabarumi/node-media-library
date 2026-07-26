@@ -64,18 +64,31 @@ export class MediaLibrary {
     if (!(modelType in this.resolved.models)) {
       throw new UnknownModelError(`Model type "${modelType}" is not registered`)
     }
-    return new ModelMediaHandle(modelType, String(modelId))
+    return new ModelMediaHandle(modelType, String(modelId), this)
   }
 
   getCollectionDefinition(modelType: string, collection: string): CollectionDefinition {
     return this.resolved.models[modelType]?.[collection] ?? DEFAULT_COLLECTION
   }
 
-  async deleteMedia(_mediaOrId: MediaRecord | string): Promise<void> {
-    throw new MediaLibraryError('not implemented')
+  async deleteMedia(mediaOrId: MediaRecord | string): Promise<void> {
+    const media =
+      typeof mediaOrId === 'string' ? await this.resolved.repository.findById(mediaOrId) : mediaOrId
+    if (!media) {
+      throw new MediaLibraryError('media not found')
+    }
+
+    this.events.emit('media:deleting', { media })
+    const disk = await this.resolved.storage.disk(media.disk)
+    await disk.deleteAll(this.resolved.pathGenerator.directory(media))
+    await this.resolved.repository.delete(media.id)
+    this.events.emit('media:deleted', { media })
   }
 
-  async clearFor(_modelType: string, _modelId: string | number, _collection?: string): Promise<void> {
-    throw new MediaLibraryError('not implemented')
+  async clearFor(modelType: string, modelId: string | number, collection?: string): Promise<void> {
+    const records = await this.resolved.repository.findForModel(modelType, String(modelId), collection)
+    for (const record of records) {
+      await this.deleteMedia(record)
+    }
   }
 }
