@@ -23,8 +23,8 @@ export const DEFAULT_COLLECTION: CollectionDefinition = Object.freeze({
   disk: null,
   conversionsDisk: null,
   public: false,
-  fallbackUrls: {},
-  conversions: {},
+  fallbackUrls: Object.freeze({}),
+  conversions: Object.freeze({}),
   responsiveImages: false,
 })
 

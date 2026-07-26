@@ -24,4 +24,24 @@ describe('definition builders', () => {
     expect(matchesMime('image/*', 'video/mp4')).toBe(false)
     expect(matchesMime('image/png', 'image/png')).toBe(true)
   })
+  it('DEFAULT_COLLECTION nested objects are deeply frozen', () => {
+    expect(Object.isFrozen(DEFAULT_COLLECTION)).toBe(true)
+    expect(Object.isFrozen(DEFAULT_COLLECTION.fallbackUrls)).toBe(true)
+    expect(Object.isFrozen(DEFAULT_COLLECTION.conversions)).toBe(true)
+    // Verify mutation attempts fail or are ignored
+    const urlsBefore = DEFAULT_COLLECTION.fallbackUrls
+    const conversionsBefore = DEFAULT_COLLECTION.conversions
+    // Mutation attempts in strict mode throw TypeError
+    expect(() => {
+      DEFAULT_COLLECTION.fallbackUrls['thumb'] = '/mutated'
+    }).toThrow()
+    expect(() => {
+      DEFAULT_COLLECTION.conversions['mutated'] = undefined as any
+    }).toThrow()
+    // Verify the objects are unchanged after attempted mutation
+    expect(DEFAULT_COLLECTION.fallbackUrls).toBe(urlsBefore)
+    expect(DEFAULT_COLLECTION.conversions).toBe(conversionsBefore)
+    expect(DEFAULT_COLLECTION.fallbackUrls['thumb']).toBeUndefined()
+    expect(DEFAULT_COLLECTION.conversions['mutated']).toBeUndefined()
+  })
 })
