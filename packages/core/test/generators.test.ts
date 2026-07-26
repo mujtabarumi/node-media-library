@@ -22,4 +22,10 @@ describe('DefaultUrlGenerator', () => {
     const u = new DefaultUrlGenerator(storage, new DefaultPathGenerator(), { versionUrls: true })
     expect(await u.url(media)).toBe('http://localhost:9000/media/m1/photo.jpg?v=1750000000000')
   })
+  it('normalizes a trailing slash on baseUrl', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'ml-'))
+    const storage = resolveStorage({ disks: { default: { driver: 'fs', root, baseUrl: 'http://localhost:9000/media/' } } })
+    const u = new DefaultUrlGenerator(storage, new DefaultPathGenerator(), { versionUrls: true })
+    expect(await u.url(media)).toBe('http://localhost:9000/media/m1/photo.jpg?v=1750000000000')
+  })
 })

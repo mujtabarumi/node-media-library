@@ -37,7 +37,8 @@ export class DefaultUrlGenerator implements UrlGenerator {
     const config = this.storage.diskConfig(media.disk)
 
     if (config.driver === 'fs' && config.baseUrl) {
-      return `${config.baseUrl}/${path}${this.version(media)}`
+      const baseUrl = config.baseUrl.replace(/\/+$/, '')
+      return `${baseUrl}/${path}${this.version(media)}`
     }
 
     try {
@@ -64,6 +65,9 @@ export class DefaultUrlGenerator implements UrlGenerator {
     if (config.driver === 'fs') {
       // fs driver has no signing support without a configured urlBuilder;
       // fall back to the plain public URL (documented dev-mode behavior).
+      // Note: `expiresIn` (whether from opts or signedUrlExpiresIn) is
+      // ignored on this path since url() has no concept of expiry — the
+      // returned URL never actually expires.
       return this.url(media, conversionName)
     }
 
