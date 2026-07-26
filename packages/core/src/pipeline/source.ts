@@ -70,7 +70,10 @@ async function downloadUrl(url: string, allowedHosts?: string[]): Promise<Buffer
     throw new DownloadFailedError(`Unsupported protocol "${parsed.protocol}"`)
   }
 
-  if (allowedHosts && !allowedHosts.includes(parsed.host)) {
+  // Compare against `.host` (not `.hostname`) intentionally: this includes the port, so
+  // `cdn.example.com` in allowedHosts does not match `cdn.example.com:8443` — fails closed.
+  // WHATWG URL already lowercases the hostname portion, so only the allowlist needs lowercasing.
+  if (allowedHosts && !allowedHosts.map((h) => h.toLowerCase()).includes(parsed.host.toLowerCase())) {
     throw new DownloadFailedError(`Host "${parsed.host}" is not in allowedHosts`)
   }
 

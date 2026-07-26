@@ -80,4 +80,23 @@ describe('normalizeSource', () => {
     ).rejects.toThrow(DownloadFailedError)
     expect(fetchMock).not.toHaveBeenCalled()
   })
+
+  it('matches allowedHosts case-insensitively', async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      arrayBuffer: async () => PNG_BUFFER.buffer.slice(
+        PNG_BUFFER.byteOffset,
+        PNG_BUFFER.byteOffset + PNG_BUFFER.byteLength,
+      ),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await normalizeSource({
+      url: 'http://cdn.example.com/a.png',
+      allowedHosts: ['CDN.Example.COM'],
+    })
+    expect(result.sniffedMime).toBe('image/png')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
 })
