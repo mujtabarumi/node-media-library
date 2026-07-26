@@ -12,7 +12,7 @@ export class ModelMediaHandle {
     public readonly modelId: string,
   ) {}
 
-  add(..._args: unknown[]): Promise<unknown> {
+  async add(..._args: unknown[]): Promise<unknown> {
     throw new MediaLibraryError('not implemented')
   }
 }

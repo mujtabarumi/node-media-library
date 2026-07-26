@@ -1,17 +1,20 @@
 import type { MediaRecord } from './types.js'
 
-// A `type` alias (not `interface`) is required here: TypedEmitter<T>'s
-// `T extends Record<string, unknown>` constraint is only satisfied by
-// object-literal types referenced by name when declared via `type` — an
-// `interface` with the same shape fails with "index signature is missing".
-export type MediaEventMap = {
+// Must stay an `interface` (not a `type` alias): Plan 3 extends this via
+// TypeScript declaration merging, which only works on interfaces.
+export interface MediaEventMap {
   'media:added': { media: MediaRecord }
   'media:deleting': { media: MediaRecord }
   'media:deleted': { media: MediaRecord }
   'collection:cleared': { modelType: string; modelId: string; collection: string }
 }
 
-export class TypedEmitter<T extends Record<string, unknown>> {
+// `T extends object` (not `Record<string, unknown>`): the class only ever
+// uses `keyof T` and `T[K]`, neither of which needs an index signature, so
+// the looser bound is sufficient — and, unlike `Record<string, unknown>`, it
+// is satisfied by named `interface` type arguments (e.g. `MediaEventMap`),
+// not just inline object-literal types.
+export class TypedEmitter<T extends object> {
   private listeners = new Map<keyof T, Set<(payload: any) => void>>()
 
   on<K extends keyof T>(event: K, fn: (payload: T[K]) => void): () => void {
