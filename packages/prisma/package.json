@@ -1,0 +1,21 @@
+{
+  "name": "@node-media-library/prisma",
+  "version": "0.0.0",
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "db:prepare": "prisma db push && prisma generate"
+  },
+  "dependencies": { "@node-media-library/core": "workspace:*" },
+  "peerDependencies": { "@prisma/client": ">=6.2 <8" },
+  "peerDependenciesMeta": { "@prisma/client": { "optional": true } },
+  "devDependencies": {
+    "prisma": "^7.9.0",
+    "@prisma/client": "^7.9.0",
+    "@prisma/adapter-better-sqlite3": "^7.9.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  }
+}

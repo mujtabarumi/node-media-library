@@ -3,3 +3,5 @@ dist/
 /storage/
 *.tsbuildinfo
 .DS_Store
+packages/prisma/test/prisma/generated/
+packages/prisma/test/tmp/
