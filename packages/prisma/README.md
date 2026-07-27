@@ -52,9 +52,9 @@ import { withMediaCascade } from '@node-media-library/prisma'
 const xprisma = withMediaCascade(prisma, media)
 await xprisma.user.delete({ where: { id: 'u1' } })
 ```
-
+Cascaded models must expose a scalar `id` field — the extension reads `result.id` (delete) or each matched row's `id` (deleteMany) to call `clearFor`.
 ## Options
-`prismaAdapter(client, { owners })` takes an `owners` map (`modelType -> (modelId) => boolean | Promise<boolean>`), needed only by the future `clean --delete-orphaned` command (Plan 6) — most integrations can omit it.
+`prismaAdapter(client, { owners, iterateBatchSize })`: `owners` is a `modelType -> (modelId) => boolean | Promise<boolean>` map, needed only by the future `clean --delete-orphaned` command (Plan 6) — most integrations can omit it. `iterateBatchSize` (default `100`) sets the page size `iterateAll` fetches internally.
 
 ## Roadmap
 Orphan-cleanup CLI (`clean --delete-orphaned`) lands in Plan 6, building on `owners` above.

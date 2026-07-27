@@ -14,5 +14,6 @@ export default function setup() {
   rmSync(dbPath, { force: true })
   rmSync(`${dbPath}-journal`, { force: true })
   rmSync(`${dbPath}-wal`, { force: true })
+  rmSync(`${dbPath}-shm`, { force: true })
   execSync('pnpm db:prepare', { cwd: pkgRoot, stdio: 'inherit' })
 }

@@ -101,17 +101,21 @@ class PrismaMediaRepository implements MediaRepository {
   }
 
   async *iterateAll(filter?: MediaFilter): AsyncIterable<MediaRecord> {
-    const where: Record<string, unknown> = {}
-    if (filter?.modelType !== undefined) where.modelType = filter.modelType
-    if (filter?.collectionName !== undefined) where.collectionName = filter.collectionName
+    const filterWhere: Record<string, unknown> = {}
+    if (filter?.modelType !== undefined) filterWhere.modelType = filter.modelType
+    if (filter?.collectionName !== undefined) filterWhere.collectionName = filter.collectionName
 
+    // Keyset pagination on id (not cursor+skip): a row can be deleted between
+    // batches (e.g. Plan 6's clean command iterates and deletes concurrently),
+    // and cursor+skip would silently truncate if the cursor row itself is gone.
+    // `id > lastId` needs no row to still exist, only the last-seen id value.
     let lastId: string | undefined
     for (;;) {
+      const where = lastId !== undefined ? { ...filterWhere, id: { gt: lastId } } : filterWhere
       const rows = await this.client.media.findMany({
         where,
-        orderBy: [...FIND_FOR_MODEL_ORDER, { id: 'asc' as const }],
+        orderBy: { id: 'asc' as const },
         take: this.batchSize,
-        ...(lastId !== undefined ? { cursor: { id: lastId }, skip: 1 } : {}),
       })
       if (rows.length === 0) return
       for (const row of rows) {

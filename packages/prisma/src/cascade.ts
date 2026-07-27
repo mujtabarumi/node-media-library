@@ -30,6 +30,9 @@ export function withMediaCascade<C extends PrismaLikeClient & { $extends(ext: un
     query: {
       $allModels: {
         async delete({ model, args, query }: CascadeQueryArgs) {
+          // Owner row is removed first by design: if clearFor then throws, the
+          // media rows/files are orphaned but recoverable (re-run cleanup),
+          // whereas rolling back a resurrected owner row would not be.
           const result = await query(args)
           if (scope.has(model) && hasStringableId(result)) {
             await media.clearFor(model, String(result.id))
@@ -52,6 +55,9 @@ export function withMediaCascade<C extends PrismaLikeClient & { $extends(ext: un
           }
           const rows = await delegate.findMany({ where, select: { id: true } })
 
+          // Same ordering rationale as delete(): owner rows go first, media
+          // cleanup after, so a mid-failure leaves orphaned-but-recoverable
+          // media rather than an un-rollback-able resurrected owner.
           const result = await query(args)
 
           for (const row of rows) {
@@ -62,5 +68,8 @@ export function withMediaCascade<C extends PrismaLikeClient & { $extends(ext: un
         },
       },
     },
+    // $extends returns a structurally different type than C, and without
+    // importing the generated Prisma client type no inference can bridge
+    // that — this cast is the deliberate, duck-typing-preserving escape hatch.
   }) as C
 }

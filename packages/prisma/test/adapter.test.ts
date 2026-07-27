@@ -81,6 +81,40 @@ describe('prismaAdapter — adapter-specific behavior', () => {
     }
   })
 
+  it('iterateAll keeps yielding after the last-yielded record is deleted mid-iteration', async () => {
+    const client = await getTestClient()
+    await client.media.deleteMany({})
+    const adapter = prismaAdapter(client)
+    const created = []
+    for (let i = 0; i < 5; i += 1) {
+      created.push(await adapter.create(makeRecord()))
+    }
+
+    const paged = prismaAdapter(client, { iterateBatchSize: 2 })
+    const seen: string[] = []
+    let deletedId: string | undefined
+    for await (const record of paged.iterateAll()) {
+      seen.push(record.id)
+      // After the first batch (2 records) has been fully yielded, delete the
+      // record that was just yielded last — this is the row a cursor+skip
+      // pagination would depend on still existing for the next page.
+      if (seen.length === 2 && deletedId === undefined) {
+        deletedId = record.id
+        await adapter.delete(record.id)
+      }
+    }
+
+    // The deleted record was already yielded before it got deleted, so it's
+    // legitimately in `seen` once; every OTHER record must also appear
+    // exactly once (no early stop, no gap left by the mid-iteration delete).
+    const otherIds = created.map((r) => r.id).filter((id) => id !== deletedId)
+    for (const id of otherIds) {
+      expect(seen.filter((seenId) => seenId === id).length).toBe(1)
+    }
+    expect(seen.filter((seenId) => seenId === deletedId).length).toBe(1)
+    expect(new Set(seen)).toEqual(new Set(created.map((r) => r.id)))
+  })
+
   it('create rejects a duplicate uuid with an honest message naming the uuid, not the id', async () => {
     const client = await getTestClient()
     await client.media.deleteMany({})
