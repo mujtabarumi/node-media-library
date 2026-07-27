@@ -120,4 +120,20 @@ describe('ModelMediaHandle retrieval', () => {
     expect(existsSync(join(root, second.id))).toBe(false)
     expect(events).toEqual([{ modelType: 'User', modelId: '1', collection: 'gallery' }])
   })
+
+  it('clear("*") empties every collection (not just one literally named "*"), removes directories, and emits collection:cleared with "*"', async () => {
+    const inGallery = await library.for('User', 1).add(png).toCollection('gallery')
+    const inAvatar = await library.for('User', 1).add(png).toCollection('avatar')
+
+    const events: Array<{ modelType: string; modelId: string; collection: string }> = []
+    library.events.on('collection:cleared', (payload) => events.push(payload))
+
+    await library.for('User', 1).clear('*')
+
+    const remaining = await library.for('User', 1).getAll()
+    expect(remaining).toEqual([])
+    expect(existsSync(join(root, inGallery.id))).toBe(false)
+    expect(existsSync(join(root, inAvatar.id))).toBe(false)
+    expect(events).toEqual([{ modelType: 'User', modelId: '1', collection: '*' }])
+  })
 })

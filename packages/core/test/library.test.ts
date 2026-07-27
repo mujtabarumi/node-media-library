@@ -59,4 +59,19 @@ describe('createMediaLibrary', () => {
     expect(await library.repository.findById(media.id)).toBeNull()
     expect(events).toEqual([{ modelType: 'User', modelId: '42', collection: 'avatar' }])
   })
+
+  it('clearFor with an omitted collection still clears every collection for that model', async () => {
+    const library = makeLibrary()
+    const inAvatar = await library.for('User', 1).add(Buffer.from('a')).toCollection('avatar')
+    const inGallery = await library.for('User', 1).add(Buffer.from('b')).toCollection('gallery')
+
+    const events: Array<{ modelType: string; modelId: string; collection: string }> = []
+    library.events.on('collection:cleared', (payload) => events.push(payload))
+
+    await library.clearFor('User', 1)
+
+    expect(await library.repository.findById(inAvatar.id)).toBeNull()
+    expect(await library.repository.findById(inGallery.id)).toBeNull()
+    expect(events).toEqual([{ modelType: 'User', modelId: '1', collection: '*' }])
+  })
 })

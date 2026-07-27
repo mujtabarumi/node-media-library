@@ -86,15 +86,21 @@ export class MediaLibrary {
   }
 
   /**
-   * Deletes every record in `collection` (or all collections, when omitted)
-   * for the given model and emits `collection:cleared`. This is the shared
-   * implementation behind both `MediaLibrary.clearFor()` and
+   * Deletes every record in `collection` (or all collections, when omitted
+   * or `'*'`) for the given model and emits `collection:cleared`. This is
+   * the shared implementation behind both `MediaLibrary.clearFor()` and
    * `ModelMediaHandle.clear()` — keeping one code path prevents the two
    * from drifting out of sync on the emitted event.
+   *
+   * `'*'` is the documented "all collections" sentinel (mirroring
+   * `ModelMediaHandle.getAll()`), so it must be normalized to `undefined`
+   * before reaching `findForModel` — otherwise it's matched literally
+   * against `collectionName` and matches nothing.
    */
   async clearFor(modelType: string, modelId: string | number, collection?: string): Promise<void> {
     const id = String(modelId)
-    const records = await this.resolved.repository.findForModel(modelType, id, collection)
+    const scoped = collection === undefined || collection === '*' ? undefined : collection
+    const records = await this.resolved.repository.findForModel(modelType, id, scoped)
     for (const record of records) {
       await this.deleteMedia(record)
     }
