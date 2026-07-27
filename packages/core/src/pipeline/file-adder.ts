@@ -62,7 +62,12 @@ export class FileAdder {
     return this
   }
 
-  /** Stored on the record; the generation engine arrives in Plan 4. */
+  /**
+   * Stored on the record as the `requested` flag. `dispatchConversions()`
+   * checks `conversionEngine.wantsOriginalResponsive()` (collection-level
+   * `withResponsiveImages()` OR this per-add flag) and, when true, queues
+   * `'original'` responsive generation for the media.
+   */
   withResponsiveImages(): this {
     this.wantsResponsiveImages = true
     return this
@@ -182,6 +187,10 @@ export class FileAdder {
       } else {
         queuedNames.push(name)
       }
+    }
+
+    if (this.library.conversionEngine.wantsOriginalResponsive(record)) {
+      queuedNames.push('original')
     }
 
     if (queuedNames.length > 0) {

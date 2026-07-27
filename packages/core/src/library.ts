@@ -42,6 +42,9 @@ export class MediaLibrary {
       generators: [...this.resolved.imageGenerators],
       definitionsFor: (modelType, collection) =>
         this.getCollectionDefinition(modelType, collection).conversions,
+      collectionFor: (modelType, collection) => this.getCollectionDefinition(modelType, collection),
+      widthCalculator: this.resolved.responsiveWidthCalculator,
+      responsivePlaceholders: this.resolved.responsivePlaceholders,
     })
     this.resolved.queue.registerProcessor((job) => this.engine.perform(job.mediaId, job.conversionNames))
 
