@@ -2,8 +2,9 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { mkdtemp, writeFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, basename } from 'node:path'
+import { Readable } from 'node:stream'
 import { normalizeSource } from '../src/pipeline/source.js'
-import { DownloadFailedError, MediaLibraryError } from '../src/errors.js'
+import { DownloadFailedError, FileTooLargeError, MediaLibraryError } from '../src/errors.js'
 
 const PNG_BASE64 =
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
@@ -98,5 +99,47 @@ describe('normalizeSource', () => {
     })
     expect(result.sniffedMime).toBe('image/png')
     expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('passes redirect: "error" to fetch so allowlisted hosts cannot redirect elsewhere', async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: { get: () => null },
+      arrayBuffer: async () => PNG_BUFFER.buffer.slice(
+        PNG_BUFFER.byteOffset,
+        PNG_BUFFER.byteOffset + PNG_BUFFER.byteLength,
+      ),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await normalizeSource({ url: 'https://example.com/pixel.png' })
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const [, options] = fetchMock.mock.calls[0] as [URL, RequestInit]
+    expect(options).toMatchObject({ redirect: 'error' })
+  })
+
+  it('rejects a url source whose Content-Length exceeds maxBytes without reading the body', async () => {
+    const arrayBufferMock = vi.fn()
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: { get: (name: string) => (name.toLowerCase() === 'content-length' ? '1000' : null) },
+      arrayBuffer: arrayBufferMock,
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(
+      normalizeSource({ url: 'https://example.com/huge.png' }, { maxBytes: 100 }),
+    ).rejects.toThrow(DownloadFailedError)
+    expect(arrayBufferMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects a Readable stream source that exceeds maxBytes mid-read', async () => {
+    const bigChunk = Buffer.alloc(200, 1)
+    const stream = Readable.from([bigChunk])
+
+    await expect(normalizeSource(stream, { maxBytes: 100 })).rejects.toThrow(FileTooLargeError)
   })
 })

@@ -91,6 +91,20 @@ describe('ModelMediaHandle retrieval', () => {
     expect(reordered.map((m) => m.id)).toEqual([second.id, first.id])
   })
 
+  it('reorder(ids) ignores ids that do not belong to this handle, leaving the foreign record untouched', async () => {
+    const own = await library.for('User', 1).add(png).toCollection('gallery')
+    const foreign = await library.for('User', 2).add(png).toCollection('gallery')
+    const foreignOriginalOrder = foreign.orderColumn
+
+    await library.for('User', 1).reorder([foreign.id, own.id])
+
+    const foreignAfter = await repo.findById(foreign.id)
+    expect(foreignAfter?.orderColumn).toBe(foreignOriginalOrder)
+
+    const ownAfter = await repo.findById(own.id)
+    expect(ownAfter?.orderColumn).toBe(1)
+  })
+
   it('clear("gallery") empties the collection, removes directories from disk, and emits collection:cleared', async () => {
     const first = await library.for('User', 1).add(png).toCollection('gallery')
     const second = await library.for('User', 1).add(png).toCollection('gallery')

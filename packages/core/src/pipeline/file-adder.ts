@@ -69,13 +69,13 @@ export class FileAdder {
   }
 
   async toCollection(collectionName: string = 'default'): Promise<MediaRecord> {
-    const normalized = await normalizeSource(this.source)
+    const limits = this.library.limits
+    const normalized = await normalizeSource(this.source, { maxBytes: limits.maxFileSize })
     const collectionDef = this.library.getCollectionDefinition(this.modelType, collectionName)
 
     const fileName = await this.resolveFileName(normalized)
     const name = this.explicitName ?? basename(fileName, extname(fileName))
 
-    const limits = this.library.limits
     validateFile(
       { fileName, mimeType: normalized.sniffedMime, size: normalized.buffer.length },
       {

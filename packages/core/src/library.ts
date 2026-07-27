@@ -85,10 +85,23 @@ export class MediaLibrary {
     this.events.emit('media:deleted', { media })
   }
 
+  /**
+   * Deletes every record in `collection` (or all collections, when omitted)
+   * for the given model and emits `collection:cleared`. This is the shared
+   * implementation behind both `MediaLibrary.clearFor()` and
+   * `ModelMediaHandle.clear()` — keeping one code path prevents the two
+   * from drifting out of sync on the emitted event.
+   */
   async clearFor(modelType: string, modelId: string | number, collection?: string): Promise<void> {
-    const records = await this.resolved.repository.findForModel(modelType, String(modelId), collection)
+    const id = String(modelId)
+    const records = await this.resolved.repository.findForModel(modelType, id, collection)
     for (const record of records) {
       await this.deleteMedia(record)
     }
+    this.events.emit('collection:cleared', {
+      modelType,
+      modelId: id,
+      collection: collection ?? '*',
+    })
   }
 }

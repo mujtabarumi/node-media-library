@@ -46,4 +46,17 @@ describe('createMediaLibrary', () => {
     const handle = library.for('User', 42)
     expect(handle.modelId).toBe('42')
   })
+
+  it('clearFor deletes the records and emits collection:cleared, same as handle.clear()', async () => {
+    const library = makeLibrary()
+    const media = await library.for('User', 42).add(Buffer.from('avatar bytes')).toCollection('avatar')
+
+    const events: Array<{ modelType: string; modelId: string; collection: string }> = []
+    library.events.on('collection:cleared', (payload) => events.push(payload))
+
+    await library.clearFor('User', 42, 'avatar')
+
+    expect(await library.repository.findById(media.id)).toBeNull()
+    expect(events).toEqual([{ modelType: 'User', modelId: '42', collection: 'avatar' }])
+  })
 })

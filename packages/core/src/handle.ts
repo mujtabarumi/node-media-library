@@ -105,21 +105,22 @@ export class ModelMediaHandle {
     return this.library.urlGenerator.url(first)
   }
 
+  /**
+   * Reorders this handle's media. `ids` is filtered down to records that
+   * actually belong to (modelType, modelId) — preserving the caller's
+   * relative order — so a foreign media id slipped into the list can't
+   * renumber another model's media.
+   */
   async reorder(ids: string[]): Promise<void> {
-    await this.library.repository.setOrder(ids)
+    const owned = await this.library.repository.findForModel(this.modelType, this.modelId)
+    const ownedIds = new Set(owned.map((record) => record.id))
+    const scopedIds = ids.filter((id) => ownedIds.has(id))
+    await this.library.repository.setOrder(scopedIds)
   }
 
   /** Deletes every record in `collection` (or all collections) and emits `collection:cleared`. */
   async clear(collection?: string): Promise<void> {
-    const records = await this.getAll(collection)
-    for (const record of records) {
-      await this.library.deleteMedia(record)
-    }
-    this.library.events.emit('collection:cleared', {
-      modelType: this.modelType,
-      modelId: this.modelId,
-      collection: collection ?? '*',
-    })
+    await this.library.clearFor(this.modelType, this.modelId, collection)
   }
 
   async delete(mediaId: string): Promise<void> {

@@ -94,6 +94,29 @@ export function runMediaRepositoryContract(
       expect(galleryResults.map((r) => r.id)).toEqual([inGallery.id])
     })
 
+    it('findForModel is scoped to the exact (modelType, modelId) pair, not just modelId', async () => {
+      const userU1 = await repo.create(makeRecord({ modelType: 'User', modelId: 'u1' }))
+      await repo.create(makeRecord({ modelType: 'User', modelId: 'u2' }))
+      await repo.create(makeRecord({ modelType: 'Post', modelId: 'u1' }))
+
+      const results = await repo.findForModel('User', 'u1')
+      expect(results.map((r) => r.id)).toEqual([userU1.id])
+      expect(results.every((r) => r.modelType === 'User' && r.modelId === 'u1')).toBe(true)
+    })
+
+    it('findById round-trips nested customProperties/manipulations objects without mutation', async () => {
+      const customProperties = { tags: ['a', 'b'], meta: { rating: 5, nested: { deep: true } } }
+      const manipulations = { thumb: { width: 100, filters: ['grayscale'] } }
+
+      const created = await repo.create(
+        makeRecord({ customProperties, manipulations }),
+      )
+      const found = await repo.findById(created.id)
+
+      expect(found?.customProperties).toEqual(customProperties)
+      expect(found?.manipulations).toEqual(manipulations)
+    })
+
     it('delete is idempotent', async () => {
       const created = await repo.create(makeRecord())
       await repo.delete(created.id)
