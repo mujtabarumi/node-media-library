@@ -8,6 +8,8 @@ import { createMediaLibrary } from '../src/library.js'
 import { InMemoryMediaRepository } from '../src/repository/in-memory.js'
 import { collection } from '../src/definitions/collection.js'
 import { conversion } from '../src/definitions/conversion.js'
+import type { MediaRecord } from '../src/types.js'
+import type { SignedUrlOptions, UrlGenerator } from '../src/storage/url-generator.js'
 
 let root: string
 let repo: InMemoryMediaRepository
@@ -172,5 +174,95 @@ describe('responsive read surface', () => {
 
     const second = await library.regenerate({ withResponsive: true, onlyMissing: true })
     expect(second).toEqual({ enqueued: 0 })
+  })
+
+  it('7. responsiveUrls(id, "original", { signed: true }) on an fs disk returns the same URLs as the public path (fs fallback)', async () => {
+    const library = createMediaLibrary({
+      repository: repo,
+      storage: { disks: { default: { driver: 'fs', root, baseUrl } } },
+      models: {
+        Post: { collections: { images: collection().withResponsiveImages() } },
+      },
+    })
+
+    const media = await library.for('Post', 1).add(jpeg).usingFileName('photo.jpg').toCollection('images')
+
+    const publicUrls = await library.responsiveUrls(media.id)
+    const signedUrls = await library.responsiveUrls(media.id, 'original', { signed: true })
+    expect(signedUrls).toEqual(publicUrls)
+
+    const signedSrcset = await library.srcset(media.id, 'original', { signed: true })
+    const publicSrcset = await library.srcset(media.id)
+    expect(signedSrcset).toBe(publicSrcset)
+  })
+
+  it('8. a custom UrlGenerator with responsiveSignedUrl routes signed reads through it', async () => {
+    class StubUrlGenerator implements UrlGenerator {
+      async url(media: MediaRecord): Promise<string> {
+        return `public://${media.id}`
+      }
+      async signedUrl(media: MediaRecord): Promise<string> {
+        return `signed://${media.id}`
+      }
+      async responsiveUrl(media: MediaRecord, fileName: string): Promise<string> {
+        return `public://${media.id}/responsive/${fileName}`
+      }
+      async responsiveSignedUrl(
+        media: MediaRecord,
+        fileName: string,
+        opts?: SignedUrlOptions,
+      ): Promise<string> {
+        return `signed://${media.id}/responsive/${fileName}${opts?.expiresIn ? `?ttl=${opts.expiresIn}` : ''}`
+      }
+    }
+
+    const library = createMediaLibrary({
+      repository: repo,
+      storage: { disks: { default: { driver: 'fs', root, baseUrl } } },
+      urlGenerator: new StubUrlGenerator(),
+      models: {
+        Post: { collections: { images: collection().withResponsiveImages() } },
+      },
+    })
+
+    const media = await library.for('Post', 1).add(jpeg).usingFileName('photo.jpg').toCollection('images')
+
+    const signedUrls = await library.responsiveUrls(media.id, 'original', { signed: true, expiresIn: 600 })
+    expect(signedUrls.length).toBeGreaterThan(0)
+    for (const url of signedUrls) {
+      expect(url.startsWith(`signed://${media.id}/responsive/`)).toBe(true)
+      expect(url).toContain('?ttl=600')
+    }
+
+    const srcset = await library.srcset(media.id, 'original', { signed: true })
+    expect(srcset).not.toBeNull()
+    expect(srcset).toContain(`signed://${media.id}/responsive/`)
+  })
+
+  it('9. a generator lacking responsiveUrl/responsiveSignedUrl degrades to []/null', async () => {
+    class BareUrlGenerator implements UrlGenerator {
+      async url(media: MediaRecord): Promise<string> {
+        return `public://${media.id}`
+      }
+      async signedUrl(media: MediaRecord): Promise<string> {
+        return `signed://${media.id}`
+      }
+    }
+
+    const library = createMediaLibrary({
+      repository: repo,
+      storage: { disks: { default: { driver: 'fs', root, baseUrl } } },
+      urlGenerator: new BareUrlGenerator(),
+      models: {
+        Post: { collections: { images: collection().withResponsiveImages() } },
+      },
+    })
+
+    const media = await library.for('Post', 1).add(jpeg).usingFileName('photo.jpg').toCollection('images')
+
+    expect(await library.responsiveUrls(media.id, 'original', { signed: true })).toEqual([])
+    expect(await library.srcset(media.id, 'original', { signed: true })).toBeNull()
+    expect(await library.responsiveUrls(media.id)).toEqual([])
+    expect(await library.srcset(media.id)).toBeNull()
   })
 })

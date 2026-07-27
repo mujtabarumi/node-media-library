@@ -28,8 +28,14 @@ export async function tinyPlaceholder(input: Buffer): Promise<string> {
   const sharp = (await import('sharp')).default
   const image = sharp(input).rotate()
   const meta = await image.metadata()
-  const width = meta.width ?? 32
-  const height = meta.height ?? 32
+  // sharp's metadata() reports PRE-rotation (raw pixel-storage) dimensions
+  // even when the pipeline has .rotate() applied — EXIF orientations 5-8
+  // (90/270 degree rotations) swap width and height once actually rendered,
+  // so the placeholder's viewBox must swap them too or it reports the wrong
+  // aspect ratio for the box it's meant to reserve.
+  const swapped = meta.orientation !== undefined && meta.orientation >= 5
+  const width = (swapped ? meta.height : meta.width) ?? 32
+  const height = (swapped ? meta.width : meta.height) ?? 32
   const tiny = await image.resize({ width: 32 }).blur(2).jpeg({ quality: 50 }).toBuffer()
   const svg =
     `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" ` +

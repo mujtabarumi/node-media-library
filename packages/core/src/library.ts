@@ -221,23 +221,57 @@ export class MediaLibrary {
   }
 
   /**
-   * Public URLs for `conversion`'s stored responsive variants (widest
-   * first, mirroring stored order). `[]` when there's no entry, or when the
-   * configured `UrlGenerator` doesn't implement `responsiveUrl` (graceful
-   * degradation for custom generators predating responsive images).
+   * Public (or, with `opts.signed`, signed) URLs for `conversion`'s stored
+   * responsive variants (widest first, mirroring stored order). `[]` when
+   * there's no entry, or when the configured `UrlGenerator` doesn't
+   * implement the relevant optional member (`responsiveUrl` /
+   * `responsiveSignedUrl`) — graceful degradation for custom generators
+   * predating responsive images or signed responsive URLs.
    */
-  async responsiveUrls(mediaOrId: MediaRecord | string, conversion = 'original'): Promise<string[]> {
+  async responsiveUrls(
+    mediaOrId: MediaRecord | string,
+    conversion = 'original',
+    opts?: { signed?: boolean; expiresIn?: string | number },
+  ): Promise<string[]> {
     const media = await this.requireMedia(mediaOrId)
     const entry = this.responsiveEntry(media, conversion)
-    if (!entry?.files?.length || !this.urlGeneratorInstance.responsiveUrl) return []
+    if (!entry?.files?.length) return []
+
+    if (opts?.signed) {
+      if (!this.urlGeneratorInstance.responsiveSignedUrl) return []
+      return Promise.all(
+        entry.files.map((f) =>
+          this.urlGeneratorInstance.responsiveSignedUrl!(media, f.fileName, { expiresIn: opts.expiresIn }),
+        ),
+      )
+    }
+
+    if (!this.urlGeneratorInstance.responsiveUrl) return []
     return Promise.all(entry.files.map((f) => this.urlGeneratorInstance.responsiveUrl!(media, f.fileName)))
   }
 
   /** `'url1 800w, url2 669w'` srcset string; `null` when there's no entry/empty files. */
-  async srcset(mediaOrId: MediaRecord | string, conversion = 'original'): Promise<string | null> {
+  async srcset(
+    mediaOrId: MediaRecord | string,
+    conversion = 'original',
+    opts?: { signed?: boolean; expiresIn?: string | number },
+  ): Promise<string | null> {
     const media = await this.requireMedia(mediaOrId)
     const entry = this.responsiveEntry(media, conversion)
-    if (!entry?.files?.length || !this.urlGeneratorInstance.responsiveUrl) return null
+    if (!entry?.files?.length) return null
+
+    if (opts?.signed) {
+      if (!this.urlGeneratorInstance.responsiveSignedUrl) return null
+      const parts = await Promise.all(
+        entry.files.map(
+          async (f) =>
+            `${await this.urlGeneratorInstance.responsiveSignedUrl!(media, f.fileName, { expiresIn: opts.expiresIn })} ${f.width}w`,
+        ),
+      )
+      return parts.join(', ')
+    }
+
+    if (!this.urlGeneratorInstance.responsiveUrl) return null
     const parts = await Promise.all(
       entry.files.map(async (f) => `${await this.urlGeneratorInstance.responsiveUrl!(media, f.fileName)} ${f.width}w`),
     )

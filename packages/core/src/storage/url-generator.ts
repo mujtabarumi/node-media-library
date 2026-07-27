@@ -19,6 +19,14 @@ export interface UrlGenerator {
    * gracefully to `[]`/`null` when it's absent.
    */
   responsiveUrl?(media: MediaRecord, fileName: string): Promise<string>
+  /**
+   * Signed URL for a responsive variant file — the private-disk counterpart
+   * to `responsiveUrl`. Optional for the same reason: custom `UrlGenerator`
+   * implementations that predate responsive images keep compiling, and
+   * `MediaLibrary.responsiveUrls`/`srcset` (when called with `{ signed: true }`)
+   * degrade gracefully to `[]`/`null` when it's absent.
+   */
+  responsiveSignedUrl?(media: MediaRecord, fileName: string, opts?: SignedUrlOptions): Promise<string>
 }
 
 export interface UrlGeneratorOptions {
@@ -99,12 +107,18 @@ export class DefaultUrlGenerator implements UrlGenerator {
     return this.publicUrlFor(`${this.pathGen.responsivePath(media)}/${fileName}`, media.disk, media)
   }
 
-  async signedUrl(
-    media: MediaRecord,
-    conversionName?: string,
+  /**
+   * Signed URL for `path` on `diskName`: fs-driver falls back to the plain
+   * public URL (documented dev-mode behavior, expiry ignored), otherwise
+   * `disk.getSignedUrl()` wrapped in a StorageError on failure. Shared by
+   * `signedUrl()` and `responsiveSignedUrl()` so the two never drift.
+   */
+  private async signedUrlFor(
+    path: string,
+    diskName: string,
+    fallback: () => Promise<string>,
     opts?: SignedUrlOptions,
   ): Promise<string> {
-    const { path, disk: diskName } = this.resolveTarget(media, conversionName)
     const config = this.storage.diskConfig(diskName)
     const expiresIn = opts?.expiresIn ?? this.opts.signedUrlExpiresIn
 
@@ -112,9 +126,9 @@ export class DefaultUrlGenerator implements UrlGenerator {
       // fs driver has no signing support without a configured urlBuilder;
       // fall back to the plain public URL (documented dev-mode behavior).
       // Note: `expiresIn` (whether from opts or signedUrlExpiresIn) is
-      // ignored on this path since url() has no concept of expiry — the
-      // returned URL never actually expires.
-      return this.url(media, conversionName)
+      // ignored on this path since the fallback has no concept of expiry —
+      // the returned URL never actually expires.
+      return fallback()
     }
 
     try {
@@ -125,5 +139,23 @@ export class DefaultUrlGenerator implements UrlGenerator {
         `Unable to build a signed URL for "${path}": ${(err as Error).message}`,
       )
     }
+  }
+
+  async signedUrl(
+    media: MediaRecord,
+    conversionName?: string,
+    opts?: SignedUrlOptions,
+  ): Promise<string> {
+    const { path, disk: diskName } = this.resolveTarget(media, conversionName)
+    return this.signedUrlFor(path, diskName, () => this.url(media, conversionName), opts)
+  }
+
+  async responsiveSignedUrl(
+    media: MediaRecord,
+    fileName: string,
+    opts?: SignedUrlOptions,
+  ): Promise<string> {
+    const path = `${this.pathGen.responsivePath(media)}/${fileName}`
+    return this.signedUrlFor(path, media.disk, () => this.responsiveUrl(media, fileName), opts)
   }
 }

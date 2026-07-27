@@ -16,11 +16,17 @@ export interface MediaRepository {
   iterateAll(filter?: MediaFilter): AsyncIterable<MediaRecord>
   ownerExists(modelType: string, modelId: string): Promise<boolean>
   /**
-   * Atomically merges `{ [name]: generated }` into the record's
-   * `generatedConversions` map. Unlike a read→`update()` round-trip in the
-   * caller, the read-merge-write happens inside the repository, where the
-   * adapter can serialize it (transaction, single-threaded map, ...), so two
-   * concurrent calls for different names must both persist.
+   * Merges `{ [name]: generated }` into the record's `generatedConversions`
+   * map. Unlike a read→`update()` round-trip in the caller, the read-merge-
+   * write happens inside the repository, so the adapter can serialize it
+   * where its backend allows (e.g. a single-threaded in-memory map, or
+   * SQLite's single-writer model) — two concurrent calls for different names
+   * are then guaranteed to both persist. Adapters whose backend cannot fully
+   * serialize this read-merge-write (e.g. a read-committed SQL database
+   * without row locks, where `$transaction`-wrapped read-then-write doesn't
+   * block a concurrent transaction from reading the same pre-update row)
+   * narrow the lost-update window but may not eliminate it — see the
+   * adapter's own docs for its actual guarantee.
    */
   markConversionGenerated(id: string, name: string, generated: boolean): Promise<MediaRecord>
   /** Same contract for `responsiveImages[conversion] = entry`. */

@@ -28,6 +28,15 @@ export const DEFAULT_COLLECTION: CollectionDefinition = Object.freeze({
   responsiveImages: false,
 })
 
+/**
+ * Conversion names that collide with responsive-images pseudo-conversions:
+ * `'original'` names the responsive-images entry for the source file itself,
+ * and `'requested'` is the per-add opt-in flag stored in
+ * `media.responsiveImages`. Defining a real conversion under either name
+ * would silently shadow that machinery.
+ */
+export const RESERVED_CONVERSION_NAMES: readonly string[] = Object.freeze(['original', 'requested'])
+
 export function matchesMime(pattern: string, mime: string): boolean {
   if (pattern.endsWith('/*')) {
     return mime.startsWith(pattern.slice(0, -1))
@@ -102,6 +111,13 @@ export class CollectionBuilder {
   conversions(record: Record<string, ConversionBuilder>): this {
     this.definition.conversions = {}
     for (const [key, builder] of Object.entries(record)) {
+      if (RESERVED_CONVERSION_NAMES.includes(key)) {
+        throw new MediaLibraryError(
+          `Conversion name "${key}" is reserved: 'original' is the responsive-images pseudo-conversion ` +
+            `for the source file, and 'requested' is the per-add responsive opt-in flag. Choose a ` +
+            `different conversion name.`,
+        )
+      }
       this.definition.conversions[key] = builder.toDefinition()
     }
     return this

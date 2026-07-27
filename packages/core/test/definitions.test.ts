@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { collection, conversion, matchesMime, DEFAULT_COLLECTION } from '../src/index.js'
+import { collection, conversion, matchesMime, DEFAULT_COLLECTION, RESERVED_CONVERSION_NAMES } from '../src/index.js'
 describe('definition builders', () => {
   it('collection builder produces plain serializable data', () => {
     const def = collection().singleFile().acceptsMimeTypes(['image/*'])
@@ -43,6 +43,15 @@ describe('definition builders', () => {
     expect(DEFAULT_COLLECTION.conversions).toBe(conversionsBefore)
     expect(DEFAULT_COLLECTION.fallbackUrls['thumb']).toBeUndefined()
     expect(DEFAULT_COLLECTION.conversions['mutated']).toBeUndefined()
+  })
+  it('conversions() rejects reserved names ("original", "requested")', () => {
+    for (const name of RESERVED_CONVERSION_NAMES) {
+      expect(() => collection().conversions({ [name]: conversion().width(100) })).toThrow()
+    }
+  })
+  it('conversions() still accepts a normal name', () => {
+    const def = collection().conversions({ thumb: conversion().width(100) }).toDefinition()
+    expect(def.conversions.thumb).toMatchObject({ width: 100 })
   })
   it('extended conversion surface: effects, autoOrient default, generator hints', () => {
     const def = conversion().width(100).position('attention').sharpen().blur(3)

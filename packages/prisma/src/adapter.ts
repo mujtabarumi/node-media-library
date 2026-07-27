@@ -132,6 +132,16 @@ class PrismaMediaRepository implements MediaRepository {
     return check(modelId)
   }
 
+  /**
+   * With `$transaction`, the read-merge-write below runs transactionally,
+   * but that alone does not make it atomic against concurrent merges on the
+   * SAME record: Postgres and MySQL's default isolation (read committed) does
+   * not take a row lock on a plain `findUnique` read, so a second concurrent
+   * `mergeJsonColumn` transaction can read the same pre-update row and, when
+   * both commit, one write can still be lost. SQLite serializes all writes
+   * (single-writer), so it does not have this gap — the contract's
+   * concurrency guarantee holds there but is not proven for Postgres/MySQL.
+   */
   private async mergeJsonColumn(
     id: string,
     column: 'generatedConversions' | 'responsiveImages',

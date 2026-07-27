@@ -35,4 +35,20 @@ describe('tinyPlaceholder', () => {
     expect(svg).toContain('data:image/jpeg;base64,')
     expect(svg).toContain('viewBox="0 0 1200 900"')
   })
+
+  it('swaps width/height in the viewBox for an EXIF-rotated (orientation 6) source', async () => {
+    // sharp's metadata() reports PRE-rotation (raw pixel-storage) dimensions
+    // even with .rotate() applied; a 300x200 source stored with orientation
+    // 6 (90deg CW) has a post-rotation intrinsic size of 200x300.
+    const rotated = await sharp({
+      create: { width: 300, height: 200, channels: 3, background: { r: 10, g: 200, b: 40 } },
+    })
+      .jpeg()
+      .withMetadata({ orientation: 6 })
+      .toBuffer()
+
+    const uri = await tinyPlaceholder(rotated)
+    const svg = Buffer.from(uri.slice('data:image/svg+xml;base64,'.length), 'base64').toString('utf8')
+    expect(svg).toContain('viewBox="0 0 200 300"')
+  })
 })

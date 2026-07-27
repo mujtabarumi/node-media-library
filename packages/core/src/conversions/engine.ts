@@ -100,7 +100,15 @@ export class ConversionEngine {
     const meta = await sharp(source).rotate().metadata()
     if (!meta.width || !meta.height) return
 
-    const widths = this.deps.widthCalculator.calculateWidths(source.byteLength, meta.width, meta.height)
+    // sharp's metadata() reports PRE-rotation (raw pixel-storage) dimensions
+    // even with .rotate() applied — EXIF orientations 5-8 swap width/height
+    // once actually rendered, so the width calculator must see post-rotation
+    // dimensions or it computes ratios against the wrong intrinsic aspect.
+    const swapped = meta.orientation !== undefined && meta.orientation >= 5
+    const intrinsicWidth = swapped ? meta.height : meta.width
+    const intrinsicHeight = swapped ? meta.width : meta.height
+
+    const widths = this.deps.widthCalculator.calculateWidths(source.byteLength, intrinsicWidth, intrinsicHeight)
     const disk = await this.deps.storage.disk(media.disk)
     const dir = this.deps.pathGenerator.responsivePath(media)
 
@@ -203,9 +211,11 @@ export class ConversionEngine {
           // but it isn't marked generated and 'conversion:failed' fires.
           await this.generateResponsive(media, name, output, def.format, def.quality)
         }
-        // Atomic merge inside the repository (Plan 4): no read→write gap in
-        // this layer, so concurrent perform() calls can no longer clobber
-        // each other's generatedConversions marks.
+        // The merge is delegated to the repository (Plan 4): no read→write
+        // gap in this layer, which serializes it as far as its backend
+        // allows — the repository contract narrows, but does not always
+        // eliminate, the lost-update window for concurrent perform() calls
+        // (see MediaRepository.markConversionGenerated's JSDoc).
         const updated = await this.deps.repository.markConversionGenerated(mediaId, name, true)
         this.deps.events.emit('conversion:completed', { media: snapshot(updated), conversion: name })
       } catch (error) {
