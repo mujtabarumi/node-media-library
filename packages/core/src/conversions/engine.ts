@@ -109,18 +109,10 @@ export class ConversionEngine {
         const output = await generator.toImage(originalBuffer, def)
         const key = conversionKey(media, this.deps.pathGenerator, def, name)
         await conversionsDisk.put(key, output)
-        // Re-read immediately before computing the merge (rather than
-        // reusing `before`, captured above prior to the — potentially
-        // slow — image generation) to keep the window between this read
-        // and the `update()` write as narrow as possible. This narrows
-        // but does not eliminate the race: there is still a read→write
-        // gap here, since this layer has no transaction/lock around the
-        // pair. Repository adapters may choose to tighten that (e.g. an
-        // atomic JSON-merge update) in the future.
-        const fresh = (await this.deps.repository.findById(mediaId)) ?? before
-        const updated = await this.deps.repository.update(mediaId, {
-          generatedConversions: { ...fresh.generatedConversions, [name]: true },
-        })
+        // Atomic merge inside the repository (Plan 4): no read→write gap in
+        // this layer, so concurrent perform() calls can no longer clobber
+        // each other's generatedConversions marks.
+        const updated = await this.deps.repository.markConversionGenerated(mediaId, name, true)
         this.deps.events.emit('conversion:completed', { media: snapshot(updated), conversion: name })
       } catch (error) {
         failures += 1

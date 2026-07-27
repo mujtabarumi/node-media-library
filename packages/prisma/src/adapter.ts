@@ -1,6 +1,6 @@
 import { MediaLibraryError } from '@node-media-library/core'
-import type { MediaFilter, MediaRecord, MediaRepository, NewMediaRecord } from '@node-media-library/core'
-import type { PrismaLikeClient } from './client.js'
+import type { JsonObject, MediaFilter, MediaRecord, MediaRepository, NewMediaRecord } from '@node-media-library/core'
+import type { MediaDelegate, PrismaLikeClient } from './client.js'
 import { toCreateData, toMediaRecord } from './mapping.js'
 
 export interface PrismaAdapterOptions {
@@ -130,6 +130,32 @@ class PrismaMediaRepository implements MediaRepository {
     const check = this.opts.owners?.[modelType]
     if (!check) return true
     return check(modelId)
+  }
+
+  private async mergeJsonColumn(
+    id: string,
+    column: 'generatedConversions' | 'responsiveImages',
+    key: string,
+    value: unknown,
+  ): Promise<MediaRecord> {
+    const run = async (tx: { media: MediaDelegate }) => {
+      const row = await tx.media.findUnique({ where: { id } })
+      if (!row) {
+        throw new MediaLibraryError(`Media record with id "${id}" was not found`, 'NOT_FOUND')
+      }
+      const current = (row[column] ?? {}) as Record<string, unknown>
+      return tx.media.update({ where: { id }, data: { [column]: { ...current, [key]: value } } })
+    }
+    const row = this.client.$transaction ? await this.client.$transaction(run) : await run(this.client)
+    return toMediaRecord(row)
+  }
+
+  async markConversionGenerated(id: string, name: string, generated: boolean): Promise<MediaRecord> {
+    return this.mergeJsonColumn(id, 'generatedConversions', name, generated)
+  }
+
+  async mergeResponsiveImages(id: string, conversion: string, entry: JsonObject): Promise<MediaRecord> {
+    return this.mergeJsonColumn(id, 'responsiveImages', conversion, entry)
   }
 }
 

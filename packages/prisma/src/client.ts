@@ -31,4 +31,11 @@ export interface MediaDelegate {
 
 export interface PrismaLikeClient {
   media: MediaDelegate
+  /**
+   * Prisma's interactive-transaction API. Optional: when present (any real
+   * PrismaClient), the JSON merge methods run their read-merge-write inside
+   * it; when absent, they fall back to a plain read-merge-write (documented
+   * residual race for exotic clients that lack transactions).
+   */
+  $transaction?<T>(fn: (tx: { media: MediaDelegate }) => Promise<T>): Promise<T>
 }

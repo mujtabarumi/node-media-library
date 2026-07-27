@@ -1,4 +1,4 @@
-import { MediaRecord, NewMediaRecord } from './types.js'
+import { JsonObject, MediaRecord, NewMediaRecord } from './types.js'
 
 export interface MediaFilter {
   modelType?: string
@@ -15,4 +15,14 @@ export interface MediaRepository {
   setOrder(ids: string[], startAt?: number): Promise<void>
   iterateAll(filter?: MediaFilter): AsyncIterable<MediaRecord>
   ownerExists(modelType: string, modelId: string): Promise<boolean>
+  /**
+   * Atomically merges `{ [name]: generated }` into the record's
+   * `generatedConversions` map. Unlike a read→`update()` round-trip in the
+   * caller, the read-merge-write happens inside the repository, where the
+   * adapter can serialize it (transaction, single-threaded map, ...), so two
+   * concurrent calls for different names must both persist.
+   */
+  markConversionGenerated(id: string, name: string, generated: boolean): Promise<MediaRecord>
+  /** Same contract for `responsiveImages[conversion] = entry`. */
+  mergeResponsiveImages(id: string, conversion: string, entry: JsonObject): Promise<MediaRecord>
 }

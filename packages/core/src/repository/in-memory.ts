@@ -1,5 +1,5 @@
 import { MediaLibraryError } from '../errors.js'
-import { MediaRecord, NewMediaRecord } from '../types.js'
+import { JsonObject, MediaRecord, NewMediaRecord } from '../types.js'
 import { MediaFilter, MediaRepository } from '../repository.js'
 
 export function compareMediaOrder(a: MediaRecord, b: MediaRecord): number {
@@ -88,5 +88,33 @@ export class InMemoryMediaRepository implements MediaRepository {
 
   async ownerExists(modelType: string, modelId: string): Promise<boolean> {
     return this.ownerExistsFn(modelType, modelId)
+  }
+
+  async markConversionGenerated(id: string, name: string, generated: boolean): Promise<MediaRecord> {
+    const existing = this.records.get(id)
+    if (!existing) {
+      throw new MediaLibraryError(`Media record with id "${id}" was not found`, 'NOT_FOUND')
+    }
+    const updated: MediaRecord = {
+      ...existing,
+      generatedConversions: { ...existing.generatedConversions, [name]: generated },
+      updatedAt: new Date(),
+    }
+    this.records.set(id, updated)
+    return updated
+  }
+
+  async mergeResponsiveImages(id: string, conversion: string, entry: JsonObject): Promise<MediaRecord> {
+    const existing = this.records.get(id)
+    if (!existing) {
+      throw new MediaLibraryError(`Media record with id "${id}" was not found`, 'NOT_FOUND')
+    }
+    const updated: MediaRecord = {
+      ...existing,
+      responsiveImages: { ...existing.responsiveImages, [conversion]: entry },
+      updatedAt: new Date(),
+    }
+    this.records.set(id, updated)
+    return updated
   }
 }

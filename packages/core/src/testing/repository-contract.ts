@@ -171,5 +171,41 @@ export function runMediaRepositoryContract(
       }
       expect(userGallery.length).toBe(1)
     })
+
+    it('markConversionGenerated merges without clobbering other keys', async () => {
+      const created = await repo.create(makeRecord({ generatedConversions: { thumb: true } }))
+      await sleep(2)
+      const updated = await repo.markConversionGenerated(created.id, 'preview', true)
+      expect(updated.generatedConversions).toEqual({ thumb: true, preview: true })
+      expect(updated.updatedAt.getTime()).toBeGreaterThan(created.updatedAt.getTime())
+      const found = await repo.findById(created.id)
+      expect(found?.generatedConversions).toEqual({ thumb: true, preview: true })
+    })
+
+    it('markConversionGenerated rejects unknown id with MediaLibraryError', async () => {
+      await expect(repo.markConversionGenerated('nope', 'thumb', true)).rejects.toThrow(MediaLibraryError)
+    })
+
+    it('concurrent markConversionGenerated calls for different names both persist', async () => {
+      const created = await repo.create(makeRecord())
+      await Promise.all([
+        repo.markConversionGenerated(created.id, 'a', true),
+        repo.markConversionGenerated(created.id, 'b', true),
+      ])
+      const found = await repo.findById(created.id)
+      expect(found?.generatedConversions).toEqual({ a: true, b: true })
+    })
+
+    it('mergeResponsiveImages sets one conversion key and preserves the rest', async () => {
+      const created = await repo.create(
+        makeRecord({ responsiveImages: { original: { files: [] } } }),
+      )
+      const updated = await repo.mergeResponsiveImages(created.id, 'thumb', { files: [{ fileName: 'x', width: 1, height: 1 }] })
+      expect(updated.responsiveImages).toEqual({
+        original: { files: [] },
+        thumb: { files: [{ fileName: 'x', width: 1, height: 1 }] },
+      })
+      await expect(repo.mergeResponsiveImages('nope', 'thumb', {})).rejects.toThrow(MediaLibraryError)
+    })
   })
 }
