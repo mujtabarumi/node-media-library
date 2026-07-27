@@ -18,6 +18,13 @@ export interface RegenerateOptions {
   ids?: string[]
   only?: string[]
   onlyMissing?: boolean
+  /**
+   * When true, appends the `'original'` responsive-regeneration sentinel to
+   * each record's dispatch names whenever `wantsOriginalResponsive(record)`.
+   * Under `onlyMissing`, only when `record.responsiveImages['original']` is
+   * absent. `only` (which reasons about conversion names) never gates it.
+   */
+  withResponsive?: boolean
 }
 
 export interface ConversionEngineDeps {

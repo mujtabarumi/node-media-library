@@ -145,9 +145,9 @@ Media-level API: `url(conversion?)`, `signedUrl(...)`, `srcset(conversion?)`, `d
 **Responsive images** (opt-in per collection/conversion or per-add):
 - Widths from `FileSizeOptimizedWidthCalculator` (port of Spatie's: each variant targets ~70% of previous file size; stop < 10KB predicted or < 20px). Swappable via config.
 - Files: `{mediaId}/responsive/{fileNameSansExt}___{conversion}_{w}_{h}.{ext}`; original tracked under pseudo-conversion name `original`.
-- `responsiveImages` JSON: `{ [conversion]: { urls: string[], placeholder?: base64svg } }`.
+- `responsiveImages` JSON: `{ [conversion]: { files: [{ fileName, width, height }], placeholder?: base64svg } }` — file names + dimensions, not URLs (disks are private-by-default and URLs may be signed/expiring; URLs are built at read time).
 - LQIP: blurred ~32px variant embedded as base64 SVG (default on, can disable).
-- API returns data, not HTML: `srcset()` string (placeholder included), `responsiveUrls()`, `placeholder()`. Framework view helpers are out of scope for v1.
+- API returns data, not HTML: `srcset()` string (real variants only, widest first), `responsiveUrls()`, `placeholder()` (the LQIP data URI, exposed separately — it does not belong inside a `srcset` attribute). Framework view helpers are out of scope for v1.
 
 ## 10. Storage, paths, URLs
 

@@ -11,6 +11,14 @@ export interface UrlGenerator {
   /** Throws StorageError if the disk cannot build public URLs. */
   url(media: MediaRecord, conversionName?: string): Promise<string>
   signedUrl(media: MediaRecord, conversionName?: string, opts?: SignedUrlOptions): Promise<string>
+  /**
+   * Public URL for a responsive variant file (as stored in
+   * `ResponsiveImagesEntry.files[].fileName`). Optional so custom
+   * `UrlGenerator` implementations that predate responsive images keep
+   * compiling; library read methods (`responsiveUrls`/`srcset`) degrade
+   * gracefully to `[]`/`null` when it's absent.
+   */
+  responsiveUrl?(media: MediaRecord, fileName: string): Promise<string>
 }
 
 export interface UrlGeneratorOptions {
@@ -60,6 +68,15 @@ export class DefaultUrlGenerator implements UrlGenerator {
 
   async url(media: MediaRecord, conversionName?: string): Promise<string> {
     const { path, disk: diskName } = this.resolveTarget(media, conversionName)
+    return this.publicUrlFor(path, diskName, media)
+  }
+
+  /**
+   * Public URL for `path` on `diskName`: fs-baseUrl short-circuit, otherwise
+   * `disk.getUrl()`, plus the `?v=` versioning suffix when enabled. Shared by
+   * `url()` and `responsiveUrl()` so the two never drift.
+   */
+  private async publicUrlFor(path: string, diskName: string, media: MediaRecord): Promise<string> {
     const config = this.storage.diskConfig(diskName)
 
     if (config.driver === 'fs' && config.baseUrl) {
@@ -76,6 +93,10 @@ export class DefaultUrlGenerator implements UrlGenerator {
         `Unable to build a public URL for "${path}": ${(err as Error).message}`,
       )
     }
+  }
+
+  async responsiveUrl(media: MediaRecord, fileName: string): Promise<string> {
+    return this.publicUrlFor(`${this.pathGen.responsivePath(media)}/${fileName}`, media.disk, media)
   }
 
   async signedUrl(

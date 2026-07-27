@@ -5,6 +5,7 @@ import type { MediaEventMap } from './events.js'
 import { CollectionDefinition, DEFAULT_COLLECTION } from './definitions/collection.js'
 import { UnknownModelError, MediaLibraryError } from './errors.js'
 import type { JsonObject, MediaRecord } from './types.js'
+import type { ResponsiveImagesEntry } from './responsive/types.js'
 import type { MediaRepository } from './repository.js'
 import type { ResolvedStorage } from './storage/resolve.js'
 import type { PathGenerator } from './storage/path-generator.js'
@@ -131,6 +132,12 @@ export class MediaLibrary {
       if (opts.onlyMissing) {
         names = names.filter((name) => record.generatedConversions[name] !== true)
       }
+
+      if (opts.withResponsive && this.engine.wantsOriginalResponsive(record)) {
+        const missing = record.responsiveImages['original'] === undefined
+        if (!opts.onlyMissing || missing) names.push('original')
+      }
+
       if (names.length === 0) return
 
       await this.resolved.queue.enqueue({ mediaId: record.id, conversionNames: names })
@@ -199,12 +206,52 @@ export class MediaLibrary {
     return this.resolved.models[modelType]?.[collection] ?? DEFAULT_COLLECTION
   }
 
-  async deleteMedia(mediaOrId: MediaRecord | string): Promise<void> {
+  /** Resolves `mediaOrId` to a `MediaRecord`, throwing `MediaLibraryError` when a string id doesn't exist. */
+  private async requireMedia(mediaOrId: MediaRecord | string): Promise<MediaRecord> {
     const media =
       typeof mediaOrId === 'string' ? await this.resolved.repository.findById(mediaOrId) : mediaOrId
-    if (!media) {
-      throw new MediaLibraryError('media not found')
-    }
+    if (!media) throw new MediaLibraryError('media not found')
+    return media
+  }
+
+  private responsiveEntry(media: MediaRecord, conversion: string): ResponsiveImagesEntry | null {
+    const entry = media.responsiveImages[conversion]
+    if (!entry || typeof entry !== 'object') return null
+    return entry as unknown as ResponsiveImagesEntry
+  }
+
+  /**
+   * Public URLs for `conversion`'s stored responsive variants (widest
+   * first, mirroring stored order). `[]` when there's no entry, or when the
+   * configured `UrlGenerator` doesn't implement `responsiveUrl` (graceful
+   * degradation for custom generators predating responsive images).
+   */
+  async responsiveUrls(mediaOrId: MediaRecord | string, conversion = 'original'): Promise<string[]> {
+    const media = await this.requireMedia(mediaOrId)
+    const entry = this.responsiveEntry(media, conversion)
+    if (!entry?.files?.length || !this.urlGeneratorInstance.responsiveUrl) return []
+    return Promise.all(entry.files.map((f) => this.urlGeneratorInstance.responsiveUrl!(media, f.fileName)))
+  }
+
+  /** `'url1 800w, url2 669w'` srcset string; `null` when there's no entry/empty files. */
+  async srcset(mediaOrId: MediaRecord | string, conversion = 'original'): Promise<string | null> {
+    const media = await this.requireMedia(mediaOrId)
+    const entry = this.responsiveEntry(media, conversion)
+    if (!entry?.files?.length || !this.urlGeneratorInstance.responsiveUrl) return null
+    const parts = await Promise.all(
+      entry.files.map(async (f) => `${await this.urlGeneratorInstance.responsiveUrl!(media, f.fileName)} ${f.width}w`),
+    )
+    return parts.join(', ')
+  }
+
+  /** The LQIP base64 SVG data URI for `conversion`, or `null` when absent. */
+  async placeholder(mediaOrId: MediaRecord | string, conversion = 'original'): Promise<string | null> {
+    const media = await this.requireMedia(mediaOrId)
+    return this.responsiveEntry(media, conversion)?.placeholder ?? null
+  }
+
+  async deleteMedia(mediaOrId: MediaRecord | string): Promise<void> {
+    const media = await this.requireMedia(mediaOrId)
 
     this.events.emit('media:deleting', { media })
     const disk = await this.resolved.storage.disk(media.disk)
