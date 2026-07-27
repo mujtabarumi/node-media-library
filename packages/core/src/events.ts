@@ -7,6 +7,9 @@ export interface MediaEventMap {
   'media:deleting': { media: MediaRecord }
   'media:deleted': { media: MediaRecord }
   'collection:cleared': { modelType: string; modelId: string; collection: string }
+  'conversion:started': { media: MediaRecord; conversion: string }
+  'conversion:completed': { media: MediaRecord; conversion: string }
+  'conversion:failed': { media: MediaRecord; conversion: string; error: unknown }
 }
 
 // `T extends object` (not `Record<string, unknown>`): the class only ever
