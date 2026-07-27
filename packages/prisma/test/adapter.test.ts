@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { MediaLibraryError } from '@node-media-library/core'
 import { prismaAdapter } from '../src/adapter.js'
 import { getTestClient } from './helpers/client.js'
 
@@ -60,5 +61,41 @@ describe('prismaAdapter — adapter-specific behavior', () => {
     await client.media.deleteMany({})
     const adapter = prismaAdapter(client)
     await expect(adapter.delete('never-existed')).resolves.toBeUndefined()
+  })
+
+  it('create rejects a duplicate id with an honest message naming the id', async () => {
+    const client = await getTestClient()
+    await client.media.deleteMany({})
+    const adapter = prismaAdapter(client)
+    const record = makeRecord()
+    await adapter.create(record)
+
+    try {
+      await adapter.create(makeRecord({ id: record.id }))
+      throw new Error('expected create to reject')
+    } catch (e) {
+      expect(e).toBeInstanceOf(MediaLibraryError)
+      expect((e as MediaLibraryError).code).toBe('DUPLICATE_ID')
+      expect((e as MediaLibraryError).message).toContain('id')
+      expect((e as MediaLibraryError).message).toContain(record.id)
+    }
+  })
+
+  it('create rejects a duplicate uuid with an honest message naming the uuid, not the id', async () => {
+    const client = await getTestClient()
+    await client.media.deleteMany({})
+    const adapter = prismaAdapter(client)
+    const sharedUuid = crypto.randomUUID()
+    await adapter.create(makeRecord({ uuid: sharedUuid }))
+
+    try {
+      await adapter.create(makeRecord({ uuid: sharedUuid }))
+      throw new Error('expected create to reject')
+    } catch (e) {
+      expect(e).toBeInstanceOf(MediaLibraryError)
+      expect((e as MediaLibraryError).code).toBe('DUPLICATE_ID')
+      expect((e as MediaLibraryError).message).toContain('uuid')
+      expect((e as MediaLibraryError).message).toContain(sharedUuid)
+    }
   })
 })

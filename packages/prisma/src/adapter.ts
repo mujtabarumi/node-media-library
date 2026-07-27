@@ -12,6 +12,24 @@ function prismaErrorCode(e: unknown): string | undefined {
   return typeof e === 'object' && e !== null && 'code' in e ? String((e as { code: unknown }).code) : undefined
 }
 
+function prismaErrorTargetFields(e: unknown): string[] | undefined {
+  if (typeof e !== 'object' || e === null || !('meta' in e)) return undefined
+  const meta = (e as { meta?: unknown }).meta
+  if (typeof meta !== 'object' || meta === null || !('target' in meta)) return undefined
+  const target = (meta as { target?: unknown }).target
+  if (!Array.isArray(target) || !target.every((t) => typeof t === 'string')) return undefined
+  return target as string[]
+}
+
+function duplicateIdMessage(data: NewMediaRecord, e: unknown): string {
+  const fields = prismaErrorTargetFields(e)
+  if (fields && fields.length > 0) {
+    const values = fields.map((f) => `${f} "${String((data as Record<string, unknown>)[f] ?? '')}"`).join(', ')
+    return `Media record with ${values} already exists`
+  }
+  return `Media record violates a unique constraint (id "${data.id}", uuid "${data.uuid}")`
+}
+
 const FIND_FOR_MODEL_ORDER = [{ orderColumn: { sort: 'asc' as const, nulls: 'last' as const } }, { createdAt: 'asc' as const }]
 
 class PrismaMediaRepository implements MediaRepository {
@@ -30,7 +48,7 @@ class PrismaMediaRepository implements MediaRepository {
       return toMediaRecord(row)
     } catch (e) {
       if (prismaErrorCode(e) === 'P2002') {
-        throw new MediaLibraryError(`Media record with id "${data.id}" already exists`, 'DUPLICATE_ID')
+        throw new MediaLibraryError(duplicateIdMessage(data, e), 'DUPLICATE_ID')
       }
       throw e
     }
