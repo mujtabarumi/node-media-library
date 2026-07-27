@@ -44,4 +44,11 @@ describe('definition builders', () => {
     expect(DEFAULT_COLLECTION.fallbackUrls['thumb']).toBeUndefined()
     expect(DEFAULT_COLLECTION.conversions['mutated']).toBeUndefined()
   })
+  it('extended conversion surface: effects, autoOrient default, generator hints', () => {
+    const def = conversion().width(100).position('attention').sharpen().blur(3)
+      .greyscale().autoOrient(false).pdfPageNumber(2).videoFrameAtSecond(5).toDefinition()
+    expect(def).toMatchObject({ position: 'attention', sharpen: true, blur: 3, greyscale: true, autoOrient: false, pdfPageNumber: 2, videoFrameAtSecond: 5 })
+    expect(conversion().toDefinition().autoOrient).toBe(true)
+    expect(conversion().format('webp').keepOriginalFormat().toDefinition().format).toBeNull()
+  })
 })

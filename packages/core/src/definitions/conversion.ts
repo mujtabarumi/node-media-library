@@ -7,6 +7,13 @@ export interface ConversionDefinition {
   queued: boolean
   performOnCollections: string[] | null
   responsiveImages: boolean
+  position: string | null
+  sharpen: boolean
+  blur: number | null
+  greyscale: boolean
+  autoOrient: boolean
+  pdfPageNumber: number
+  videoFrameAtSecond: number
 }
 
 export class ConversionBuilder {
@@ -22,6 +29,13 @@ export class ConversionBuilder {
       queued: true,
       performOnCollections: null,
       responsiveImages: false,
+      position: null,
+      sharpen: false,
+      blur: null,
+      greyscale: false,
+      autoOrient: true,
+      pdfPageNumber: 1,
+      videoFrameAtSecond: 0,
     }
   }
 
@@ -67,6 +81,46 @@ export class ConversionBuilder {
 
   withResponsiveImages(): this {
     this.definition.responsiveImages = true
+    return this
+  }
+
+  position(p: string): this {
+    this.definition.position = p
+    return this
+  }
+
+  sharpen(): this {
+    this.definition.sharpen = true
+    return this
+  }
+
+  blur(sigma: number): this {
+    this.definition.blur = sigma
+    return this
+  }
+
+  greyscale(): this {
+    this.definition.greyscale = true
+    return this
+  }
+
+  autoOrient(on = true): this {
+    this.definition.autoOrient = on
+    return this
+  }
+
+  keepOriginalFormat(): this {
+    this.definition.format = null
+    return this
+  }
+
+  pdfPageNumber(n: number): this {
+    this.definition.pdfPageNumber = n
+    return this
+  }
+
+  videoFrameAtSecond(s: number): this {
+    this.definition.videoFrameAtSecond = s
     return this
   }
 
