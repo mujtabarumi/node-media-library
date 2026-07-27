@@ -74,4 +74,8 @@ describe('createMediaLibrary', () => {
     expect(await library.repository.findById(inGallery.id)).toBeNull()
     expect(events).toEqual([{ modelType: 'User', modelId: '1', collection: '*' }])
   })
+
+  it('exposes registered model types', () => {
+    expect(makeLibrary().modelTypes).toEqual(['User'])
+  })
 })

@@ -67,6 +67,11 @@ export class MediaLibrary {
     return new ModelMediaHandle(modelType, String(modelId), this)
   }
 
+  /** Registered model type names (e.g. `['User', 'Post']`). */
+  get modelTypes(): string[] {
+    return Object.keys(this.resolved.models)
+  }
+
   getCollectionDefinition(modelType: string, collection: string): CollectionDefinition {
     return this.resolved.models[modelType]?.[collection] ?? DEFAULT_COLLECTION
   }
