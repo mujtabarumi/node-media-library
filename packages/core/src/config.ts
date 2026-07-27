@@ -57,7 +57,10 @@ export interface ResolvedConfig {
 }
 
 const DEFAULT_MAX_FILE_SIZE = 10 * 1024 * 1024
-const DEFAULT_SIGNED_URL_EXPIRES_IN = '30 mins'
+/** Exported so MediaLibrary can rebuild the default UrlGenerator with the
+ * `conversionFileNameFor` dep (which needs the ConversionEngine, built after
+ * resolveConfig()) using the same default expiry. */
+export const DEFAULT_SIGNED_URL_EXPIRES_IN = '30 mins'
 
 export function resolveConfig(config: MediaLibraryConfig): ResolvedConfig {
   const storage = resolveStorage(config.storage)

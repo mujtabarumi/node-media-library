@@ -1,4 +1,4 @@
-import { MediaLibraryConfig, ResolvedConfig, resolveConfig } from './config.js'
+import { DEFAULT_SIGNED_URL_EXPIRES_IN, MediaLibraryConfig, ResolvedConfig, resolveConfig } from './config.js'
 import { ModelMediaHandle } from './handle.js'
 import { TypedEmitter } from './events.js'
 import type { MediaEventMap } from './events.js'
@@ -9,11 +9,19 @@ import type { MediaRepository } from './repository.js'
 import type { ResolvedStorage } from './storage/resolve.js'
 import type { PathGenerator } from './storage/path-generator.js'
 import type { UrlGenerator } from './storage/url-generator.js'
-import { ConversionEngine } from './conversions/engine.js'
+import { DefaultUrlGenerator } from './storage/url-generator.js'
+import { ConversionEngine, RegenerateOptions } from './conversions/engine.js'
+import { conversionFileName } from './conversions/naming.js'
 import type { QueueDriver } from './queue.js'
 
 export function createMediaLibrary(config: MediaLibraryConfig): MediaLibrary {
   return new MediaLibrary(config)
+}
+
+async function collectAsync<T>(iterable: AsyncIterable<T>): Promise<T[]> {
+  const items: T[] = []
+  for await (const item of iterable) items.push(item)
+  return items
 }
 
 /** Limits/fields FileAdder and ModelMediaHandle need to validate incoming files (Task 11+). */
@@ -28,6 +36,7 @@ export class MediaLibrary {
   readonly events = new TypedEmitter<MediaEventMap>()
   private readonly resolved: ResolvedConfig
   private readonly engine: ConversionEngine
+  private readonly urlGeneratorInstance: UrlGenerator
 
   constructor(config: MediaLibraryConfig) {
     this.resolved = resolveConfig(config)
@@ -41,6 +50,22 @@ export class MediaLibrary {
         this.getCollectionDefinition(modelType, collection).conversions,
     })
     this.resolved.queue.registerProcessor((job) => this.engine.perform(job.mediaId, job.conversionNames))
+
+    // Built here (after `this.engine` exists) rather than reused from
+    // `resolveConfig()`'s own default, since the `conversionFileNameFor` dep
+    // needs `engine.applicable()` — a circular dependency resolveConfig()
+    // alone can't express. A user-supplied `config.urlGenerator` always wins
+    // and is used as-is (it may have its own, unrelated conversion logic).
+    this.urlGeneratorInstance =
+      config.urlGenerator ??
+      new DefaultUrlGenerator(this.resolved.storage, this.resolved.pathGenerator, {
+        versionUrls: config.versionUrls ?? false,
+        signedUrlExpiresIn: config.signedUrlExpiresIn ?? DEFAULT_SIGNED_URL_EXPIRES_IN,
+        conversionFileNameFor: (media, name) => {
+          const def = this.engine.applicable(media)[name]
+          return def ? conversionFileName(media.fileName, name, def.format) : null
+        },
+      })
   }
 
   /** @internal Consumed by FileAdder (nonQueued conversions) and tests. */
@@ -74,6 +99,45 @@ export class MediaLibrary {
     return updated
   }
 
+  /**
+   * Re-enqueues conversion generation across a set of media records.
+   * `opts.ids` (when given) selects exactly those records via `findById`,
+   * silently skipping any that don't exist; otherwise every record —
+   * optionally narrowed to `opts.modelType` — is visited via
+   * `repository.iterateAll()`. For each record, the applicable conversion
+   * names are further narrowed by `opts.only` (intersection) and, when
+   * `opts.onlyMissing` is set, by excluding names already marked `true` in
+   * `generatedConversions`. Records left with zero names to regenerate are
+   * skipped entirely — nothing is enqueued for them. Returns the number of
+   * `queue.enqueue()` calls made (one per record with names left to run),
+   * not the number of individual conversions.
+   */
+  async regenerate(opts: RegenerateOptions = {}): Promise<{ enqueued: number }> {
+    const records = opts.ids
+      ? (await Promise.all(opts.ids.map((id) => this.resolved.repository.findById(id)))).filter(
+          (record): record is MediaRecord => record !== null,
+        )
+      : await collectAsync(this.resolved.repository.iterateAll({ modelType: opts.modelType }))
+
+    let enqueued = 0
+    for (const record of records) {
+      let names = Object.keys(this.engine.applicable(record))
+      if (opts.only) {
+        const only = new Set(opts.only)
+        names = names.filter((name) => only.has(name))
+      }
+      if (opts.onlyMissing) {
+        names = names.filter((name) => record.generatedConversions[name] !== true)
+      }
+      if (names.length === 0) continue
+
+      await this.resolved.queue.enqueue({ mediaId: record.id, conversionNames: names })
+      enqueued += 1
+    }
+
+    return { enqueued }
+  }
+
   /** @internal Consumed by FileAdder/ModelMediaHandle (Task 11+). */
   get repository(): MediaRepository {
     return this.resolved.repository
@@ -91,7 +155,7 @@ export class MediaLibrary {
 
   /** @internal Consumed by FileAdder/ModelMediaHandle (Task 11+). */
   get urlGenerator(): UrlGenerator {
-    return this.resolved.urlGenerator
+    return this.urlGeneratorInstance
   }
 
   /** @internal Consumed by FileAdder/ModelMediaHandle (Task 11+). */

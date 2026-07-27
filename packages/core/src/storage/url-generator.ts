@@ -16,6 +16,14 @@ export interface UrlGenerator {
 export interface UrlGeneratorOptions {
   versionUrls?: boolean
   signedUrlExpiresIn?: string | number
+  /**
+   * Resolves the on-disk filename for `name`'s conversion of `media`, or
+   * `null` when that conversion isn't defined/applicable. Optional so
+   * existing callers (and Plan 1's generators.test.ts) that construct
+   * `DefaultUrlGenerator` directly, without this dep, keep the original
+   * "conversionName is a no-op" behavior.
+   */
+  conversionFileNameFor?: (media: MediaRecord, name: string) => string | null
 }
 
 export class DefaultUrlGenerator implements UrlGenerator {
@@ -29,12 +37,30 @@ export class DefaultUrlGenerator implements UrlGenerator {
     return this.opts.versionUrls ? `?v=${media.updatedAt.getTime()}` : ''
   }
 
-  // conversionName is accepted for the future (Plan 3) but until then only
-  // ''/undefined (the original file) is supported — pass through to path().
+  /**
+   * Resolves `(path, disk)` for `media`/`conversionName`. When a real,
+   * generated, resolvable conversion is requested, points at the conversion
+   * file on `conversionsDisk ?? disk`; otherwise falls back to the original
+   * file on `disk` — the "graceful fallback" behavior for unknown/ungenerated
+   * conversion names, and the unchanged default when `conversionFileNameFor`
+   * isn't supplied at all.
+   */
+  private resolveTarget(media: MediaRecord, conversionName?: string): { path: string; disk: string } {
+    if (conversionName && this.opts.conversionFileNameFor && media.generatedConversions[conversionName] === true) {
+      const fileName = this.opts.conversionFileNameFor(media, conversionName)
+      if (fileName) {
+        return {
+          path: `${this.pathGen.conversionsPath(media)}/${fileName}`,
+          disk: media.conversionsDisk ?? media.disk,
+        }
+      }
+    }
+    return { path: this.pathGen.path(media), disk: media.disk }
+  }
+
   async url(media: MediaRecord, conversionName?: string): Promise<string> {
-    const path = this.pathGen.path(media)
-    void conversionName
-    const config = this.storage.diskConfig(media.disk)
+    const { path, disk: diskName } = this.resolveTarget(media, conversionName)
+    const config = this.storage.diskConfig(diskName)
 
     if (config.driver === 'fs' && config.baseUrl) {
       const baseUrl = config.baseUrl.replace(/\/+$/, '')
@@ -42,7 +68,7 @@ export class DefaultUrlGenerator implements UrlGenerator {
     }
 
     try {
-      const disk = await this.storage.disk(media.disk)
+      const disk = await this.storage.disk(diskName)
       const raw = await disk.getUrl(path)
       return `${raw}${this.version(media)}`
     } catch (err) {
@@ -57,9 +83,8 @@ export class DefaultUrlGenerator implements UrlGenerator {
     conversionName?: string,
     opts?: SignedUrlOptions,
   ): Promise<string> {
-    const path = this.pathGen.path(media)
-    void conversionName
-    const config = this.storage.diskConfig(media.disk)
+    const { path, disk: diskName } = this.resolveTarget(media, conversionName)
+    const config = this.storage.diskConfig(diskName)
     const expiresIn = opts?.expiresIn ?? this.opts.signedUrlExpiresIn
 
     if (config.driver === 'fs') {
@@ -72,7 +97,7 @@ export class DefaultUrlGenerator implements UrlGenerator {
     }
 
     try {
-      const disk = await this.storage.disk(media.disk)
+      const disk = await this.storage.disk(diskName)
       return await disk.getSignedUrl(path, expiresIn !== undefined ? { expiresIn } : undefined)
     } catch (err) {
       throw new StorageError(
