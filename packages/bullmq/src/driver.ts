@@ -27,6 +27,10 @@ export function bullmqDriver(opts: BullmqDriverOptions): QueueDriver {
   let queue: Queue<ConversionJob> | undefined
   let worker: Worker<ConversionJob> | undefined
   let closed = false
+  // Bumped on every registerProcessor()/close() call so a superseded
+  // in-flight worker-close → worker-create chain (see registerProcessor
+  // below) can detect it's stale and bail out instead of racing.
+  let generation = 0
 
   function getQueue(): Queue<ConversionJob> {
     if (!queue) {
@@ -44,18 +48,34 @@ export function bullmqDriver(opts: BullmqDriverOptions): QueueDriver {
     },
 
     registerProcessor(fn: ConversionProcessor) {
-      if (worker) {
-        void worker.close()
+      if (closed) {
+        throw new MediaLibraryError('queue driver is closed')
       }
-      worker = new Worker<ConversionJob>(queueName, async (j) => fn(j.data), {
-        connection,
-        concurrency: workerConcurrency,
-      })
+      const myGeneration = ++generation
+      const oldWorker = worker
+      worker = undefined
+      const createWorker = () => {
+        // Superseded by a later registerProcessor()/close() — don't create
+        // a worker nobody asked for anymore.
+        if (closed || myGeneration !== generation) return
+        worker = new Worker<ConversionJob>(queueName, async (j) => fn(j.data), {
+          connection,
+          concurrency: workerConcurrency,
+        })
+      }
+      // Wait for the old worker to fully close before starting the new one,
+      // so the two never process the same queue concurrently.
+      if (oldWorker) {
+        oldWorker.close().finally(createWorker)
+      } else {
+        createWorker()
+      }
     },
 
     async close() {
       if (closed) return
       closed = true
+      generation++
       await worker?.close()
       await queue?.close()
     },
