@@ -128,9 +128,62 @@ describe('public exports', () => {
     expect(DownloadFailedError).toBeDefined()
   })
 
+  // Queue driver exports
+  it('exports syncDriver', async () => {
+    const { syncDriver } = await import('../src/index.js')
+    expect(syncDriver).toBeDefined()
+  })
+
+  it('exports deferDriver', async () => {
+    const { deferDriver } = await import('../src/index.js')
+    expect(deferDriver).toBeDefined()
+  })
+
+  it('exports QueueDriver type', async () => {
+    const { syncDriver } = await import('../src/index.js')
+    const driver: import('../src/index.js').QueueDriver = syncDriver()
+    expect(driver).toBeDefined()
+  })
+
+  it('exports ConversionJob type', async () => {
+    const job: import('../src/index.js').ConversionJob = { mediaId: 'm1', conversionNames: ['thumb'] }
+    expect(job).toBeDefined()
+  })
+
+  it('exports ConversionProcessor type', async () => {
+    const proc: import('../src/index.js').ConversionProcessor = async () => {}
+    expect(proc).toBeDefined()
+  })
+
+  it('exports ImageGenerator type', async () => {
+    const { sharpImageGenerator } = await import('../src/index.js')
+    const gen: import('../src/index.js').ImageGenerator = sharpImageGenerator()
+    expect(gen).toBeDefined()
+  })
+
+  it('exports sharpImageGenerator', async () => {
+    const { sharpImageGenerator } = await import('../src/index.js')
+    expect(sharpImageGenerator).toBeDefined()
+  })
+
+  it('exports conversionFileName', async () => {
+    const { conversionFileName } = await import('../src/index.js')
+    expect(conversionFileName).toBeDefined()
+  })
+
+  it('exports RegenerateOptions type', async () => {
+    const opts: import('../src/index.js').RegenerateOptions = {}
+    expect(opts).toBeDefined()
+  })
+
   // Testing utilities
   it('exports runMediaRepositoryContract from testing subpath', async () => {
     const { runMediaRepositoryContract } = await import('../src/testing/index.js')
     expect(runMediaRepositoryContract).toBeDefined()
+  })
+
+  it('exports runQueueDriverContract from testing subpath', async () => {
+    const { runQueueDriverContract } = await import('../src/testing/index.js')
+    expect(runQueueDriverContract).toBeDefined()
   })
 })

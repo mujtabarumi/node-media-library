@@ -5,10 +5,21 @@ import type { ConversionJob, QueueDriver } from '../queue.js'
 export function runQueueDriverContract(
   name: string,
   factory: () => Promise<QueueDriver>,
-  opts?: { waitForAsync?: () => Promise<void>; assertOrder?: boolean },
+  opts?: {
+    waitForAsync?: () => Promise<void>
+    assertOrder?: boolean
+    /**
+     * Skip the "enqueuing without a registered processor rejects" test.
+     * Broker-backed drivers (e.g. bullmq) legitimately accept jobs with no
+     * local processor registered — the job simply waits on the broker for a
+     * worker to pick it up.
+     */
+    skipNoProcessorRule?: boolean
+  },
 ): void {
   const waitForAsync = opts?.waitForAsync ?? (() => Promise.resolve())
   const assertOrder = opts?.assertOrder ?? true
+  const skipNoProcessorRule = opts?.skipNoProcessorRule ?? false
 
   describe(`QueueDriver contract: ${name}`, () => {
     let driver: QueueDriver
@@ -17,14 +28,17 @@ export function runQueueDriverContract(
       driver = await factory()
     })
 
-    it('enqueuing without a registered processor rejects with MediaLibraryError', async () => {
-      await expect(
-        driver.enqueue({ mediaId: 'm1', conversionNames: ['thumb'] }),
-      ).rejects.toThrow(MediaLibraryError)
-      await expect(
-        driver.enqueue({ mediaId: 'm1', conversionNames: ['thumb'] }),
-      ).rejects.toThrow('no processor registered')
-    })
+    it.skipIf(skipNoProcessorRule)(
+      'enqueuing without a registered processor rejects with MediaLibraryError',
+      async () => {
+        await expect(
+          driver.enqueue({ mediaId: 'm1', conversionNames: ['thumb'] }),
+        ).rejects.toThrow(MediaLibraryError)
+        await expect(
+          driver.enqueue({ mediaId: 'm1', conversionNames: ['thumb'] }),
+        ).rejects.toThrow('no processor registered')
+      },
+    )
 
     it('processor receives the exact job payload', async () => {
       const received: ConversionJob[] = []
