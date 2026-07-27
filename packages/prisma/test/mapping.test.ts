@@ -39,3 +39,12 @@ describe('mapping', () => {
     expect(new Set(fieldNames(MEDIA_MODEL_SNIPPET))).toEqual(new Set(fieldNames(fixtureMedia)))
   })
 })
+
+describe('index.ts exports', () => {
+  it('exports value exports from index.js', async () => {
+    const { toMediaRecord: toMR, toCreateData: toCD, MEDIA_MODEL_SNIPPET: snippet } = await import('../src/index.js')
+    expect(toMR).toBeDefined()
+    expect(toCD).toBeDefined()
+    expect(snippet).toBeDefined()
+  })
+})
