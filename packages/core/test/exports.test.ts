@@ -176,6 +176,57 @@ describe('public exports', () => {
     expect(opts).toBeDefined()
   })
 
+  // Responsive images
+  it('exports FileSizeOptimizedWidthCalculator', async () => {
+    const { FileSizeOptimizedWidthCalculator } = await import('../src/index.js')
+    expect(FileSizeOptimizedWidthCalculator).toBeDefined()
+  })
+
+  it('exports WidthCalculator type', async () => {
+    const calc: import('../src/index.js').WidthCalculator = {
+      calculateWidths: () => [800],
+    }
+    expect(calc).toBeDefined()
+  })
+
+  it('exports responsiveFileName', async () => {
+    const { responsiveFileName } = await import('../src/index.js')
+    expect(responsiveFileName).toBeDefined()
+  })
+
+  it('exports ResponsiveVariant type', async () => {
+    const variant: import('../src/index.js').ResponsiveVariant = {
+      fileName: 'photo___original_800_600.jpg',
+      width: 800,
+      height: 600,
+    }
+    expect(variant).toBeDefined()
+  })
+
+  it('exports ResponsiveImagesEntry type', async () => {
+    const entry: import('../src/index.js').ResponsiveImagesEntry = { files: [] }
+    expect(entry).toBeDefined()
+  })
+
+  it('exports renderVariant', async () => {
+    const { renderVariant } = await import('../src/index.js')
+    expect(renderVariant).toBeDefined()
+  })
+
+  it('exports RenderedVariant type', async () => {
+    const rendered: import('../src/index.js').RenderedVariant = {
+      buffer: Buffer.alloc(0),
+      width: 1,
+      height: 1,
+    }
+    expect(rendered).toBeDefined()
+  })
+
+  it('exports tinyPlaceholder', async () => {
+    const { tinyPlaceholder } = await import('../src/index.js')
+    expect(tinyPlaceholder).toBeDefined()
+  })
+
   // Testing utilities
   it('exports runMediaRepositoryContract from testing subpath', async () => {
     const { runMediaRepositoryContract } = await import('../src/testing/index.js')

@@ -56,5 +56,10 @@ Cascaded models must expose a scalar `id` field — the extension reads `result.
 ## Options
 `prismaAdapter(client, { owners, iterateBatchSize })`: `owners` is a `modelType -> (modelId) => boolean | Promise<boolean>` map, needed only by the future `clean --delete-orphaned` command (Plan 6) — most integrations can omit it. `iterateBatchSize` (default `100`) sets the page size `iterateAll` fetches internally.
 
+## Responsive images
+The repository exposes two additional `MediaRepository` methods backing `@node-media-library/core`'s responsive images support: `markConversionGenerated(id, name, generated)` and `mergeResponsiveImages(id, conversion, entry)`. Both read-merge-write into the `generatedConversions` / `responsiveImages` JSON columns respectively, keyed by conversion name — a plain `update()` would clobber sibling keys written concurrently, which is why these merge instead of replace.
+
+When your `PrismaLikeClient` stub (or the real `PrismaClient`) exposes `$transaction`, the read-modify-write runs inside it for atomicity; without one it falls back to a plain sequential read then write. Custom `PrismaLikeClient` implementations (e.g. in tests) can add `$transaction` support to get the same atomicity guarantee as the real Prisma client.
+
 ## Roadmap
 Orphan-cleanup CLI (`clean --delete-orphaned`) lands in Plan 6, building on `owners` above.
