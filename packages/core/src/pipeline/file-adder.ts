@@ -157,6 +157,19 @@ export class FileAdder {
    * errors propagate to the caller of `toCollection()`) and queued (handed
    * to the configured `QueueDriver`, which decides when/how they run). A
    * collection with no applicable conversions makes no calls at all.
+   *
+   * Ordering and failure semantics: queued conversions are enqueued FIRST,
+   * before any inline (nonQueued) conversion runs. This guarantees that,
+   * since the record already exists (created + `media:added` already
+   * emitted by the time this method runs), the queued work is always
+   * scheduled once the media record is persisted — a failing nonQueued
+   * conversion below can no longer prevent it. If a nonQueued conversion
+   * then fails, `performConversions()`'s rejection propagates out of this
+   * method and out of `toCollection()`, but the record still persists and
+   * the queued conversions remain scheduled (or, with the default
+   * `syncDriver`, have already run synchronously during the `enqueue()`
+   * await above — there is no rollback of that work on the later inline
+   * failure).
    */
   private async dispatchConversions(record: MediaRecord): Promise<void> {
     const applicable = this.library.conversionEngine.applicable(record)
@@ -171,12 +184,12 @@ export class FileAdder {
       }
     }
 
-    if (nonQueuedNames.length > 0) {
-      await this.library.performConversions(record.id, nonQueuedNames)
-    }
-
     if (queuedNames.length > 0) {
       await this.library.queue.enqueue({ mediaId: record.id, conversionNames: queuedNames })
+    }
+
+    if (nonQueuedNames.length > 0) {
+      await this.library.performConversions(record.id, nonQueuedNames)
     }
   }
 
