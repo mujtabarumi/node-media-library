@@ -198,4 +198,53 @@ describe('conversions', () => {
       expect(entry.media.generatedConversions[entry.conversion]).toBe(true)
     }
   })
+
+  it('deleteMedia removes conversion files from a distinct conversionsDisk', async () => {
+    const convRoot = mkdtempSync(join(tmpdir(), 'nml-conv-disk-'))
+    try {
+      const crossDiskLibrary = createMediaLibrary({
+        repository: repo,
+        storage: {
+          disks: {
+            default: { driver: 'fs', root },
+            convdisk: { driver: 'fs', root: convRoot },
+          },
+        },
+        models: {
+          Post: {
+            collections: {
+              images: collection()
+                .storeConversionsOnDisk('convdisk')
+                .conversions({
+                  thumb: conversion().width(8).height(8).nonQueued(),
+                }),
+            },
+          },
+        },
+      })
+
+      const media = await crossDiskLibrary
+        .for('Post', 1)
+        .add(png)
+        .usingFileName('photo.png')
+        .toCollection('images')
+
+      const pathGen = new DefaultPathGenerator()
+      const thumbDef = crossDiskLibrary.getCollectionDefinition('Post', 'images').conversions.thumb!
+      const thumbPath = join(convRoot, conversionKey(media, pathGen, thumbDef, 'thumb'))
+      expect(existsSync(thumbPath)).toBe(true)
+
+      const originalDir = join(root, pathGen.directory(media))
+      expect(existsSync(originalDir)).toBe(true)
+      const conversionsDir = join(convRoot, pathGen.conversionsPath(media))
+      expect(existsSync(conversionsDir)).toBe(true)
+
+      await crossDiskLibrary.deleteMedia(media.id)
+
+      expect(existsSync(originalDir)).toBe(false)
+      expect(existsSync(conversionsDir)).toBe(false)
+    } finally {
+      await rm(convRoot, { recursive: true, force: true })
+    }
+  })
 })

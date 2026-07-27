@@ -18,12 +18,6 @@ export function createMediaLibrary(config: MediaLibraryConfig): MediaLibrary {
   return new MediaLibrary(config)
 }
 
-async function collectAsync<T>(iterable: AsyncIterable<T>): Promise<T[]> {
-  const items: T[] = []
-  for await (const item of iterable) items.push(item)
-  return items
-}
-
 /** Limits/fields FileAdder and ModelMediaHandle need to validate incoming files (Task 11+). */
 export interface ResolvedLimits {
   readonly maxFileSize: number
@@ -89,6 +83,10 @@ export class MediaLibrary {
    * §8, "changing it triggers regeneration". Always goes through the queue
    * (not inline) regardless of the conversion's own `queued` flag, since
    * this is an explicit, user-triggered update rather than upload dispatch.
+   *
+   * `manipulations` REPLACES the record's full manipulations map — it is
+   * not merged with the existing one. Callers who want to keep prior
+   * overrides for other conversions must include them in this call.
    */
   async updateManipulations(
     mediaId: string,
@@ -111,16 +109,17 @@ export class MediaLibrary {
    * skipped entirely — nothing is enqueued for them. Returns the number of
    * `queue.enqueue()` calls made (one per record with names left to run),
    * not the number of individual conversions.
+   *
+   * With the sync queue driver, a record whose enqueued conversions all
+   * fail rethrows synchronously from `enqueue()`, which aborts this run
+   * mid-iteration — records not yet visited are never dispatched, and the
+   * returned `enqueued` count reflects only what was queued before the
+   * failure.
    */
   async regenerate(opts: RegenerateOptions = {}): Promise<{ enqueued: number }> {
-    const records = opts.ids
-      ? (await Promise.all(opts.ids.map((id) => this.resolved.repository.findById(id)))).filter(
-          (record): record is MediaRecord => record !== null,
-        )
-      : await collectAsync(this.resolved.repository.iterateAll({ modelType: opts.modelType }))
-
     let enqueued = 0
-    for (const record of records) {
+
+    const dispatch = async (record: MediaRecord): Promise<void> => {
       let names = Object.keys(this.engine.applicable(record))
       if (opts.only) {
         const only = new Set(opts.only)
@@ -129,10 +128,23 @@ export class MediaLibrary {
       if (opts.onlyMissing) {
         names = names.filter((name) => record.generatedConversions[name] !== true)
       }
-      if (names.length === 0) continue
+      if (names.length === 0) return
 
       await this.resolved.queue.enqueue({ mediaId: record.id, conversionNames: names })
       enqueued += 1
+    }
+
+    if (opts.ids) {
+      const records = (
+        await Promise.all(opts.ids.map((id) => this.resolved.repository.findById(id)))
+      ).filter((record): record is MediaRecord => record !== null)
+      for (const record of records) {
+        await dispatch(record)
+      }
+    } else {
+      for await (const record of this.resolved.repository.iterateAll({ modelType: opts.modelType })) {
+        await dispatch(record)
+      }
     }
 
     return { enqueued }
@@ -194,6 +206,10 @@ export class MediaLibrary {
     this.events.emit('media:deleting', { media })
     const disk = await this.resolved.storage.disk(media.disk)
     await disk.deleteAll(this.resolved.pathGenerator.directory(media))
+    if (media.conversionsDisk && media.conversionsDisk !== media.disk) {
+      const conversionsDisk = await this.resolved.storage.disk(media.conversionsDisk)
+      await conversionsDisk.deleteAll(this.resolved.pathGenerator.conversionsPath(media))
+    }
     await this.resolved.repository.delete(media.id)
     this.events.emit('media:deleted', { media })
   }

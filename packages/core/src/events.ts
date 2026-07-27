@@ -1,7 +1,9 @@
 import type { MediaRecord } from './types.js'
 
-// Must stay an `interface` (not a `type` alias): Plan 3 extends this via
-// TypeScript declaration merging, which only works on interfaces.
+// Kept as an `interface` (not a `type` alias) for consistency with the
+// declaration-merging pattern used elsewhere in this codebase, though the
+// conversion event members below are now declared directly rather than
+// merged in from a separate module.
 export interface MediaEventMap {
   'media:added': { media: MediaRecord }
   'media:deleting': { media: MediaRecord }
