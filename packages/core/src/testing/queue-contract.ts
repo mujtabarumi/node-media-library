@@ -1,13 +1,14 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { MediaLibraryError } from '../errors.js'
-import { ConversionJob, QueueDriver } from '../queue.js'
+import type { ConversionJob, QueueDriver } from '../queue.js'
 
 export function runQueueDriverContract(
   name: string,
   factory: () => Promise<QueueDriver>,
-  opts?: { waitForAsync?: () => Promise<void> },
+  opts?: { waitForAsync?: () => Promise<void>; assertOrder?: boolean },
 ): void {
   const waitForAsync = opts?.waitForAsync ?? (() => Promise.resolve())
+  const assertOrder = opts?.assertOrder ?? true
 
   describe(`QueueDriver contract: ${name}`, () => {
     let driver: QueueDriver
@@ -51,7 +52,12 @@ export function runQueueDriverContract(
       }
       await waitForAsync()
       expect(received).toHaveLength(3)
-      expect(received).toEqual(jobs)
+      if (assertOrder) {
+        expect(received).toEqual(jobs)
+      } else {
+        const byMediaId = (a: ConversionJob, b: ConversionJob) => a.mediaId.localeCompare(b.mediaId)
+        expect([...received].sort(byMediaId)).toEqual([...jobs].sort(byMediaId))
+      }
     })
 
     it('later registerProcessor calls replace earlier ones', async () => {

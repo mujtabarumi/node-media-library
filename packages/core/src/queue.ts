@@ -62,9 +62,11 @@ export function deferDriver(): QueueDriver {
       }
       const currentProcessor = processor
       setImmediate(() => {
-        currentProcessor(job).catch((err) => {
-          console.error('Error processing conversion job:', err)
-        })
+        Promise.resolve()
+          .then(() => currentProcessor(job))
+          .catch((err) => {
+            console.error('Error processing conversion job:', err)
+          })
       })
     },
 

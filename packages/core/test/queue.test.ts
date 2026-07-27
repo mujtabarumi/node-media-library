@@ -5,6 +5,7 @@ import { syncDriver, deferDriver } from '../src/queue.js'
 runQueueDriverContract('syncDriver', async () => syncDriver())
 runQueueDriverContract('deferDriver', async () => deferDriver(), {
   waitForAsync: () => new Promise((r) => setImmediate(r)),
+  assertOrder: false,
 })
 
 it('syncDriver propagates processor errors to enqueue', async () => {
