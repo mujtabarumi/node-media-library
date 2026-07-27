@@ -9,6 +9,8 @@ import type { MediaRepository } from './repository.js'
 import type { ResolvedStorage } from './storage/resolve.js'
 import type { PathGenerator } from './storage/path-generator.js'
 import type { UrlGenerator } from './storage/url-generator.js'
+import { ConversionEngine } from './conversions/engine.js'
+import type { QueueDriver } from './queue.js'
 
 export function createMediaLibrary(config: MediaLibraryConfig): MediaLibrary {
   return new MediaLibrary(config)
@@ -25,9 +27,30 @@ export interface ResolvedLimits {
 export class MediaLibrary {
   readonly events = new TypedEmitter<MediaEventMap>()
   private readonly resolved: ResolvedConfig
+  private readonly engine: ConversionEngine
 
   constructor(config: MediaLibraryConfig) {
     this.resolved = resolveConfig(config)
+    this.engine = new ConversionEngine({
+      repository: this.resolved.repository,
+      storage: this.resolved.storage,
+      pathGenerator: this.resolved.pathGenerator,
+      events: this.events,
+      generators: [...this.resolved.imageGenerators],
+      definitionsFor: (modelType, collection) =>
+        this.getCollectionDefinition(modelType, collection).conversions,
+    })
+    this.resolved.queue.registerProcessor((job) => this.engine.perform(job.mediaId, job.conversionNames))
+  }
+
+  /** @internal Consumed by FileAdder (nonQueued conversions) and tests. */
+  get queue(): QueueDriver {
+    return this.resolved.queue
+  }
+
+  /** Runs `names` (or all applicable) conversions for `mediaId` inline. */
+  async performConversions(mediaId: string, names?: string[]): Promise<void> {
+    return this.engine.perform(mediaId, names)
   }
 
   /** @internal Consumed by FileAdder/ModelMediaHandle (Task 11+). */

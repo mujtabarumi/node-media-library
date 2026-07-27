@@ -9,6 +9,10 @@ import type { CollectionBuilder, CollectionDefinition } from './definitions/coll
 import { DEFAULT_DISALLOWED_EXTENSIONS } from './pipeline/validate.js'
 import type { FileNameSanitizer } from './pipeline/sanitize.js'
 import { sanitizeFileName } from './pipeline/sanitize.js'
+import type { QueueDriver } from './queue.js'
+import { syncDriver } from './queue.js'
+import type { ImageGenerator } from './conversions/image-generator.js'
+import { sharpImageGenerator } from './conversions/image-generator.js'
 
 export interface MediaLibraryConfig {
   repository: MediaRepository
@@ -26,6 +30,10 @@ export interface MediaLibraryConfig {
   fileNameSanitizer?: FileNameSanitizer
   pathGenerator?: PathGenerator
   urlGenerator?: UrlGenerator
+  /** Default `syncDriver()` (conversions run inline, synchronously). */
+  queue?: QueueDriver
+  /** Default `[sharpImageGenerator()]`. */
+  imageGenerators?: ImageGenerator[]
 }
 
 /**
@@ -44,6 +52,8 @@ export interface ResolvedConfig {
   readonly allowedExtensions: readonly string[] | null
   readonly fileNameSanitizer: FileNameSanitizer
   readonly models: Readonly<Record<string, Readonly<Record<string, CollectionDefinition>>>>
+  readonly queue: QueueDriver
+  readonly imageGenerators: readonly ImageGenerator[]
 }
 
 const DEFAULT_MAX_FILE_SIZE = 10 * 1024 * 1024
@@ -80,5 +90,7 @@ export function resolveConfig(config: MediaLibraryConfig): ResolvedConfig {
     allowedExtensions: config.allowedExtensions ? Object.freeze([...config.allowedExtensions]) : null,
     fileNameSanitizer: config.fileNameSanitizer ?? sanitizeFileName,
     models: Object.freeze(models),
+    queue: config.queue ?? syncDriver(),
+    imageGenerators: Object.freeze(config.imageGenerators ?? [sharpImageGenerator()]),
   })
 }
