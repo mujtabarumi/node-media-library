@@ -52,13 +52,16 @@ export function sharpImageGenerator(): ImageGenerator {
       if (def.format) {
         pipeline = pipeline.toFormat(def.format, { quality: def.quality ?? undefined })
       } else if (def.quality !== null) {
-        const metadata = await sharp(input).metadata()
-        if (metadata.format) {
-          // `metadata.format` is a plain string at the type level (it's
-          // read off already-decoded image bytes), while `toFormat` wants
-          // the narrower `keyof FormatEnum | AvailableFormatInfo`. Both are
+        // Reuse `pipeline`'s own metadata instead of decoding `input` a
+        // second time via a fresh `sharp(input)` instance — `.metadata()`
+        // doesn't consume the pipeline, so it's still chainable afterward.
+        const { format } = await pipeline.metadata()
+        if (format) {
+          // `format` is a plain string at the type level (it's read off
+          // already-decoded image bytes), while `toFormat` wants the
+          // narrower `keyof FormatEnum | AvailableFormatInfo`. Both are
           // structurally strings here, so a targeted cast is safe.
-          pipeline = pipeline.toFormat(metadata.format as Parameters<typeof pipeline.toFormat>[0], {
+          pipeline = pipeline.toFormat(format as Parameters<typeof pipeline.toFormat>[0], {
             quality: def.quality,
           })
         }

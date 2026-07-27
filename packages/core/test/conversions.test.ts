@@ -155,4 +155,39 @@ describe('conversions', () => {
     const updated = await repo.findById(media.id)
     expect(updated?.generatedConversions.thumb).toBeUndefined()
   })
+
+  it('concurrent perform() calls for the same media do not lose each other\'s generatedConversions marks', async () => {
+    const media = await library.for('Post', 1).add(png).usingFileName('photo.png').toCollection('images')
+
+    await Promise.all([
+      library.performConversions(media.id, ['thumb']),
+      library.performConversions(media.id, ['web']),
+    ])
+
+    const updated = await repo.findById(media.id)
+    expect(updated?.generatedConversions).toEqual({ thumb: true, web: true })
+  })
+
+  it('event payloads are independent snapshots, not the same mutated record', async () => {
+    const media = await library.for('Post', 1).add(png).usingFileName('photo.png').toCollection('images')
+
+    const started: Array<{ conversion: string; media: MediaRecord }> = []
+    const completed: Array<{ conversion: string; media: MediaRecord }> = []
+    library.events.on('conversion:started', (p) => started.push({ conversion: p.conversion, media: p.media }))
+    library.events.on('conversion:completed', (p) => completed.push({ conversion: p.conversion, media: p.media }))
+
+    await library.performConversions(media.id)
+
+    const firstStarted = started[0]
+    expect(firstStarted).toBeDefined()
+    // Whichever conversion ran first, its retained 'started' payload must
+    // not have picked up the *other* conversion's mark after the fact —
+    // proving the loop isn't mutating and re-emitting the same object.
+    const otherName = firstStarted!.conversion === 'thumb' ? 'web' : 'thumb'
+    expect(firstStarted!.media.generatedConversions[otherName]).toBeUndefined()
+
+    for (const entry of completed) {
+      expect(entry.media.generatedConversions[entry.conversion]).toBe(true)
+    }
+  })
 })

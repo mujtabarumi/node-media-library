@@ -24,6 +24,19 @@ export interface ConversionEngineDeps {
   definitionsFor(modelType: string, collection: string): Record<string, ConversionDefinition>
 }
 
+/**
+ * Independent copy of `record` (and its `generatedConversions` map) for
+ * event payloads. `perform()`'s loop keeps re-reading and re-merging
+ * `generatedConversions` as it goes; without this, a listener that retains
+ * an event payload across the whole `perform()` call would see every
+ * earlier-emitted payload mutate in place — a `conversion:started` payload
+ * for the first conversion would appear, after the fact, to already carry
+ * later conversions' marks, because it was the *same* object reused.
+ */
+function snapshot(record: MediaRecord): MediaRecord {
+  return { ...record, generatedConversions: { ...record.generatedConversions } }
+}
+
 export class ConversionEngine {
   constructor(private readonly deps: ConversionEngineDeps) {}
 
@@ -80,19 +93,38 @@ export class ConversionEngine {
     let failures = 0
 
     for (const [name, def] of entries) {
-      this.deps.events.emit('conversion:started', { media, conversion: name })
+      // Snapshot the record at the top of THIS iteration (not the
+      // call-local `media` from the top of `perform`): two concurrent
+      // `perform()` calls for the same mediaId (e.g. a queued batch and a
+      // nonQueued batch, or two parallel callers) would otherwise each
+      // patch `generatedConversions` from a stale in-memory copy, and
+      // whichever `update()` lands last would silently clobber the other
+      // call's marks. This is also what event listeners see for
+      // `conversion:started` — a fresh, independent copy per iteration
+      // (see the snapshot() helper below), not the object this loop keeps
+      // mutating.
+      const before = (await this.deps.repository.findById(mediaId)) ?? media
+      this.deps.events.emit('conversion:started', { media: snapshot(before), conversion: name })
       try {
         const output = await generator.toImage(originalBuffer, def)
         const key = conversionKey(media, this.deps.pathGenerator, def, name)
         await conversionsDisk.put(key, output)
-        const updated = await this.deps.repository.update(media.id, {
-          generatedConversions: { ...media.generatedConversions, [name]: true },
+        // Re-read immediately before computing the merge (rather than
+        // reusing `before`, captured above prior to the — potentially
+        // slow — image generation) to keep the window between this read
+        // and the `update()` write as narrow as possible. This narrows
+        // but does not eliminate the race: there is still a read→write
+        // gap here, since this layer has no transaction/lock around the
+        // pair. Repository adapters may choose to tighten that (e.g. an
+        // atomic JSON-merge update) in the future.
+        const fresh = (await this.deps.repository.findById(mediaId)) ?? before
+        const updated = await this.deps.repository.update(mediaId, {
+          generatedConversions: { ...fresh.generatedConversions, [name]: true },
         })
-        media.generatedConversions = updated.generatedConversions
-        this.deps.events.emit('conversion:completed', { media, conversion: name })
+        this.deps.events.emit('conversion:completed', { media: snapshot(updated), conversion: name })
       } catch (error) {
         failures += 1
-        this.deps.events.emit('conversion:failed', { media, conversion: name, error })
+        this.deps.events.emit('conversion:failed', { media: snapshot(before), conversion: name, error })
       }
     }
 
