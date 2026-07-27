@@ -59,8 +59,10 @@ describe('conversions', () => {
     library.events.on('conversion:started', (p) => events.push({ event: 'conversion:started', conversion: p.conversion }))
     library.events.on('conversion:completed', (p) => events.push({ event: 'conversion:completed', conversion: p.conversion }))
 
+    // Both `thumb` and `web` are nonQueued, so `add()` already dispatches
+    // and runs them inline (Task 4) — no need to call performConversions()
+    // again here; doing so would double-run and double-emit.
     const media = await library.for('Post', 1).add(png).usingFileName('photo.png').toCollection('images')
-    await library.performConversions(media.id)
 
     const pathGen = new DefaultPathGenerator()
     const thumbDef = library.getCollectionDefinition('Post', 'images').conversions.thumb!
@@ -143,6 +145,11 @@ describe('conversions', () => {
 
     const media = await library.for('Post', 1).add(png).usingFileName('photo.png').toCollection('images')
 
+    // `add()` already dispatched and generated `thumb` inline (Task 4,
+    // nonQueued); reset the mark to simulate a conversion that hasn't been
+    // generated yet, so the corrupted re-run below exercises a fresh failure.
+    await repo.update(media.id, { generatedConversions: {} })
+
     const disk = await library.storage.disk(media.disk)
     await disk.put(library.pathGenerator.path(media), Buffer.from('not an image'))
 
@@ -169,14 +176,15 @@ describe('conversions', () => {
   })
 
   it('event payloads are independent snapshots, not the same mutated record', async () => {
-    const media = await library.for('Post', 1).add(png).usingFileName('photo.png').toCollection('images')
-
     const started: Array<{ conversion: string; media: MediaRecord }> = []
     const completed: Array<{ conversion: string; media: MediaRecord }> = []
     library.events.on('conversion:started', (p) => started.push({ conversion: p.conversion, media: p.media }))
     library.events.on('conversion:completed', (p) => completed.push({ conversion: p.conversion, media: p.media }))
 
-    await library.performConversions(media.id)
+    // Both `thumb` and `web` are nonQueued, so `add()` dispatches and runs
+    // them inline (Task 4) in a single perform() call — listeners must be
+    // registered before add() rather than calling performConversions() again.
+    await library.for('Post', 1).add(png).usingFileName('photo.png').toCollection('images')
 
     const firstStarted = started[0]
     expect(firstStarted).toBeDefined()

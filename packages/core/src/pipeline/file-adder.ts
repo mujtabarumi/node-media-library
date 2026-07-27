@@ -146,7 +146,38 @@ export class FileAdder {
 
     this.library.events.emit('media:added', { media: created })
 
+    await this.dispatchConversions(created)
+
     return created
+  }
+
+  /**
+   * Splits the collection-filtered, manipulation-merged conversion
+   * definitions (from `engine.applicable()`) into nonQueued (run inline,
+   * errors propagate to the caller of `toCollection()`) and queued (handed
+   * to the configured `QueueDriver`, which decides when/how they run). A
+   * collection with no applicable conversions makes no calls at all.
+   */
+  private async dispatchConversions(record: MediaRecord): Promise<void> {
+    const applicable = this.library.conversionEngine.applicable(record)
+
+    const nonQueuedNames: string[] = []
+    const queuedNames: string[] = []
+    for (const [name, def] of Object.entries(applicable)) {
+      if (def.queued === false) {
+        nonQueuedNames.push(name)
+      } else {
+        queuedNames.push(name)
+      }
+    }
+
+    if (nonQueuedNames.length > 0) {
+      await this.library.performConversions(record.id, nonQueuedNames)
+    }
+
+    if (queuedNames.length > 0) {
+      await this.library.queue.enqueue({ mediaId: record.id, conversionNames: queuedNames })
+    }
   }
 
   private async resolveFileName(normalized: NormalizedSource): Promise<string> {

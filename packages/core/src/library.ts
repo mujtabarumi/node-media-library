@@ -4,7 +4,7 @@ import { TypedEmitter } from './events.js'
 import type { MediaEventMap } from './events.js'
 import { CollectionDefinition, DEFAULT_COLLECTION } from './definitions/collection.js'
 import { UnknownModelError, MediaLibraryError } from './errors.js'
-import type { MediaRecord } from './types.js'
+import type { JsonObject, MediaRecord } from './types.js'
 import type { MediaRepository } from './repository.js'
 import type { ResolvedStorage } from './storage/resolve.js'
 import type { PathGenerator } from './storage/path-generator.js'
@@ -48,9 +48,30 @@ export class MediaLibrary {
     return this.resolved.queue
   }
 
+  /** @internal Consumed by FileAdder to split dispatch into nonQueued/queued names. */
+  get conversionEngine(): ConversionEngine {
+    return this.engine
+  }
+
   /** Runs `names` (or all applicable) conversions for `mediaId` inline. */
   async performConversions(mediaId: string, names?: string[]): Promise<void> {
     return this.engine.perform(mediaId, names)
+  }
+
+  /**
+   * Updates `mediaId`'s per-conversion manipulation overrides and dispatches
+   * regeneration for the changed conversions through the queue — per spec
+   * §8, "changing it triggers regeneration". Always goes through the queue
+   * (not inline) regardless of the conversion's own `queued` flag, since
+   * this is an explicit, user-triggered update rather than upload dispatch.
+   */
+  async updateManipulations(
+    mediaId: string,
+    manipulations: Record<string, JsonObject>,
+  ): Promise<MediaRecord> {
+    const updated = await this.resolved.repository.update(mediaId, { manipulations })
+    await this.resolved.queue.enqueue({ mediaId, conversionNames: Object.keys(manipulations) })
+    return updated
   }
 
   /** @internal Consumed by FileAdder/ModelMediaHandle (Task 11+). */
