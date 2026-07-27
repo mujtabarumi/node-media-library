@@ -114,12 +114,32 @@ export class FileAdder {
     const disk = await this.library.storage.disk(newRecord.disk)
     await disk.put(this.library.pathGenerator.path(newRecord as unknown as MediaRecord), normalized.buffer)
 
-    const created = await this.library.repository.create(newRecord)
+    let created: MediaRecord
+    try {
+      created = await this.library.repository.create(newRecord)
+    } catch (err) {
+      // The file already landed on disk before repository.create ran; if the
+      // repository write fails, roll back the stored file rather than
+      // leaving an orphan with no corresponding record.
+      await disk.deleteAll(this.library.pathGenerator.directory(newRecord as unknown as MediaRecord))
+      throw err
+    }
 
     // Move semantics: a filesystem-path source is consumed unless the
-    // caller opted into preservingOriginal() (copy semantics).
+    // caller opted into preservingOriginal() (copy semantics). This is a
+    // local temp-file cleanup, not a data-integrity step: the media record
+    // already exists, so a failure here must not fail the whole operation
+    // or leave the caller thinking the add() didn't happen (they'd retry
+    // and duplicate the media).
     if (normalized.sourcePath && !this.preserveOriginal) {
-      await unlink(normalized.sourcePath)
+      try {
+        await unlink(normalized.sourcePath)
+      } catch (err) {
+        console.warn(
+          `[media-library] Failed to remove source file "${normalized.sourcePath}" after moving it into the media library:`,
+          err,
+        )
+      }
     }
 
     await this.enforceCollectionRules(collectionDef, collectionName, created)

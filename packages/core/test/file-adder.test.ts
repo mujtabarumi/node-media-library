@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { existsSync, mkdtempSync } from 'node:fs'
-import { mkdtemp, writeFile, rm } from 'node:fs/promises'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { existsSync, mkdtempSync, readdirSync } from 'node:fs'
+import { mkdtemp, writeFile, rm, unlink } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createMediaLibrary, MediaLibrary } from '../src/library.js'
@@ -8,6 +8,11 @@ import { InMemoryMediaRepository } from '../src/repository/in-memory.js'
 import { collection } from '../src/definitions/collection.js'
 import { DisallowedExtensionError, UnacceptableFileError } from '../src/errors.js'
 import type { MediaRecord } from '../src/types.js'
+
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>()
+  return { ...actual, unlink: vi.fn(actual.unlink) }
+})
 
 const PNG_BASE64 =
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
@@ -103,5 +108,42 @@ describe('FileAdder', () => {
 
     expect(captured).toHaveLength(1)
     expect(captured[0]).toEqual(created)
+  })
+
+  it('rolls back the stored file when repository.create fails, and rethrows', async () => {
+    const createSpy = vi.spyOn(repo, 'create').mockRejectedValueOnce(new Error('boom'))
+
+    await expect(library.for('User', 4).add(png).toCollection('avatar')).rejects.toThrow('boom')
+
+    // The disk.put() write landed before repository.create() failed; the
+    // compensating delete must have removed the orphaned <root>/<id> dir.
+    expect(readdirSync(root)).toEqual([])
+
+    createSpy.mockRestore()
+  })
+
+  it('tolerates a failing unlink after the record has already been created', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'nml-source-'))
+    const sourcePath = join(dir, 'gone.png')
+    await writeFile(sourcePath, png)
+
+    vi.mocked(unlink).mockRejectedValueOnce(new Error('ENOENT: no such file or directory'))
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    const captured: MediaRecord[] = []
+    library.events.on('media:added', ({ media }) => captured.push(media))
+
+    try {
+      const created = await library.for('User', 5).add(sourcePath).toCollection('default')
+
+      expect(existsSync(join(root, created.id, created.fileName))).toBe(true)
+      expect(captured).toHaveLength(1)
+      expect(captured[0]?.id).toBe(created.id)
+      expect(warnSpy).toHaveBeenCalledTimes(1)
+      expect(warnSpy.mock.calls[0]?.[0]).toContain(sourcePath)
+    } finally {
+      warnSpy.mockRestore()
+      await rm(dir, { recursive: true, force: true })
+    }
   })
 })
