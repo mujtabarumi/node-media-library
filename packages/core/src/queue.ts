@@ -74,6 +74,13 @@ export function deferDriver(): QueueDriver {
       processor = fn
     },
 
+    // Honesty note: close() only flips `closed` (so future enqueue() calls
+    // reject) — it does not wait for, or cancel, setImmediate callbacks
+    // already scheduled by prior enqueue() calls. Those still fire on a
+    // later tick and still run the processor; a caller that awaits close()
+    // expecting all in-flight work to have stopped will observe processor
+    // side effects (or the console.error from a rejected processor) after
+    // close() has already resolved.
     async close() {
       closed = true
     },
