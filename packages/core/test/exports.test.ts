@@ -274,4 +274,45 @@ describe('public exports', () => {
     }
     expect(result).toBeDefined()
   })
+
+  // CLI
+  it('exports runCli', async () => {
+    const { runCli } = await import('../src/index.js')
+    expect(runCli).toBeDefined()
+  })
+
+  it('exports defaultLoadLibrary', async () => {
+    const { defaultLoadLibrary } = await import('../src/index.js')
+    expect(defaultLoadLibrary).toBeDefined()
+  })
+
+  it('exports CliLibrary type', async () => {
+    const lib: import('../src/index.js').CliLibrary = {
+      regenerate: async () => ({ enqueued: 0 }),
+      clean: async () => ({
+        orphanedMediaDeleted: 0,
+        staleFilesDeleted: 0,
+        staleEntriesRemoved: 0,
+        dryRun: false,
+      }),
+    }
+    expect(lib).toBeDefined()
+  })
+
+  it('exports CliDeps type', async () => {
+    const deps: import('../src/index.js').CliDeps = {
+      loadLibrary: async () => ({
+        regenerate: async () => ({ enqueued: 0 }),
+        clean: async () => ({
+          orphanedMediaDeleted: 0,
+          staleFilesDeleted: 0,
+          staleEntriesRemoved: 0,
+          dryRun: false,
+        }),
+      }),
+      log: () => {},
+      error: () => {},
+    }
+    expect(deps).toBeDefined()
+  })
 })

@@ -131,11 +131,25 @@ If a media file's MIME type isn't `supports()`-ed by any configured generator, c
 images for that file are skipped silently — the upload itself still succeeds and the file remains usable as a
 plain (attachment-only) piece of media.
 
+## CLI
+
+The package ships a `node-media-library` bin with `regenerate` and `clean` commands. It expects a config module
+that default-exports a `MediaLibrary` instance:
+
+```bash
+node-media-library regenerate --config media.config.mjs --model User --only-missing --with-responsive
+node-media-library clean --config media.config.mjs --dry-run --delete-orphaned --rate-limit 10
+```
+
+Running the CLI from a checkout of this repo (rather than an installed package) requires `pnpm build` first —
+the bin points at `./dist/cli.js`, which is only produced by the build step, not present in `src/`. `.ts` configs
+need to be executed with a TypeScript loader such as `tsx`.
+
 ## Roadmap
 
-**Current**: File upload, storage, retrieval, collections, image conversions, responsive images, queue-backed dispatch (sync and BullMQ), Prisma adapter, PDF/video image generators.
+**Current**: File upload, storage, retrieval, collections, image conversions, responsive images, queue-backed dispatch (sync and BullMQ), Prisma adapter, PDF/video image generators, downloads/ZIP, CLI.
 
-**Remaining**: Downloads/ZIP/CLI (Plan 6).
+**Remaining**: Publish preparation (Plan 6).
 
 ## License
 
