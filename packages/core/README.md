@@ -2,7 +2,7 @@
 
 Node.js port of [spatie/laravel-medialibrary](https://github.com/spatie/laravel-medialibrary) — manage media files (images, documents, etc.) for your application models.
 
-> **Pre-release**: Not yet published to npm; currently in active development. Covers file upload, storage, retrieval, collection organization, image conversions, responsive images, and queue-backed dispatch. PDF/video conversions, downloads, and a CLI land in later plans.
+> **Pre-release**: Not yet published to npm; currently in active development. Covers file upload, storage, retrieval, collection organization, image conversions, responsive images, and queue-backed dispatch. PDF/video conversion generators live in `@node-media-library/pdf` and `@node-media-library/video`; downloads and a CLI land in later plans.
 
 ## Installation
 
@@ -100,11 +100,42 @@ await library.regenerate({ withResponsive: true })               // (re)generate
 await library.regenerate({ withResponsive: true, onlyMissing: true }) // only records missing an 'original' entry
 ```
 
+## Other file types (PDF, video)
+
+Core only ships `sharpImageGenerator()` (used by default when `imageGenerators` is omitted). Support for
+non-image sources is added by explicitly appending a generator from the corresponding package — there's no
+auto-detection or implicit registration:
+
+```typescript
+import { createMediaLibrary, sharpImageGenerator } from '@node-media-library/core'
+import { pdfImageGenerator } from '@node-media-library/pdf'
+import { videoImageGenerator } from '@node-media-library/video'
+
+createMediaLibrary({
+  // ...
+  imageGenerators: [sharpImageGenerator(), pdfImageGenerator(), videoImageGenerator()],
+})
+```
+
+- `@node-media-library/pdf` renders PDF pages via poppler's `pdftoppm` binary — select the page with
+  `conversion().pdfPageNumber(n)` (default page 1). Requires `pdftoppm` on the system (`brew install poppler` /
+  `apt install poppler-utils`).
+- `@node-media-library/video` extracts a still frame via the `ffmpeg` binary — select the timestamp with
+  `conversion().videoFrameAtSecond(n)` (default 0). Requires `ffmpeg` on the system.
+
+Both generators also implement `toSourceImage`, so `.withResponsiveImages()` (collection, conversion, or
+per-upload) works the same way it does for images: it rasterizes the source once and derives the responsive
+variant set from that raster, not from the original PDF/video bytes.
+
+If a media file's MIME type isn't `supports()`-ed by any configured generator, conversions and responsive
+images for that file are skipped silently — the upload itself still succeeds and the file remains usable as a
+plain (attachment-only) piece of media.
+
 ## Roadmap
 
-**Current**: File upload, storage, retrieval, collections, image conversions, responsive images, queue-backed dispatch (sync and BullMQ), Prisma adapter.
+**Current**: File upload, storage, retrieval, collections, image conversions, responsive images, queue-backed dispatch (sync and BullMQ), Prisma adapter, PDF/video image generators.
 
-**Remaining**: PDF/video conversion generators (Plan 5), downloads/ZIP/CLI (Plan 6).
+**Remaining**: Downloads/ZIP/CLI (Plan 6).
 
 ## License
 
