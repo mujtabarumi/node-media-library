@@ -179,7 +179,12 @@ export class ConversionEngine {
     // conversions below are still worth attempting, so warn and continue.
     if (runOriginal) {
       try {
-        await this.generateResponsive(media, 'original', originalBuffer, null, null)
+        // Non-image sources (PDF, video) must be rasterized before sharp
+        // sees them; generators that need this declare toSourceImage.
+        const responsiveSource = generator.toSourceImage
+          ? await generator.toSourceImage(originalBuffer)
+          : originalBuffer
+        await this.generateResponsive(media, 'original', responsiveSource, null, null)
       } catch (err) {
         if (entries.length === 0) {
           throw err

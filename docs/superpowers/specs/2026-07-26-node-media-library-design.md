@@ -140,7 +140,7 @@ Media-level API: `url(conversion?)`, `signedUrl(...)`, `srcset(conversion?)`, `d
 
 ## 9. Image generators & responsive images
 
-**Generator interface:** `supports(mime): boolean`, `toImage(input, conversion): Promise<Buffer>` — converts a non-image into a source image; the sharp pipeline then applies the conversion. Core registers the image generator (raster + svg via sharp). `pdf`/`video` packages self-register when installed. Custom generators can be appended. Files with no supporting generator skip conversions silently (attachment-only media is fine).
+**Generator interface:** `supports(mime): boolean`, `toImage(input, conversion): Promise<Buffer>` — converts a non-image into a source image; the sharp pipeline then applies the conversion. An optional `toSourceImage(input): Promise<Buffer>` member renders a plain, conversion-free raster of the source (e.g. PDF page 1, video frame at 0s) for use as the original-responsive source; absent means `input` is already sharp-readable. Core registers the image generator (raster + svg via sharp). `pdf`/`video` packages export generators the user appends via config (`imageGenerators: [sharpImageGenerator(), pdfImageGenerator(), ...]`) — no install-time magic. Custom generators can be appended. Files with no supporting generator skip conversions silently (attachment-only media is fine).
 
 **Responsive images** (opt-in per collection/conversion or per-add):
 - Widths from `FileSizeOptimizedWidthCalculator` (port of Spatie's: each variant targets ~70% of previous file size; stop < 10KB predicted or < 20px). Swappable via config.

@@ -9,6 +9,7 @@ import { InMemoryMediaRepository } from '../src/repository/in-memory.js'
 import { collection } from '../src/definitions/collection.js'
 import { conversion } from '../src/definitions/conversion.js'
 import type { MediaEventMap } from '../src/events.js'
+import type { ImageGenerator } from '../src/conversions/image-generator.js'
 
 let root: string
 let repo: InMemoryMediaRepository
@@ -210,5 +211,61 @@ describe('responsive engine integration', () => {
       conversion: 'original',
     }
     expect(payload.conversion).toBe('original')
+  })
+
+  it('routes original responsive generation through toSourceImage when the generator provides it', async () => {
+    let sourceCalls = 0
+    const fakeGenerator: ImageGenerator = {
+      supports: (mime) => mime === 'application/x-fake',
+      toImage: async () => buildJpegFixture(400, 300),
+      toSourceImage: async () => {
+        sourceCalls += 1
+        return buildJpegFixture(800, 600)
+      },
+    }
+
+    const library = createMediaLibrary({
+      repository: repo,
+      storage: { disks: { default: { driver: 'fs', root } } },
+      imageGenerators: [fakeGenerator],
+      models: {
+        Post: { collections: { images: collection().withResponsiveImages() } },
+      },
+    })
+
+    const tinySource = await buildJpegFixture(10, 10)
+    const media = await library.for('Post', 1).add(tinySource).usingFileName('photo.jpg').toCollection('images')
+
+    await repo.update(media.id, { mimeType: 'application/x-fake', responsiveImages: { requested: true } })
+
+    await library.performConversions(media.id, ['original'])
+
+    expect(sourceCalls).toBe(1)
+    const updated = await repo.findById(media.id)
+    const entry = updated?.responsiveImages.original as { files: Array<{ width: number }> }
+    expect(entry).toBeDefined()
+    expect(entry.files.length).toBeGreaterThan(0)
+    // Widths must derive from the 800px toSourceImage output, not the 10px original.
+    expect(entry.files[0]!.width).toBe(800)
+  })
+
+  it('generators without toSourceImage keep the raw-original behavior', async () => {
+    const library = createMediaLibrary({
+      repository: repo,
+      storage: { disks: { default: { driver: 'fs', root } } },
+      models: {
+        Post: { collections: { images: collection().withResponsiveImages() } },
+      },
+    })
+
+    const media = await library.for('Post', 1).add(jpeg).usingFileName('photo.jpg').toCollection('images')
+
+    const updated = await repo.findById(media.id)
+    const entry = updated?.responsiveImages.original as { files: Array<{ width: number }> }
+    expect(entry).toBeDefined()
+    expect(entry.files.length).toBeGreaterThan(0)
+
+    const uploadedMeta = await sharp(jpeg).metadata()
+    expect(entry.files[0]!.width).toBe(uploadedMeta.width)
   })
 })

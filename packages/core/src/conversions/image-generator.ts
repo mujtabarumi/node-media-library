@@ -11,7 +11,18 @@ const SUPPORTED_MIME_TYPES = new Set([
 
 export interface ImageGenerator {
   supports(mimeType: string | null): boolean
+  /**
+   * Applies `def` to the source and returns the derived raster. `input` is
+   * always the full source file's bytes; generators needing a real file
+   * (pdf/video binaries) write a temp file internally.
+   */
   toImage(input: Buffer, def: ConversionDefinition): Promise<Buffer>
+  /**
+   * Optional: renders a plain, conversion-free raster of the source (e.g.
+   * PDF page 1, video frame at 0s) for use as the original-responsive
+   * source. Absent means `input` is already a sharp-readable image.
+   */
+  toSourceImage?(input: Buffer): Promise<Buffer>
 }
 
 export function sharpImageGenerator(): ImageGenerator {
