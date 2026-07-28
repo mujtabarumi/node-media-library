@@ -128,6 +128,15 @@ export class ConversionEngine {
     const disk = await this.deps.storage.disk(media.disk)
     const dir = this.deps.pathGenerator.responsivePath(media)
 
+    // Captured BEFORE the new variants are written, so a regenerate can
+    // clean up whichever of the previous entry's files the new variant plan
+    // no longer produces (e.g. a narrower widthCalculator on a later run).
+    // Read fresh rather than trusting the caller's `media` snapshot, since
+    // that may already be stale by the time this runs.
+    const current = await this.deps.repository.findById(media.id)
+    const previousEntry = current?.responsiveImages[conversionName] as ResponsiveImagesEntry | undefined
+    const previousFiles = Array.isArray(previousEntry?.files) ? previousEntry.files : []
+
     const files: ResponsiveVariant[] = []
     for (const width of widths) {
       const variant = await renderVariant(source, width, format, quality)
@@ -143,6 +152,21 @@ export class ConversionEngine {
 
     const updated = await this.deps.repository.mergeResponsiveImages(media.id, conversionName, { ...entry })
     this.deps.events.emit('responsive:generated', { media: snapshot(updated), conversion: conversionName })
+
+    // Stale-variant cleanup happens AFTER the new files are written and the
+    // merge has landed, so readers never see a gap where neither the old nor
+    // the new variant is available. Each delete is independently try/caught
+    // — cleanup failing must never fail the generation that already
+    // succeeded.
+    const newFileNames = new Set(files.map((f) => f.fileName))
+    for (const stale of previousFiles) {
+      if (newFileNames.has(stale.fileName)) continue
+      try {
+        await disk.delete(`${dir}/${stale.fileName}`)
+      } catch (err) {
+        console.warn('[media-library] failed to delete stale responsive variant:', err)
+      }
+    }
   }
 
   /**
@@ -207,6 +231,11 @@ export class ConversionEngine {
         const originalFormat = generator.toSourceImage ? 'png' : null
         await this.generateResponsive(media, 'original', responsiveSource, originalFormat, null)
       } catch (err) {
+        // Emitted for both branches below: this is the original-responsive
+        // sentinel failing, not a named conversion, so it can never surface
+        // as that conversion's 'conversion:failed' — 'responsive:failed' is
+        // the only observable signal for it either way.
+        this.deps.events.emit('responsive:failed', { media: snapshot(media), conversion: 'original', error: err })
         if (entries.length === 0) {
           throw err
         }

@@ -13,6 +13,7 @@ export interface MediaEventMap {
   'conversion:completed': { media: MediaRecord; conversion: string }
   'conversion:failed': { media: MediaRecord; conversion: string; error: unknown }
   'responsive:generated': { media: MediaRecord; conversion: string }
+  'responsive:failed': { media: MediaRecord; conversion: string; error: unknown }
 }
 
 // `T extends object` (not `Record<string, unknown>`): the class only ever

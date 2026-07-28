@@ -343,4 +343,113 @@ describe('responsive engine integration', () => {
     const url = await library.urlGenerator.url(refreshed!, 'thumb')
     expect(url).toContain('doc-thumb.png')
   })
+
+  it('regenerating original responsive with a shrunk variant plan deletes the stale (no-longer-produced) files', async () => {
+    const storage = { disks: { default: { driver: 'fs' as const, root } } }
+
+    const library = createMediaLibrary({
+      repository: repo,
+      storage,
+      models: {
+        Post: { collections: { images: collection().withResponsiveImages() } },
+      },
+    })
+
+    const media = await library.for('Post', 1).add(jpeg).usingFileName('photo.jpg').toCollection('images')
+
+    const dir = responsiveDir(media.id)
+    const originalFiles = readdirSync(dir)
+    expect(originalFiles.length).toBeGreaterThan(1)
+
+    // A second library over the same repo + storage, but with a width
+    // calculator that only ever produces a single width — shrinking the
+    // variant plan for a regenerate.
+    const library2 = createMediaLibrary({
+      repository: repo,
+      storage,
+      responsiveWidthCalculator: { calculateWidths: () => [200] },
+      models: {
+        Post: { collections: { images: collection().withResponsiveImages() } },
+      },
+    })
+
+    await library2.performConversions(media.id, ['original'])
+
+    const updated = await repo.findById(media.id)
+    const entry = updated?.responsiveImages.original as { files: Array<{ fileName: string }> }
+    expect(entry.files.length).toBe(1)
+
+    const afterFiles = readdirSync(dir)
+    expect(afterFiles.sort()).toEqual(entry.files.map((f) => f.fileName).sort())
+  })
+
+  it("emits 'responsive:failed' (warn path) when the original width calculator throws but a conversion still succeeds", async () => {
+    const storage = { disks: { default: { driver: 'fs' as const, root } } }
+    const models = {
+      Post: {
+        collections: {
+          images: collection()
+            .withResponsiveImages()
+            .conversions({
+              thumb: conversion().width(50).nonQueued(),
+            }),
+        },
+      },
+    }
+
+    const library = createMediaLibrary({ repository: repo, storage, models })
+    const media = await library.for('Post', 1).add(jpeg).usingFileName('photo.jpg').toCollection('images')
+
+    const library2 = createMediaLibrary({
+      repository: repo,
+      storage,
+      responsiveWidthCalculator: {
+        calculateWidths: () => {
+          throw new Error('boom')
+        },
+      },
+      models,
+    })
+
+    const failures: Array<{ conversion: string; error: unknown }> = []
+    library2.events.on('responsive:failed', (p) => failures.push(p))
+
+    await expect(library2.performConversions(media.id)).resolves.toBeUndefined()
+
+    expect(failures).toHaveLength(1)
+    expect(failures[0]?.conversion).toBe('original')
+    expect(failures[0]?.error).toBeInstanceOf(Error)
+
+    const updated = await repo.findById(media.id)
+    expect(updated?.generatedConversions.thumb).toBe(true)
+  })
+
+  it("emits 'responsive:failed' (rethrow path) and rejects when the original width calculator throws with no fallback conversions", async () => {
+    const storage = { disks: { default: { driver: 'fs' as const, root } } }
+    const models = {
+      Post: { collections: { images: collection().withResponsiveImages() } },
+    }
+
+    const library = createMediaLibrary({ repository: repo, storage, models })
+    const media = await library.for('Post', 1).add(jpeg).usingFileName('photo.jpg').toCollection('images')
+
+    const library2 = createMediaLibrary({
+      repository: repo,
+      storage,
+      responsiveWidthCalculator: {
+        calculateWidths: () => {
+          throw new Error('boom')
+        },
+      },
+      models,
+    })
+
+    const failures: Array<{ conversion: string; error: unknown }> = []
+    library2.events.on('responsive:failed', (p) => failures.push(p))
+
+    await expect(library2.performConversions(media.id, ['original'])).rejects.toThrow('boom')
+
+    expect(failures).toHaveLength(1)
+    expect(failures[0]?.conversion).toBe('original')
+  })
 })
