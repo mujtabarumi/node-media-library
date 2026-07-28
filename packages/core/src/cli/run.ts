@@ -45,6 +45,20 @@ function splitList(value: string): string[] {
     .filter((s) => s.length > 0)
 }
 
+/**
+ * `parseArgs` declares the union of every command's flags (it has no
+ * per-subcommand mode), so a flag valid for one command but typo'd/misused
+ * under the other parses without error and is then silently ignored by
+ * whichever branch doesn't read it — e.g. `regenerate --rate-limit 5` used
+ * to accept the flag and just never apply it. This maps each command to the
+ * flags it actually reads, so `runCli` can reject anything outside that set
+ * with a clear error instead of accepting-and-ignoring it.
+ */
+const FLAGS_BY_COMMAND: Record<'regenerate' | 'clean', readonly string[]> = {
+  regenerate: ['model', 'ids', 'only', 'only-missing', 'with-responsive'],
+  clean: ['dry-run', 'delete-orphaned', 'rate-limit'],
+}
+
 export async function runCli(argv: string[], deps: CliDeps): Promise<number> {
   let parsed: ReturnType<typeof parseArgs>
   try {
@@ -93,6 +107,16 @@ export async function runCli(argv: string[], deps: CliDeps): Promise<number> {
     deps.error('Missing required --config <path>.')
     deps.error(USAGE)
     return 1
+  }
+
+  const allowedFlags = FLAGS_BY_COMMAND[command]
+  for (const [flag, value] of Object.entries(values)) {
+    if (flag === 'config' || value === undefined) continue
+    if (!allowedFlags.includes(flag)) {
+      deps.error(`--${flag} is not a valid flag for the "${command}" command.`)
+      deps.error(USAGE)
+      return 1
+    }
   }
 
   let rateLimit: number | undefined

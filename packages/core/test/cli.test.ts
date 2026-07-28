@@ -189,6 +189,27 @@ describe('runCli', () => {
     expect(recorder.errors.some((l) => l.includes('repository connection lost'))).toBe(true)
   })
 
+  it('fails with a clear message when a clean-only flag is passed to regenerate', async () => {
+    const { deps, recorder } = makeDeps()
+
+    const code = await runCli(['regenerate', '--config', 'c.mjs', '--rate-limit', '5'], deps)
+
+    expect(code).toBe(1)
+    expect(recorder.errors.some((l) => l.includes('--rate-limit') && l.includes('regenerate'))).toBe(true)
+    expect(recorder.regenerateCalls).toEqual([])
+    expect(recorder.configPaths).toEqual([])
+  })
+
+  it('fails with a clear message when a regenerate-only flag is passed to clean', async () => {
+    const { deps, recorder } = makeDeps()
+
+    const code = await runCli(['clean', '--config', 'c.mjs', '--with-responsive'], deps)
+
+    expect(code).toBe(1)
+    expect(recorder.errors.some((l) => l.includes('--with-responsive') && l.includes('clean'))).toBe(true)
+    expect(recorder.cleanCalls).toEqual([])
+  })
+
   it('returns 1 and reports the error message when regenerate() rejects, instead of letting it escape unhandled', async () => {
     const { deps, recorder } = makeDeps({
       regenerate: async () => {
