@@ -2,9 +2,21 @@
   "name": "@node-media-library/core",
   "version": "0.0.0",
   "type": "module",
+  "description": "Node port of spatie/laravel-medialibrary: attach, convert, and serve file collections for your models.",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "git+https://github.com/mujtabarumi/node-media-library.git" },
+  "keywords": ["media-library", "uploads", "conversions", "downloads", "cli"],
+  "engines": { "node": ">=20" },
+  "files": ["dist", "README.md", "LICENSE"],
   "exports": { ".": "./src/index.ts", "./testing": "./src/testing/index.ts" },
+  "publishConfig": {
+    "exports": {
+      ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+      "./testing": { "types": "./dist/testing/index.d.ts", "default": "./dist/testing/index.js" }
+    }
+  },
   "bin": { "node-media-library": "./dist/cli.js" },
-  "scripts": { "test": "vitest run", "typecheck": "tsc --noEmit" },
+  "scripts": { "test": "vitest run", "typecheck": "tsc --noEmit", "build": "tsc -p tsconfig.build.json", "prepublishOnly": "pnpm build" },
   "dependencies": { "flydrive": "^1.3.0", "file-type": "^19.0.0", "sharp": "^0.35.3", "archiver": "^7.0.1" },
   "devDependencies": {
     "typescript": "^5.5.0",

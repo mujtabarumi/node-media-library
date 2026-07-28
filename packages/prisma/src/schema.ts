@@ -9,6 +9,7 @@ export const MEDIA_MODEL_SNIPPET = `model Media {
   mimeType             String?
   disk                 String
   conversionsDisk      String?
+  // size Int supports files up to ~2GB; switch to BigInt (and adjust MediaRow) for larger files
   size                 Int
   manipulations        Json
   customProperties     Json

@@ -2,10 +2,21 @@
   "name": "@node-media-library/prisma",
   "version": "0.0.0",
   "type": "module",
+  "description": "Prisma adapter (MediaRepository + cascading deletes) for @node-media-library/core.",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "git+https://github.com/mujtabarumi/node-media-library.git" },
+  "keywords": ["media-library", "uploads", "conversions", "prisma"],
+  "engines": { "node": ">=20" },
+  "files": ["dist", "README.md", "LICENSE"],
   "exports": { ".": "./src/index.ts" },
+  "publishConfig": {
+    "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } }
+  },
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "pnpm build",
     "db:prepare": "prisma db push && prisma generate"
   },
   "dependencies": { "@node-media-library/core": "workspace:*" },

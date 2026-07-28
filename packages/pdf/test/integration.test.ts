@@ -45,12 +45,10 @@ describe.runIf(available)('pdf end-to-end through the media pipeline', () => {
       const conversionFiles = await readdir(join(root, record.id, 'conversions'))
       expect(conversionFiles).toContain('doc-thumb.jpeg')
       const responsiveFiles = await readdir(join(root, record.id, 'responsive'))
-      // Known watchpoint (see task-4 report): `responsiveFileName` derives the
-      // output extension from the ORIGINAL file name when `format` is null, so
-      // doc.pdf's original-responsive variants are named `doc___original_w_h.pdf`
-      // while actually containing raster (PNG) bytes. Assert the real behavior
-      // here rather than pinning an extension the engine doesn't produce.
-      expect(responsiveFiles.some((f) => /___original_\d+_\d+\./.test(f))).toBe(true)
+      // The naming fix (see fae1db4) guarantees non-image originals (like this
+      // PDF) rasterize through toSourceImage and get a `.png` extension on
+      // their responsive variants, matching the raster bytes actually written.
+      expect(responsiveFiles.some((f) => /___original_\d+_\d+\.png$/.test(f))).toBe(true)
     } finally {
       await rm(root, { recursive: true, force: true })
     }

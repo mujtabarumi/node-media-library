@@ -20,6 +20,7 @@ model Media {
   mimeType             String?
   disk                 String
   conversionsDisk      String?
+  // size Int supports files up to ~2GB; switch to BigInt (and adjust MediaRow) for larger files
   size                 Int
   manipulations        Json
   customProperties     Json
@@ -33,6 +34,10 @@ model Media {
 }
 ```
 Also exported verbatim as `MEDIA_MODEL_SNIPPET`. Prisma 7 note: it generates the client into your own output dir — pass that instance into `prismaAdapter`, don't assume a package default.
+
+`size Int` supports files up to ~2GB; switch to `BigInt` (and adjust `MediaRow`) for larger files.
+
+Ordering for a model's media uses `orderBy: [{ orderColumn: { sort: 'asc', nulls: 'last' } }, { createdAt: 'asc' }]`. The `nulls: 'last'` behavior is verified against SQLite in this repo's test suite; run the exported contract suite against your own Postgres/MySQL before relying on it there.
 
 ## Usage
 ```ts

@@ -2,8 +2,17 @@
   "name": "@node-media-library/video",
   "version": "0.0.0",
   "type": "module",
+  "description": "ffmpeg-backed ImageGenerator for extracting video frame thumbnails in @node-media-library/core.",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "git+https://github.com/mujtabarumi/node-media-library.git" },
+  "keywords": ["media-library", "uploads", "conversions", "video", "ffmpeg"],
+  "engines": { "node": ">=20" },
+  "files": ["dist", "README.md", "LICENSE"],
   "exports": { ".": "./src/index.ts" },
-  "scripts": { "test": "vitest run", "typecheck": "tsc --noEmit" },
+  "publishConfig": {
+    "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } }
+  },
+  "scripts": { "test": "vitest run", "typecheck": "tsc --noEmit", "build": "tsc -p tsconfig.build.json", "prepublishOnly": "pnpm build" },
   "dependencies": { "@node-media-library/core": "workspace:*" },
   "devDependencies": {
     "sharp": "^0.35.3",
