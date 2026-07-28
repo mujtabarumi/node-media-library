@@ -15,14 +15,12 @@ Requires the `pdftoppm` binary from the poppler utilities:
 Append the PDF generator to your `imageGenerators` array alongside `sharpImageGenerator`:
 
 ```typescript
-import { sharpImageGenerator } from '@node-media-library/core'
+import { createMediaLibrary, sharpImageGenerator } from '@node-media-library/core'
 import { pdfImageGenerator } from '@node-media-library/pdf'
 
-const handler = mediaLibrary({
-  imageGenerators: [
-    pdfImageGenerator(),
-    sharpImageGenerator(),
-  ],
+createMediaLibrary({
+  // ...
+  imageGenerators: [sharpImageGenerator(), pdfImageGenerator()],
 })
 ```
 

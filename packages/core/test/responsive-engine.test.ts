@@ -268,4 +268,79 @@ describe('responsive engine integration', () => {
     const uploadedMeta = await sharp(jpeg).metadata()
     expect(entry.files[0]!.width).toBe(uploadedMeta.width)
   })
+
+  it('original-responsive variants for a toSourceImage generator are named/encoded .png, not the source extension', async () => {
+    const fakeGenerator: ImageGenerator = {
+      supports: (mime) => mime === 'application/x-fake',
+      toImage: async () => buildJpegFixture(400, 300),
+      toSourceImage: async () => buildJpegFixture(800, 600),
+    }
+
+    const library = createMediaLibrary({
+      repository: repo,
+      storage: { disks: { default: { driver: 'fs', root } } },
+      imageGenerators: [fakeGenerator],
+      models: {
+        Post: { collections: { images: collection().withResponsiveImages() } },
+      },
+    })
+
+    const tinySource = await buildJpegFixture(10, 10)
+    const media = await library.for('Post', 1).add(tinySource).usingFileName('doc.pdf').toCollection('images')
+
+    await repo.update(media.id, { mimeType: 'application/x-fake', responsiveImages: { requested: true } })
+    await library.performConversions(media.id, ['original'])
+
+    const dir = responsiveDir(media.id)
+    const files = readdirSync(dir)
+    expect(files.length).toBeGreaterThan(0)
+    for (const fileName of files) {
+      expect(fileName).toMatch(/___original_\d+_\d+\.png$/)
+    }
+
+    const updated = await repo.findById(media.id)
+    const entry = updated?.responsiveImages.original as { files: Array<{ fileName: string }> }
+    expect(entry.files.length).toBeGreaterThan(0)
+    for (const variant of entry.files) {
+      expect(files).toContain(variant.fileName)
+    }
+  })
+
+  it('a format:null conversion on a toSourceImage generator writes -<name>.png on disk and resolves the conversion URL to that same file', async () => {
+    const fakeGenerator: ImageGenerator = {
+      supports: (mime) => mime === 'application/x-fake',
+      toImage: async () => buildJpegFixture(400, 300),
+      toSourceImage: async () => buildJpegFixture(800, 600),
+    }
+
+    const library = createMediaLibrary({
+      repository: repo,
+      storage: { disks: { default: { driver: 'fs', root, baseUrl: 'https://cdn.test' } } },
+      imageGenerators: [fakeGenerator],
+      models: {
+        Post: {
+          collections: {
+            images: collection().conversions({
+              thumb: conversion().width(50).nonQueued(),
+            }),
+          },
+        },
+      },
+    })
+
+    const tinySource = await buildJpegFixture(10, 10)
+    const media = await library.for('Post', 1).add(tinySource).usingFileName('doc.pdf').toCollection('images')
+
+    await repo.update(media.id, { mimeType: 'application/x-fake' })
+    await library.performConversions(media.id, ['thumb'])
+
+    const conversionsDir = join(root, media.id, 'conversions')
+    const files = readdirSync(conversionsDir)
+    expect(files).toContain('doc-thumb.png')
+
+    const refreshed = await repo.findById(media.id)
+    expect(refreshed).toBeDefined()
+    const url = await library.urlGenerator.url(refreshed!, 'thumb')
+    expect(url).toContain('doc-thumb.png')
+  })
 })

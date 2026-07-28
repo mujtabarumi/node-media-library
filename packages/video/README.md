@@ -16,14 +16,12 @@ Requires the `ffmpeg` binary:
 Append the video generator to your `imageGenerators` array alongside `sharpImageGenerator`:
 
 ```typescript
+import { createMediaLibrary, sharpImageGenerator } from '@node-media-library/core'
 import { videoImageGenerator } from '@node-media-library/video'
-import { sharpImageGenerator } from '@node-media-library/core'
 
-const handler = mediaLibrary({
-  imageGenerators: [
-    videoImageGenerator(),
-    sharpImageGenerator(),
-  ],
+createMediaLibrary({
+  // ...
+  imageGenerators: [sharpImageGenerator(), videoImageGenerator()],
 })
 ```
 

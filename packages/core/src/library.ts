@@ -61,7 +61,7 @@ export class MediaLibrary {
         signedUrlExpiresIn: config.signedUrlExpiresIn ?? DEFAULT_SIGNED_URL_EXPIRES_IN,
         conversionFileNameFor: (media, name) => {
           const def = this.engine.applicable(media)[name]
-          return def ? conversionFileName(media.fileName, name, def.format) : null
+          return def ? conversionFileName(media.fileName, name, this.engine.effectiveFormat(media, def)) : null
         },
       })
   }

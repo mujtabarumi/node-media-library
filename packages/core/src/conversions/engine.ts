@@ -84,6 +84,22 @@ export class ConversionEngine {
   }
 
   /**
+   * `def.format`, or the raster default ('png') when `def.format` is `null`
+   * ("keep original format") but `media`'s generator has to rasterize the
+   * source first (`toSourceImage`) — for a non-image original (PDF, video),
+   * "keep original format" cannot mean the source container's extension,
+   * since the bytes actually written are always a raster encoding. Shared by
+   * the conversion loop (what gets encoded/named on disk) and
+   * `library.ts`'s `conversionFileNameFor` (what the URL resolves to), so
+   * the two can never drift.
+   */
+  effectiveFormat(media: MediaRecord, def: ConversionDefinition): ConversionDefinition['format'] {
+    if (def.format !== null) return def.format
+    const generator = this.deps.generators.find((g) => g.supports(media.mimeType))
+    return generator?.toSourceImage ? 'png' : null
+  }
+
+  /**
    * Renders responsive variants of `source` under `conversionName`, writes
    * them to `{directory}/responsive/` on the media's own disk, records the
    * entry atomically and emits `responsive:generated`. `format`/`quality`
@@ -180,11 +196,16 @@ export class ConversionEngine {
     if (runOriginal) {
       try {
         // Non-image sources (PDF, video) must be rasterized before sharp
-        // sees them; generators that need this declare toSourceImage.
+        // sees them; generators that need this declare toSourceImage. The
+        // rasterized bytes are always PNG (the seam's fixed raster output),
+        // so name/encode the variants as .png rather than inheriting the
+        // source's own extension (e.g. .pdf) as generateResponsive's `null`
+        // format would otherwise do.
         const responsiveSource = generator.toSourceImage
           ? await generator.toSourceImage(originalBuffer)
           : originalBuffer
-        await this.generateResponsive(media, 'original', responsiveSource, null, null)
+        const originalFormat = generator.toSourceImage ? 'png' : null
+        await this.generateResponsive(media, 'original', responsiveSource, originalFormat, null)
       } catch (err) {
         if (entries.length === 0) {
           throw err
@@ -206,15 +227,22 @@ export class ConversionEngine {
       // mutating.
       const before = (await this.deps.repository.findById(mediaId)) ?? media
       this.deps.events.emit('conversion:started', { media: snapshot(before), conversion: name })
+      // "Keep original format" (format: null) for a source that had to be
+      // rasterized (toSourceImage generator) means the raster default
+      // (png), not the source container's extension — computed once so the
+      // written bytes, the on-disk file name, and the responsive variants
+      // below all agree. Ordinary image sources are unaffected (def is
+      // returned unchanged).
+      const effectiveDef: ConversionDefinition = { ...def, format: this.effectiveFormat(media, def) }
       try {
-        const output = await generator.toImage(originalBuffer, def)
-        const key = conversionKey(media, this.deps.pathGenerator, def, name)
+        const output = await generator.toImage(originalBuffer, effectiveDef)
+        const key = conversionKey(media, this.deps.pathGenerator, effectiveDef, name)
         await conversionsDisk.put(key, output)
-        if (def.responsiveImages) {
+        if (effectiveDef.responsiveImages) {
           // A failure here lands in this same catch block and counts as
           // this conversion's failure — the conversion file was written,
           // but it isn't marked generated and 'conversion:failed' fires.
-          await this.generateResponsive(media, name, output, def.format, def.quality)
+          await this.generateResponsive(media, name, output, effectiveDef.format, effectiveDef.quality)
         }
         // The merge is delegated to the repository (Plan 4): no read→write
         // gap in this layer, which serializes it as far as its backend
