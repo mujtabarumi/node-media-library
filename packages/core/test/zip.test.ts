@@ -136,6 +136,32 @@ describe('zip', () => {
     await expect(library.zip('archive.zip', [mediaA.id, 'nope'])).rejects.toThrow(MediaLibraryError)
   })
 
+  it('6. entry streams open lazily — disk.getStream() is not called until the archive actually reads that entry', async () => {
+    const library = buildLibrary()
+    const mediaA = await library.for('Post', 1).add(jpegA).usingFileName('a.jpg').toCollection('images')
+    const mediaB = await library.for('Post', 1).add(jpegB).usingFileName('b.jpg').toCollection('images')
+
+    const disk = await library.storage.disk('default')
+    const originalGetStream = disk.getStream.bind(disk)
+    const getStreamCalls: string[] = []
+    disk.getStream = (async (key: string) => {
+      getStreamCalls.push(key)
+      return originalGetStream(key)
+    }) as typeof disk.getStream
+
+    const response = await library.zip('archive.zip', [mediaA.id, mediaB.id])
+
+    // If entries were opened eagerly (old behavior), both getStream() calls
+    // would already have happened by the time zip() resolves — before the
+    // archive has been read at all.
+    expect(getStreamCalls).toEqual([])
+
+    const entries = await readZip(Buffer.from(await response.arrayBuffer()))
+
+    expect(entries.size).toBe(2)
+    expect(getStreamCalls.length).toBe(2)
+  })
+
   describe('zipEntryName (pure)', () => {
     it('5a. no collision: passthrough of prefix + fileName', () => {
       const taken = new Set<string>()

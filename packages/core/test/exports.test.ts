@@ -270,6 +270,7 @@ describe('public exports', () => {
       orphanedMediaDeleted: 0,
       staleFilesDeleted: 0,
       staleEntriesRemoved: 0,
+      skippedUnregistered: 0,
       dryRun: false,
     }
     expect(result).toBeDefined()
@@ -293,6 +294,7 @@ describe('public exports', () => {
         orphanedMediaDeleted: 0,
         staleFilesDeleted: 0,
         staleEntriesRemoved: 0,
+        skippedUnregistered: 0,
         dryRun: false,
       }),
     }
@@ -307,6 +309,7 @@ describe('public exports', () => {
           orphanedMediaDeleted: 0,
           staleFilesDeleted: 0,
           staleEntriesRemoved: 0,
+          skippedUnregistered: 0,
           dryRun: false,
         }),
       }),

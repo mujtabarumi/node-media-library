@@ -13,6 +13,19 @@ export interface CleanResult {
   orphanedMediaDeleted: number
   staleFilesDeleted: number
   staleEntriesRemoved: number
+  /**
+   * Records skipped entirely for staleness checks (files + JSON left
+   * untouched) because either (a) their modelType/collection isn't
+   * registered in the config `clean()` was run with, or (b) they have
+   * generated conversions but no configured `imageGenerator` supports their
+   * mimeType. Both cases mean `applicable()`/`effectiveFormat()` can't be
+   * trusted to describe what's actually on disk, so treating their existing
+   * derived files as stale would delete real, still-referenced files. Does
+   * NOT include orphaned-media deletions (`orphanedMediaDeleted`), which are
+   * driven by `repository.ownerExists` and unaffected by config
+   * registration.
+   */
+  skippedUnregistered: number
   dryRun: boolean
 }
 

@@ -98,8 +98,10 @@ export async function runCli(argv: string[], deps: CliDeps): Promise<number> {
   let rateLimit: number | undefined
   if (command === 'clean' && values['rate-limit'] !== undefined) {
     rateLimit = Number(values['rate-limit'])
-    if (!Number.isFinite(rateLimit)) {
-      deps.error(`Invalid --rate-limit value: ${JSON.stringify(values['rate-limit'])} (expected a number).`)
+    if (!Number.isFinite(rateLimit) || rateLimit <= 0) {
+      deps.error(
+        `Invalid --rate-limit value: ${JSON.stringify(values['rate-limit'])} (expected a number greater than 0).`,
+      )
       return 1
     }
   }
@@ -112,30 +114,41 @@ export async function runCli(argv: string[], deps: CliDeps): Promise<number> {
     return 1
   }
 
-  if (command === 'regenerate') {
-    const opts: RegenerateOptions = {}
-    if (values.model) opts.modelType = values.model
-    if (values.ids) opts.ids = splitList(values.ids)
-    if (values.only) opts.only = splitList(values.only)
-    if (values['only-missing']) opts.onlyMissing = true
-    if (values['with-responsive']) opts.withResponsive = true
+  try {
+    if (command === 'regenerate') {
+      const opts: RegenerateOptions = {}
+      if (values.model) opts.modelType = values.model
+      if (values.ids) opts.ids = splitList(values.ids)
+      if (values.only) opts.only = splitList(values.only)
+      if (values['only-missing']) opts.onlyMissing = true
+      if (values['with-responsive']) opts.withResponsive = true
 
-    const result = await library.regenerate(opts)
-    deps.log(`Enqueued ${result.enqueued} regeneration job(s).`)
+      const result = await library.regenerate(opts)
+      deps.log(`Enqueued ${result.enqueued} regeneration job(s).`)
+      return 0
+    }
+
+    const cleanOpts: CleanOptions = {}
+    if (values['dry-run']) cleanOpts.dryRun = true
+    if (values['delete-orphaned']) cleanOpts.deleteOrphaned = true
+    if (rateLimit !== undefined) cleanOpts.rateLimit = rateLimit
+
+    const result = await library.clean(cleanOpts)
+    const prefix = result.dryRun ? '[dry-run] ' : ''
+    deps.log(`${prefix}Orphaned media deleted: ${result.orphanedMediaDeleted}`)
+    deps.log(`${prefix}Stale files deleted: ${result.staleFilesDeleted}`)
+    deps.log(`${prefix}Stale entries removed: ${result.staleEntriesRemoved}`)
+    if (result.skippedUnregistered > 0) {
+      deps.log(`${prefix}Skipped (unregistered model/collection/generator): ${result.skippedUnregistered}`)
+    }
     return 0
+  } catch (err) {
+    // regenerate()/clean() rejections (e.g. sync-queue conversion failures,
+    // repository errors) must not escape as a raw unhandled-rejection stack
+    // from the bin — report cleanly and exit non-zero instead.
+    deps.error(err instanceof Error ? err.message : String(err))
+    return 1
   }
-
-  const cleanOpts: CleanOptions = {}
-  if (values['dry-run']) cleanOpts.dryRun = true
-  if (values['delete-orphaned']) cleanOpts.deleteOrphaned = true
-  if (rateLimit !== undefined) cleanOpts.rateLimit = rateLimit
-
-  const result = await library.clean(cleanOpts)
-  const prefix = result.dryRun ? '[dry-run] ' : ''
-  deps.log(`${prefix}Orphaned media deleted: ${result.orphanedMediaDeleted}`)
-  deps.log(`${prefix}Stale files deleted: ${result.staleFilesDeleted}`)
-  deps.log(`${prefix}Stale entries removed: ${result.staleEntriesRemoved}`)
-  return 0
 }
 
 /**

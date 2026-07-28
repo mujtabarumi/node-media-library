@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mkdtempSync } from 'node:fs'
 import { rm, writeFile, readdir, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -8,6 +8,7 @@ import { createMediaLibrary } from '../src/library.js'
 import { InMemoryMediaRepository } from '../src/repository/in-memory.js'
 import { collection } from '../src/definitions/collection.js'
 import { conversion } from '../src/definitions/conversion.js'
+import type { ImageGenerator } from '../src/conversions/image-generator.js'
 
 let root: string
 let repo: InMemoryMediaRepository
@@ -205,7 +206,143 @@ describe('MediaLibrary.clean()', () => {
       orphanedMediaDeleted: 0,
       staleFilesDeleted: 0,
       staleEntriesRemoved: 0,
+      skippedUnregistered: 0,
       dryRun: false,
     })
+  })
+
+  it('6. skips records whose modelType is not registered in this clean() config, leaving files+JSON untouched', async () => {
+    const libraryWithThumb = buildLibraryWithThumb()
+    const media = await libraryWithThumb
+      .for('Post', 1)
+      .add(jpeg)
+      .usingFileName('photo.jpg')
+      .toCollection('images')
+
+    expect(await conversionsDirFiles(media.id)).toEqual(['photo-thumb.jpeg'])
+
+    // Second library, same repo/storage, but 'Post' isn't registered at all.
+    const libraryWithoutModel = createMediaLibrary({
+      repository: repo,
+      storage: { disks: { default: { driver: 'fs', root, baseUrl } } },
+      models: {
+        User: { collections: { avatars: collection() } },
+      },
+    })
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const result = await libraryWithoutModel.clean()
+
+    expect(result.skippedUnregistered).toBe(1)
+    expect(result.staleFilesDeleted).toBe(0)
+    expect(result.staleEntriesRemoved).toBe(0)
+    expect(warnSpy).toHaveBeenCalledTimes(1)
+    expect(String(warnSpy.mock.calls[0]?.[0])).toContain('Post')
+    warnSpy.mockRestore()
+
+    expect(await conversionsDirFiles(media.id)).toEqual(['photo-thumb.jpeg'])
+    const updated = await repo.findById(media.id)
+    expect(updated?.generatedConversions['thumb']).toBe(true)
+  })
+
+  it('7. skips records whose modelType is registered but this specific collection is not, leaving files+JSON untouched', async () => {
+    const libraryWithThumb = buildLibraryWithThumb()
+    const media = await libraryWithThumb
+      .for('Post', 1)
+      .add(jpeg)
+      .usingFileName('photo.jpg')
+      .toCollection('images')
+
+    expect(await conversionsDirFiles(media.id)).toEqual(['photo-thumb.jpeg'])
+
+    // Second library, same repo/storage: 'Post' is registered, but only with
+    // a differently-named collection ('other', not 'images').
+    const libraryWithDifferentCollection = createMediaLibrary({
+      repository: repo,
+      storage: { disks: { default: { driver: 'fs', root, baseUrl } } },
+      models: {
+        Post: { collections: { other: collection() } },
+      },
+    })
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const result = await libraryWithDifferentCollection.clean()
+
+    expect(result.skippedUnregistered).toBe(1)
+    expect(result.staleFilesDeleted).toBe(0)
+    expect(result.staleEntriesRemoved).toBe(0)
+    warnSpy.mockRestore()
+
+    expect(await conversionsDirFiles(media.id)).toEqual(['photo-thumb.jpeg'])
+    const updated = await repo.findById(media.id)
+    expect(updated?.generatedConversions['thumb']).toBe(true)
+  })
+
+  it('8. skips records with generated conversions whose mimeType has no registered generator, leaving files+JSON untouched', async () => {
+    const fakeGenerator: ImageGenerator = {
+      supports: (mime) => mime === 'application/x-fake',
+      toImage: async () => Buffer.from('fake-thumb-bytes'),
+    }
+
+    const libraryWithFakeGenerator = createMediaLibrary({
+      repository: repo,
+      storage: { disks: { default: { driver: 'fs', root, baseUrl } } },
+      imageGenerators: [fakeGenerator],
+      models: {
+        Post: {
+          collections: {
+            images: collection().conversions({
+              thumb: conversion().width(8).height(8).format('jpeg').nonQueued(),
+            }),
+          },
+        },
+      },
+    })
+
+    const media = await libraryWithFakeGenerator
+      .for('Post', 1)
+      .add(jpeg)
+      .usingFileName('doc.jpg')
+      .toCollection('images')
+
+    // Reassign the mimeType to the fake type post-upload (the fake
+    // generator isn't a real image codec, so it can't be sniffed from
+    // real bytes) and generate the thumb conversion through it.
+    await repo.update(media.id, { mimeType: 'application/x-fake' })
+    await libraryWithFakeGenerator.performConversions(media.id, ['thumb'])
+
+    const beforeUpdate = await repo.findById(media.id)
+    expect(beforeUpdate?.generatedConversions['thumb']).toBe(true)
+    expect(await conversionsDirFiles(media.id)).toContain('doc-thumb.jpeg')
+
+    // Second library, same repo/storage, same model/collection config, but
+    // WITHOUT the fake generator — only the default sharp generator, which
+    // doesn't support 'application/x-fake'.
+    const libraryWithoutGenerator = createMediaLibrary({
+      repository: repo,
+      storage: { disks: { default: { driver: 'fs', root, baseUrl } } },
+      models: {
+        Post: {
+          collections: {
+            images: collection().conversions({
+              thumb: conversion().width(8).height(8).format('jpeg').nonQueued(),
+            }),
+          },
+        },
+      },
+    })
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const result = await libraryWithoutGenerator.clean()
+
+    expect(result.skippedUnregistered).toBe(1)
+    expect(result.staleFilesDeleted).toBe(0)
+    expect(result.staleEntriesRemoved).toBe(0)
+    expect(warnSpy).toHaveBeenCalledTimes(1)
+    warnSpy.mockRestore()
+
+    expect(await conversionsDirFiles(media.id)).toContain('doc-thumb.jpeg')
+    const afterClean = await repo.findById(media.id)
+    expect(afterClean?.generatedConversions['thumb']).toBe(true)
   })
 })

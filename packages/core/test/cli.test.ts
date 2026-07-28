@@ -36,7 +36,7 @@ function makeDeps(
       recorder.cleanCalls.push(opts)
       return overrides.clean
         ? overrides.clean(opts)
-        : { orphanedMediaDeleted: 0, staleFilesDeleted: 0, staleEntriesRemoved: 0, dryRun: false }
+        : { orphanedMediaDeleted: 0, staleFilesDeleted: 0, staleEntriesRemoved: 0, skippedUnregistered: 0, dryRun: false }
     },
   }
 
@@ -86,6 +86,7 @@ describe('runCli', () => {
       orphanedMediaDeleted: 2,
       staleFilesDeleted: 5,
       staleEntriesRemoved: 1,
+      skippedUnregistered: 0,
       dryRun: true,
     }
     const { deps, recorder } = makeDeps({ clean: async () => cleanResult })
@@ -153,5 +154,51 @@ describe('runCli', () => {
 
     expect(code).toBe(1)
     expect(recorder.errors.some((l) => l.includes('config must default-export a MediaLibrary instance'))).toBe(true)
+  })
+
+  it('fails with a clear message when --rate-limit is 0', async () => {
+    const { deps, recorder } = makeDeps()
+
+    const code = await runCli(['clean', '--config', 'c.mjs', '--rate-limit', '0'], deps)
+
+    expect(code).toBe(1)
+    expect(recorder.errors.some((l) => l.includes('rate-limit'))).toBe(true)
+    expect(recorder.cleanCalls).toEqual([])
+  })
+
+  it('fails with a clear message when --rate-limit is negative', async () => {
+    const { deps, recorder } = makeDeps()
+
+    const code = await runCli(['clean', '--config', 'c.mjs', '--rate-limit', '-5'], deps)
+
+    expect(code).toBe(1)
+    expect(recorder.errors.some((l) => l.includes('rate-limit'))).toBe(true)
+    expect(recorder.cleanCalls).toEqual([])
+  })
+
+  it('returns 1 and reports the error message when clean() rejects, instead of letting it escape unhandled', async () => {
+    const { deps, recorder } = makeDeps({
+      clean: async () => {
+        throw new Error('repository connection lost')
+      },
+    })
+
+    const code = await runCli(['clean', '--config', 'c.mjs'], deps)
+
+    expect(code).toBe(1)
+    expect(recorder.errors.some((l) => l.includes('repository connection lost'))).toBe(true)
+  })
+
+  it('returns 1 and reports the error message when regenerate() rejects, instead of letting it escape unhandled', async () => {
+    const { deps, recorder } = makeDeps({
+      regenerate: async () => {
+        throw new Error('queue is down')
+      },
+    })
+
+    const code = await runCli(['regenerate', '--config', 'c.mjs'], deps)
+
+    expect(code).toBe(1)
+    expect(recorder.errors.some((l) => l.includes('queue is down'))).toBe(true)
   })
 })

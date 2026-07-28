@@ -335,6 +335,14 @@ export class MediaLibrary {
    * Hono/Next/Bun/Deno; use toNodeStream() for Express-style servers. A
    * generated conversion streams its derived file; an unknown/ungenerated
    * conversionName gracefully falls back to the original (mirrors url()).
+   *
+   * The `Response` is constructed with status 200 as soon as `disk.getStream()`
+   * resolves — that only opens the read, it doesn't confirm the whole file is
+   * readable. If a conversion is marked `generatedConversions[name] === true`
+   * but its file is actually missing from storage (e.g. deleted out from
+   * under a stale record), the 200 response's body errors when the caller
+   * reads it, not up front; there is no way to downgrade to a 404 after the
+   * headers are already committed.
    */
   async download(mediaOrId: MediaRecord | string, conversionName?: string): Promise<Response> {
     return this.fileResponse('attachment', mediaOrId, conversionName)
@@ -386,27 +394,45 @@ export class MediaLibrary {
    * a string `customProperties.zipFilenamePrefix` is prepended verbatim to
    * that item's entry name. Not for concurrent mutation: items deleted while
    * the archive streams will abort the response stream.
+   *
+   * Every item is resolved to a `MediaRecord` (and unknown ids fail fast)
+   * BEFORE streaming starts, but no storage read is opened at that point —
+   * each entry's `disk.getStream()` call is deferred until archiver actually
+   * reads that entry. This avoids opening every source file up front (which
+   * can exhaust file descriptors for large archives, or idle out an S3
+   * connection for an entry that won't be read for a while) and means an
+   * item that's never reached (e.g. the archive/response is aborted early)
+   * never opens a storage stream at all. A lazy source's error (missing
+   * file, disk failure, etc.) surfaces as that entry stream's error, which
+   * propagates to the archive and then to the Response body.
    */
   async zip(archiveName: string, items: Array<MediaRecord | string>): Promise<Response> {
     const archiver = (await import('archiver')).default
-    // Resolve everything (and fail fast on unknown ids) BEFORE streaming starts.
-    const sources = await Promise.all(
-      items.map(async (item) => {
-        const media = await this.requireMedia(item)
-        const disk = await this.resolved.storage.disk(media.disk)
-        const stream = await disk.getStream(this.resolved.pathGenerator.path(media))
-        return { media, stream }
-      }),
-    )
+    // Resolve every item to a MediaRecord (and fail fast on unknown ids)
+    // BEFORE streaming starts — this is metadata-only, no storage read.
+    const records = await Promise.all(items.map((item) => this.requireMedia(item)))
 
     const archive = archiver('zip')
     const taken = new Set<string>()
-    for (const { media, stream } of sources) {
+    for (const media of records) {
       const prefix =
         typeof media.customProperties['zipFilenamePrefix'] === 'string'
           ? (media.customProperties['zipFilenamePrefix'] as string)
           : ''
-      archive.append(stream, { name: zipEntryName(media.fileName, prefix, taken) })
+      const path = this.resolved.pathGenerator.path(media)
+      const diskName = media.disk
+      const storage = this.resolved.storage
+      // Async generator body doesn't run until Readable.from's consumer
+      // (archiver) actually pulls from this entry — disk.getStream() is
+      // NOT called at append() time.
+      async function* lazySource(): AsyncGenerator<Buffer> {
+        const disk = await storage.disk(diskName)
+        const stream = await disk.getStream(path)
+        for await (const chunk of stream) {
+          yield chunk as Buffer
+        }
+      }
+      archive.append(Readable.from(lazySource()), { name: zipEntryName(media.fileName, prefix, taken) })
     }
     // finalize() resolves when the archive finishes writing; it must not be
     // awaited here (the consumer hasn't started reading yet — awaiting would
@@ -421,18 +447,57 @@ export class MediaLibrary {
     return new Response(Readable.toWeb(archive) as ReadableStream, { status: 200, headers })
   }
 
-  /** Basenames of every file directly under `dir` on `disk`; `[]` on any listing failure (missing dir, unsupported driver, etc). */
-  private async listFileNames(disk: Disk, dir: string): Promise<string[]> {
+  /**
+   * `{ key, name }` for every file directly under `dir` on `disk` — `key` is
+   * the full, driver-native object key (safe to pass straight to
+   * `disk.delete()`); `name` is just the basename, for comparing against
+   * expected-file-name sets. `[]` on any listing failure (missing dir,
+   * unsupported driver, etc).
+   *
+   * Deliberately does NOT rely on `disk.listAll(dir, ...)` implicitly
+   * scoping to `dir` — flydrive's S3 driver (1.3.x) does a raw prefix match
+   * with no trailing slash, so listing `"abc/conversions"` also matches a
+   * sibling key like `"abc/conversions-notes.txt"`. This filters results to
+   * keys that actually start with `${dir}/`, and further to DIRECT children
+   * of `dir` (no additional `/` after that prefix) — a conversions/
+   * responsive directory is expected to be flat, so anything deeper is
+   * either a foreign object or not ours to touch.
+   *
+   * Loops on `paginationToken` when the driver returns one, so listings
+   * spanning multiple pages (S3) are fully diffed rather than only the
+   * first page. The `fs` driver returns everything in a single call with no
+   * token, so this runs its body exactly once for it.
+   */
+  private async listDirectChildren(disk: Disk, dir: string): Promise<Array<{ key: string; name: string }>> {
+    const prefix = `${dir}/`
+    const results: Array<{ key: string; name: string }> = []
     try {
-      const { objects } = await disk.listAll(dir, { recursive: true })
-      const names: string[] = []
-      for (const object of objects) {
-        if (object.isFile) names.push(object.name)
-      }
-      return names
+      let paginationToken: string | undefined
+      do {
+        const page = await disk.listAll(dir, { recursive: true, paginationToken })
+        for (const object of page.objects) {
+          if (!object.isFile) continue
+          if (!object.key.startsWith(prefix)) continue
+          if (object.key.slice(prefix.length).includes('/')) continue
+          results.push({ key: object.key, name: object.name })
+        }
+        paginationToken = page.paginationToken
+      } while (paginationToken)
+      return results
     } catch {
       return []
     }
+  }
+
+  /** `resolved.models[modelType][collection]` presence — the raw registration, not `getCollectionDefinition()`'s zero-conversion fallback. */
+  private isRegistered(modelType: string, collection: string): boolean {
+    const collections = this.resolved.models[modelType]
+    return collections !== undefined && collection in collections
+  }
+
+  /** Whether any configured `imageGenerator` claims to support `mimeType`. */
+  private hasGeneratorFor(mimeType: string | null): boolean {
+    return this.resolved.imageGenerators.some((g) => g.supports(mimeType))
   }
 
   /**
@@ -443,7 +508,20 @@ export class MediaLibrary {
    * `responsiveImages` keys. `opts.dryRun` counts everything a real run
    * would do without deleting or updating anything; `opts.rateLimit` spaces
    * out actual delete operations (files and orphaned-media deletes) to at
-   * most that many per second.
+   * most that many per second — it gates storage deletes only, not the
+   * repository update that prunes stale JSON keys.
+   *
+   * A record is SKIPPED entirely for staleness checks (its files and JSON
+   * are left untouched, counted in `result.skippedUnregistered`, and warned
+   * about once via `console.warn`) when this config can't be trusted to
+   * describe what's actually on disk for it: either its modelType/collection
+   * isn't registered here (`getCollectionDefinition()`'s zero-conversion
+   * fallback would otherwise make every existing conversion file/key look
+   * stale), or it has generated conversions but no configured
+   * `imageGenerator` supports its mimeType (which breaks
+   * `effectiveFormat()`'s extension guess). `opts.deleteOrphaned` still
+   * applies to these records — `repository.ownerExists` is independent of
+   * config registration.
    *
    * NOT safe to run concurrently with active conversion workers — a worker
    * writing a conversion's file/JSON for a record while `clean()` is
@@ -458,6 +536,7 @@ export class MediaLibrary {
       orphanedMediaDeleted: 0,
       staleFilesDeleted: 0,
       staleEntriesRemoved: 0,
+      skippedUnregistered: 0,
       dryRun,
     }
 
@@ -471,6 +550,31 @@ export class MediaLibrary {
         continue
       }
 
+      if (!this.isRegistered(record.modelType, record.collectionName)) {
+        result.skippedUnregistered += 1
+        console.warn(
+          `[media-library] clean(): skipping media "${record.id}" — modelType "${record.modelType}" / ` +
+            `collection "${record.collectionName}" is not registered in this config, so its expected ` +
+            `conversions can't be determined. Its derived files and JSON were left untouched. If this is ` +
+            `unexpected, run clean() with a config that registers the same models/collections used at ` +
+            `upload time.`,
+        )
+        continue
+      }
+
+      const hasGeneratedConversions = Object.values(record.generatedConversions).some((v) => v === true)
+      if (hasGeneratedConversions && !this.hasGeneratorFor(record.mimeType)) {
+        result.skippedUnregistered += 1
+        console.warn(
+          `[media-library] clean(): skipping media "${record.id}" — it has generated conversions but no ` +
+            `configured imageGenerator supports mimeType "${record.mimeType}", so the expected on-disk ` +
+            `file names/extensions can't be determined. Its derived files and JSON were left untouched. ` +
+            `Register the generator that produced them (e.g. pdfImageGenerator()/videoImageGenerator()) ` +
+            `before running clean().`,
+        )
+        continue
+      }
+
       const applicable = this.engine.applicable(record)
 
       // --- Stale conversion files -------------------------------------
@@ -481,12 +585,12 @@ export class MediaLibrary {
 
       const conversionsDisk = await this.resolved.storage.disk(record.conversionsDisk ?? record.disk)
       const conversionsDir = this.resolved.pathGenerator.conversionsPath(record)
-      for (const fileName of await this.listFileNames(conversionsDisk, conversionsDir)) {
-        if (expectedConversionFiles.has(fileName)) continue
+      for (const { key, name } of await this.listDirectChildren(conversionsDisk, conversionsDir)) {
+        if (expectedConversionFiles.has(name)) continue
         result.staleFilesDeleted += 1
         if (!dryRun) {
           await gate.wait()
-          await conversionsDisk.delete(`${conversionsDir}/${fileName}`)
+          await conversionsDisk.delete(key)
         }
       }
 
@@ -502,12 +606,12 @@ export class MediaLibrary {
 
       const disk = await this.resolved.storage.disk(record.disk)
       const responsiveDir = this.resolved.pathGenerator.responsivePath(record)
-      for (const fileName of await this.listFileNames(disk, responsiveDir)) {
-        if (expectedResponsiveFiles.has(fileName)) continue
+      for (const { key, name } of await this.listDirectChildren(disk, responsiveDir)) {
+        if (expectedResponsiveFiles.has(name)) continue
         result.staleFilesDeleted += 1
         if (!dryRun) {
           await gate.wait()
-          await disk.delete(`${responsiveDir}/${fileName}`)
+          await disk.delete(key)
         }
       }
 

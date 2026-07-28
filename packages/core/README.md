@@ -2,7 +2,10 @@
 
 Node.js port of [spatie/laravel-medialibrary](https://github.com/spatie/laravel-medialibrary) — manage media files (images, documents, etc.) for your application models.
 
-> **Pre-release**: Not yet published to npm; currently in active development. Covers file upload, storage, retrieval, collection organization, image conversions, responsive images, and queue-backed dispatch. PDF/video conversion generators live in `@node-media-library/pdf` and `@node-media-library/video`; downloads and a CLI land in later plans.
+> **Pre-release**: Not yet published to npm. The library is feature-complete: file upload, storage, retrieval,
+> collection organization, image conversions, responsive images, queue-backed dispatch, downloads/ZIP, a CLI, and
+> offline maintenance (`clean()`). PDF/video conversion generators live in `@node-media-library/pdf` and
+> `@node-media-library/video`.
 
 ## Installation
 
@@ -147,9 +150,9 @@ need to be executed with a TypeScript loader such as `tsx`.
 
 ## Roadmap
 
-**Current**: File upload, storage, retrieval, collections, image conversions, responsive images, queue-backed dispatch (sync and BullMQ), Prisma adapter, PDF/video image generators, downloads/ZIP, CLI.
+**Current**: File upload, storage, retrieval, collections, image conversions, responsive images, queue-backed dispatch (sync and BullMQ), Prisma adapter, PDF/video image generators, downloads/ZIP, CLI, offline maintenance (`clean()`).
 
-**Remaining**: Publish preparation (Plan 6).
+**Remaining**: Publish to npm.
 
 ## License
 
