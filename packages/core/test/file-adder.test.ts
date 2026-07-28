@@ -57,6 +57,46 @@ describe('FileAdder', () => {
     ).rejects.toThrow(DisallowedExtensionError)
   })
 
+  it('sanitizes an explicit usingFileName() the same way as a source-derived filename', async () => {
+    // "evil.php/x.jpg" previously bypassed the per-dot-segment extension
+    // blocklist (the dot-segment split saw "php/x", not "php") AND stored a
+    // nested "<id>/evil.php/x.jpg" storage key, since usingFileName() skipped
+    // the sanitizer entirely. The sanitizer's basename() call collapses this
+    // to just "x.jpg" — no slash reaches validation or storage.
+    const m = await library.for('User', 1).add(png).usingFileName('evil.php/x.jpg').toCollection('default')
+    expect(m.fileName).toBe('x.jpg')
+    expect(existsSync(join(root, m.id, 'x.jpg'))).toBe(true)
+    expect(readdirSync(join(root, m.id))).toEqual(['x.jpg'])
+  })
+
+  it('sanitizes a backslash out of an explicit usingFileName()', async () => {
+    const m = await library.for('User', 1).add(png).usingFileName('evil.php\\x.jpg').toCollection('default')
+    expect(m.fileName).not.toContain('\\')
+    expect(m.fileName).not.toContain('/')
+  })
+
+  it('sanitizes ".." path segments out of an explicit usingFileName()', async () => {
+    const m = await library
+      .for('User', 1)
+      .add(png)
+      .usingFileName('../../etc/passwd.jpg')
+      .toCollection('default')
+    expect(m.fileName).toBe('passwd.jpg')
+    expect(existsSync(join(root, m.id, 'passwd.jpg'))).toBe(true)
+  })
+
+  it('an explicit usingFileName() that sanitizes down to a bare disallowed extension is still rejected', async () => {
+    // Once slashes are stripped, "safe.jpg/evil.php" collapses to
+    // "evil.php" — now a real, unmasked disallowed-extension segment, so the
+    // blocklist catches it (whereas before the fix, the unsanitized
+    // "safe.jpg/evil.php" dot-segment split saw "php" as an isolated final
+    // segment too — this case was already caught either way, but confirms
+    // the sanitized path doesn't regress it).
+    await expect(
+      library.for('User', 1).add(png).usingFileName('safe.jpg/evil.php').toCollection('default'),
+    ).rejects.toThrow(DisallowedExtensionError)
+  })
+
   it('rejects a file whose sniffed mime does not satisfy acceptsMimeTypes', async () => {
     await expect(
       library.for('User', 1).add(Buffer.from('plain text')).toCollection('avatar'),

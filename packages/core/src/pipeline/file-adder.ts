@@ -7,6 +7,7 @@ import type { JsonObject, MediaRecord, NewMediaRecord } from '../types.js'
 import type { MediaSource, NormalizedSource } from './source.js'
 import { normalizeSource } from './source.js'
 import { validateFile } from './validate.js'
+import { writeOptionsFor } from '../storage/resolve.js'
 
 /**
  * Fluent builder returned by `ModelMediaHandle.add()`. Configure optional
@@ -73,6 +74,18 @@ export class FileAdder {
     return this
   }
 
+  /**
+   * Honesty note: this method reads `existing.length` (for `orderColumn`)
+   * and, in `enforceCollectionRules()`, the sibling list again (for
+   * `singleFile` displacement / `onlyKeepLatest` pruning) with no locking in
+   * between. Two concurrent `add()` calls for the same (modelType, modelId,
+   * collectionName) can each read the same "before" sibling snapshot and
+   * race: both may compute the same `orderColumn`, or a `singleFile`
+   * collection may briefly (or, depending on repository semantics,
+   * permanently) end up with more than one record before the losing call's
+   * displacement pass runs. Callers that need a hard guarantee should
+   * serialize `add()` calls per (model, collection) themselves.
+   */
   async toCollection(collectionName: string = 'default'): Promise<MediaRecord> {
     const limits = this.library.limits
     const normalized = await normalizeSource(this.source, { maxBytes: limits.maxFileSize })
@@ -117,7 +130,11 @@ export class FileAdder {
     }
 
     const disk = await this.library.storage.disk(newRecord.disk)
-    await disk.put(this.library.pathGenerator.path(newRecord as unknown as MediaRecord), normalized.buffer)
+    await disk.put(
+      this.library.pathGenerator.path(newRecord as unknown as MediaRecord),
+      normalized.buffer,
+      writeOptionsFor(collectionDef.public),
+    )
 
     let created: MediaRecord
     try {
@@ -125,8 +142,19 @@ export class FileAdder {
     } catch (err) {
       // The file already landed on disk before repository.create ran; if the
       // repository write fails, roll back the stored file rather than
-      // leaving an orphan with no corresponding record.
-      await disk.deleteAll(this.library.pathGenerator.directory(newRecord as unknown as MediaRecord))
+      // leaving an orphan with no corresponding record. The rollback itself
+      // is best-effort: if deleteAll() also throws (e.g. the disk is
+      // unreachable), that failure must not mask the original
+      // repository.create error — log it and rethrow the original so the
+      // caller sees the actual cause, not a secondary cleanup failure.
+      try {
+        await disk.deleteAll(this.library.pathGenerator.directory(newRecord as unknown as MediaRecord))
+      } catch (cleanupErr) {
+        console.warn(
+          `[media-library] Failed to roll back stored file after repository.create() failed for media "${newRecord.id}":`,
+          cleanupErr,
+        )
+      }
       throw err
     }
 
@@ -202,8 +230,20 @@ export class FileAdder {
     }
   }
 
+  /**
+   * An explicit `usingFileName()` filename runs through the SAME sanitizer as
+   * a source-derived filename (Spatie sanitizes every filename regardless of
+   * origin). Skipping this for explicit names would let a caller-supplied
+   * name like `"evil.php/x.jpg"` slip a nested storage key past the
+   * per-dot-segment extension blocklist in `validate.ts` (the default
+   * sanitizer's `basename()` call collapses it to `"x.jpg"` before the
+   * blocklist ever sees it), and would let `".."` or control characters
+   * reach the repository/disk instead of failing fast or being stripped.
+   */
   private async resolveFileName(normalized: NormalizedSource): Promise<string> {
-    if (this.explicitFileName) return this.explicitFileName
+    if (this.explicitFileName) {
+      return this.library.limits.fileNameSanitizer(this.explicitFileName)
+    }
     if (normalized.originalFileName) {
       return this.library.limits.fileNameSanitizer(normalized.originalFileName)
     }
