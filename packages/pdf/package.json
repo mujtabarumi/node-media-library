@@ -12,7 +12,13 @@
   "publishConfig": {
     "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } }
   },
-  "scripts": { "test": "vitest run", "typecheck": "tsc --noEmit", "build": "tsc -p tsconfig.build.json", "prepublishOnly": "pnpm build" },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "pnpm build",
+    "prepack": "node ../../scripts/ensure-pnpm-pack.mjs"
+  },
   "dependencies": { "@node-media-library/core": "workspace:*" },
   "devDependencies": {
     "sharp": "^0.35.3",

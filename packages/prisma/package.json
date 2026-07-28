@@ -17,6 +17,7 @@
     "typecheck": "tsc --noEmit",
     "build": "tsc -p tsconfig.build.json",
     "prepublishOnly": "pnpm build",
+    "prepack": "node ../../scripts/ensure-pnpm-pack.mjs",
     "db:prepare": "prisma db push && prisma generate"
   },
   "dependencies": { "@node-media-library/core": "workspace:*" },

@@ -38,6 +38,10 @@ pnpm -r typecheck  # typecheck every package
 pnpm build         # build dist/ for every package (tsc -p tsconfig.build.json)
 ```
 
+Publishing must go through `pnpm publish` (or `pnpm pack`) — each package's `prepack` script
+(`scripts/ensure-pnpm-pack.mjs`) fails fast under bare `npm publish`/`npm pack`, since npm ignores
+`publishConfig.exports` and would ship a tarball pointing at unbuilt `src/`.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
