@@ -253,4 +253,25 @@ describe('public exports', () => {
     const { runQueueDriverContract } = await import('../src/testing/index.js')
     expect(runQueueDriverContract).toBeDefined()
   })
+
+  // Maintenance
+  it('exports DeleteRateGate', async () => {
+    const { DeleteRateGate } = await import('../src/index.js')
+    expect(DeleteRateGate).toBeDefined()
+  })
+
+  it('exports CleanOptions type', async () => {
+    const opts: import('../src/index.js').CleanOptions = { dryRun: true, deleteOrphaned: true, rateLimit: 5 }
+    expect(opts).toBeDefined()
+  })
+
+  it('exports CleanResult type', async () => {
+    const result: import('../src/index.js').CleanResult = {
+      orphanedMediaDeleted: 0,
+      staleFilesDeleted: 0,
+      staleEntriesRemoved: 0,
+      dryRun: false,
+    }
+    expect(result).toBeDefined()
+  })
 })

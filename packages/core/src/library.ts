@@ -17,6 +17,9 @@ import type { QueueDriver } from './queue.js'
 import { Readable } from 'node:stream'
 import { contentDisposition } from './downloads/response.js'
 import { zipEntryName } from './downloads/zip.js'
+import type { Disk } from 'flydrive'
+import { RESERVED_CONVERSION_NAMES } from './definitions/collection.js'
+import { CleanOptions, CleanResult, DeleteRateGate } from './maintenance/clean.js'
 
 export function createMediaLibrary(config: MediaLibraryConfig): MediaLibrary {
   return new MediaLibrary(config)
@@ -416,5 +419,126 @@ export class MediaLibrary {
       'Content-Disposition': contentDisposition('attachment', archiveName),
     })
     return new Response(Readable.toWeb(archive) as ReadableStream, { status: 200, headers })
+  }
+
+  /** Basenames of every file directly under `dir` on `disk`; `[]` on any listing failure (missing dir, unsupported driver, etc). */
+  private async listFileNames(disk: Disk, dir: string): Promise<string[]> {
+    try {
+      const { objects } = await disk.listAll(dir, { recursive: true })
+      const names: string[] = []
+      for (const object of objects) {
+        if (object.isFile) names.push(object.name)
+      }
+      return names
+    } catch {
+      return []
+    }
+  }
+
+  /**
+   * Offline maintenance operation: removes orphaned media (when
+   * `opts.deleteOrphaned`), deletes derived files (conversions + responsive
+   * variants) that no longer match the current collection/conversion
+   * config, and prunes the corresponding stale `generatedConversions` /
+   * `responsiveImages` keys. `opts.dryRun` counts everything a real run
+   * would do without deleting or updating anything; `opts.rateLimit` spaces
+   * out actual delete operations (files and orphaned-media deletes) to at
+   * most that many per second.
+   *
+   * NOT safe to run concurrently with active conversion workers — a worker
+   * writing a conversion's file/JSON for a record while `clean()` is
+   * diffing that same record can result in either a spurious deletion or a
+   * missed one. Run this offline (e.g. a scheduled job with no in-flight
+   * uploads/conversions).
+   */
+  async clean(opts: CleanOptions = {}): Promise<CleanResult> {
+    const dryRun = opts.dryRun ?? false
+    const gate = new DeleteRateGate(opts.rateLimit)
+    const result: CleanResult = {
+      orphanedMediaDeleted: 0,
+      staleFilesDeleted: 0,
+      staleEntriesRemoved: 0,
+      dryRun,
+    }
+
+    for await (const record of this.resolved.repository.iterateAll()) {
+      if (opts.deleteOrphaned && !(await this.resolved.repository.ownerExists(record.modelType, record.modelId))) {
+        result.orphanedMediaDeleted += 1
+        if (!dryRun) {
+          await gate.wait()
+          await this.deleteMedia(record)
+        }
+        continue
+      }
+
+      const applicable = this.engine.applicable(record)
+
+      // --- Stale conversion files -------------------------------------
+      const expectedConversionFiles = new Set<string>()
+      for (const [name, def] of Object.entries(applicable)) {
+        expectedConversionFiles.add(conversionFileName(record.fileName, name, this.engine.effectiveFormat(record, def)))
+      }
+
+      const conversionsDisk = await this.resolved.storage.disk(record.conversionsDisk ?? record.disk)
+      const conversionsDir = this.resolved.pathGenerator.conversionsPath(record)
+      for (const fileName of await this.listFileNames(conversionsDisk, conversionsDir)) {
+        if (expectedConversionFiles.has(fileName)) continue
+        result.staleFilesDeleted += 1
+        if (!dryRun) {
+          await gate.wait()
+          await conversionsDisk.delete(`${conversionsDir}/${fileName}`)
+        }
+      }
+
+      // --- Stale responsive files --------------------------------------
+      const expectedResponsiveFiles = new Set<string>()
+      for (const [key, value] of Object.entries(record.responsiveImages)) {
+        if (key !== 'original' && !(key in applicable)) continue
+        const entry = value as ResponsiveImagesEntry | undefined
+        for (const file of entry?.files ?? []) {
+          expectedResponsiveFiles.add(file.fileName)
+        }
+      }
+
+      const disk = await this.resolved.storage.disk(record.disk)
+      const responsiveDir = this.resolved.pathGenerator.responsivePath(record)
+      for (const fileName of await this.listFileNames(disk, responsiveDir)) {
+        if (expectedResponsiveFiles.has(fileName)) continue
+        result.staleFilesDeleted += 1
+        if (!dryRun) {
+          await gate.wait()
+          await disk.delete(`${responsiveDir}/${fileName}`)
+        }
+      }
+
+      // --- Stale JSON keys -----------------------------------------------
+      const generatedConversions: Record<string, boolean> = {}
+      let removedKeys = 0
+      for (const [name, generated] of Object.entries(record.generatedConversions)) {
+        if (name in applicable) {
+          generatedConversions[name] = generated
+        } else {
+          removedKeys += 1
+        }
+      }
+
+      const responsiveImages: JsonObject = {}
+      for (const [key, value] of Object.entries(record.responsiveImages)) {
+        if (RESERVED_CONVERSION_NAMES.includes(key) || key in applicable) {
+          responsiveImages[key] = value
+        } else {
+          removedKeys += 1
+        }
+      }
+
+      if (removedKeys > 0) {
+        result.staleEntriesRemoved += removedKeys
+        if (!dryRun) {
+          await this.resolved.repository.update(record.id, { generatedConversions, responsiveImages })
+        }
+      }
+    }
+
+    return result
   }
 }
