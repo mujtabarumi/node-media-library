@@ -1,6 +1,7 @@
 import type { MediaRecord } from '../types.js'
 import type { MediaRepository } from '../repository.js'
 import type { ResolvedStorage } from '../storage/resolve.js'
+import { writeOptionsFor } from '../storage/resolve.js'
 import type { PathGenerator } from '../storage/path-generator.js'
 import type { TypedEmitter } from '../events.js'
 import type { MediaEventMap } from '../events.js'
@@ -127,6 +128,7 @@ export class ConversionEngine {
     const widths = this.deps.widthCalculator.calculateWidths(source.byteLength, intrinsicWidth, intrinsicHeight)
     const disk = await this.deps.storage.disk(media.disk)
     const dir = this.deps.pathGenerator.responsivePath(media)
+    const writeOptions = writeOptionsFor(this.deps.collectionFor(media.modelType, media.collectionName).public)
 
     // Captured BEFORE the new variants are written, so a regenerate can
     // clean up whichever of the previous entry's files the new variant plan
@@ -141,7 +143,7 @@ export class ConversionEngine {
     for (const width of widths) {
       const variant = await renderVariant(source, width, format, quality)
       const fileName = responsiveFileName(media.fileName, conversionName, variant.width, variant.height, format)
-      await disk.put(`${dir}/${fileName}`, variant.buffer)
+      await disk.put(`${dir}/${fileName}`, variant.buffer, writeOptions)
       files.push({ fileName, width: variant.width, height: variant.height })
     }
 
@@ -266,7 +268,10 @@ export class ConversionEngine {
       try {
         const output = await generator.toImage(originalBuffer, effectiveDef)
         const key = conversionKey(media, this.deps.pathGenerator, effectiveDef, name)
-        await conversionsDisk.put(key, output)
+        const writeOptions = writeOptionsFor(
+          this.deps.collectionFor(media.modelType, media.collectionName).public,
+        )
+        await conversionsDisk.put(key, output, writeOptions)
         if (effectiveDef.responsiveImages) {
           // A failure here lands in this same catch block and counts as
           // this conversion's failure — the conversion file was written,

@@ -1,6 +1,18 @@
 import type { Disk } from 'flydrive'
 import { StorageError } from '../errors.js'
 
+/**
+ * Write options for a `disk.put()`/`disk.putStream()` call, derived from
+ * whether the owning collection was marked `.public()`. Public collections
+ * pass `{ visibility: 'public' }` through to flydrive so the driver writes
+ * the object with public ACLs/permissions; non-public collections pass
+ * `undefined` so the disk's own configured default (private, per
+ * `resolveStorage`'s `synthesizeDefaultDisk`) applies unchanged.
+ */
+export function writeOptionsFor(isPublicCollection: boolean): { visibility: 'public' } | undefined {
+  return isPublicCollection ? { visibility: 'public' } : undefined
+}
+
 export type DiskConfig =
   | { driver: 'fs'; root: string; visibility?: 'public' | 'private'; baseUrl?: string }
   | {
