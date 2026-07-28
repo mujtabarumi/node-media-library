@@ -16,6 +16,7 @@ import { conversionFileName } from './conversions/naming.js'
 import type { QueueDriver } from './queue.js'
 import { Readable } from 'node:stream'
 import { contentDisposition } from './downloads/response.js'
+import { zipEntryName } from './downloads/zip.js'
 
 export function createMediaLibrary(config: MediaLibraryConfig): MediaLibrary {
   return new MediaLibrary(config)
@@ -374,5 +375,46 @@ export class MediaLibrary {
     headers.set('Content-Disposition', contentDisposition(kind, fileName))
 
     return new Response(Readable.toWeb(stream) as ReadableStream, { status: 200, headers })
+  }
+
+  /**
+   * Streamed ZIP of `items` (records or ids, mixed disks fine) — no temp
+   * file; entries stream from storage as the archive streams out. Foldering:
+   * a string `customProperties.zipFilenamePrefix` is prepended verbatim to
+   * that item's entry name. Not for concurrent mutation: items deleted while
+   * the archive streams will abort the response stream.
+   */
+  async zip(archiveName: string, items: Array<MediaRecord | string>): Promise<Response> {
+    const archiver = (await import('archiver')).default
+    // Resolve everything (and fail fast on unknown ids) BEFORE streaming starts.
+    const sources = await Promise.all(
+      items.map(async (item) => {
+        const media = await this.requireMedia(item)
+        const disk = await this.resolved.storage.disk(media.disk)
+        const stream = await disk.getStream(this.resolved.pathGenerator.path(media))
+        return { media, stream }
+      }),
+    )
+
+    const archive = archiver('zip')
+    const taken = new Set<string>()
+    for (const { media, stream } of sources) {
+      const prefix =
+        typeof media.customProperties['zipFilenamePrefix'] === 'string'
+          ? (media.customProperties['zipFilenamePrefix'] as string)
+          : ''
+      archive.append(stream, { name: zipEntryName(media.fileName, prefix, taken) })
+    }
+    // finalize() resolves when the archive finishes writing; it must not be
+    // awaited here (the consumer hasn't started reading yet — awaiting would
+    // deadlock on backpressure for large archives). Failures surface by
+    // destroying the archive stream, which errors the Response body.
+    archive.finalize().catch((err: unknown) => archive.destroy(err instanceof Error ? err : new Error(String(err))))
+
+    const headers = new Headers({
+      'Content-Type': 'application/zip',
+      'Content-Disposition': contentDisposition('attachment', archiveName),
+    })
+    return new Response(Readable.toWeb(archive) as ReadableStream, { status: 200, headers })
   }
 }

@@ -238,6 +238,11 @@ describe('public exports', () => {
     expect(contentDisposition).toBeDefined()
   })
 
+  it('exports zipEntryName', async () => {
+    const { zipEntryName } = await import('../src/index.js')
+    expect(zipEntryName).toBeDefined()
+  })
+
   // Testing utilities
   it('exports runMediaRepositoryContract from testing subpath', async () => {
     const { runMediaRepositoryContract } = await import('../src/testing/index.js')
