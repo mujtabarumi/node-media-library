@@ -227,6 +227,17 @@ describe('public exports', () => {
     expect(tinyPlaceholder).toBeDefined()
   })
 
+  // Downloads
+  it('exports toNodeStream', async () => {
+    const { toNodeStream } = await import('../src/index.js')
+    expect(toNodeStream).toBeDefined()
+  })
+
+  it('exports contentDisposition', async () => {
+    const { contentDisposition } = await import('../src/index.js')
+    expect(contentDisposition).toBeDefined()
+  })
+
   // Testing utilities
   it('exports runMediaRepositoryContract from testing subpath', async () => {
     const { runMediaRepositoryContract } = await import('../src/testing/index.js')

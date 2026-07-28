@@ -14,6 +14,8 @@ import { DefaultUrlGenerator } from './storage/url-generator.js'
 import { ConversionEngine, RegenerateOptions } from './conversions/engine.js'
 import { conversionFileName } from './conversions/naming.js'
 import type { QueueDriver } from './queue.js'
+import { Readable } from 'node:stream'
+import { contentDisposition } from './downloads/response.js'
 
 export function createMediaLibrary(config: MediaLibraryConfig): MediaLibrary {
   return new MediaLibrary(config)
@@ -322,5 +324,55 @@ export class MediaLibrary {
       modelId: id,
       collection: collection ?? '*',
     })
+  }
+
+  /**
+   * Web-standard Response streaming the file from storage — works natively in
+   * Hono/Next/Bun/Deno; use toNodeStream() for Express-style servers. A
+   * generated conversion streams its derived file; an unknown/ungenerated
+   * conversionName gracefully falls back to the original (mirrors url()).
+   */
+  async download(mediaOrId: MediaRecord | string, conversionName?: string): Promise<Response> {
+    return this.fileResponse('attachment', mediaOrId, conversionName)
+  }
+
+  async inline(mediaOrId: MediaRecord | string, conversionName?: string): Promise<Response> {
+    return this.fileResponse('inline', mediaOrId, conversionName)
+  }
+
+  private async fileResponse(
+    kind: 'attachment' | 'inline',
+    mediaOrId: MediaRecord | string,
+    conversionName?: string,
+  ): Promise<Response> {
+    const media = await this.requireMedia(mediaOrId)
+
+    let path = this.resolved.pathGenerator.path(media)
+    let diskName = media.disk
+    let fileName = media.fileName
+    let contentType = media.mimeType
+    let contentLength: string | null = String(media.size)
+
+    if (conversionName && media.generatedConversions[conversionName] === true) {
+      const def = this.engine.applicable(media)[conversionName]
+      if (def) {
+        const format = this.engine.effectiveFormat(media, def)
+        fileName = conversionFileName(media.fileName, conversionName, format)
+        path = `${this.resolved.pathGenerator.conversionsPath(media)}/${fileName}`
+        diskName = media.conversionsDisk ?? media.disk
+        contentType = format ? `image/${format}` : media.mimeType
+        contentLength = null // size of derived files isn't tracked on the record
+      }
+    }
+
+    const disk = await this.resolved.storage.disk(diskName)
+    const stream = await disk.getStream(path)
+
+    const headers = new Headers()
+    if (contentType) headers.set('Content-Type', contentType)
+    if (contentLength) headers.set('Content-Length', contentLength)
+    headers.set('Content-Disposition', contentDisposition(kind, fileName))
+
+    return new Response(Readable.toWeb(stream) as ReadableStream, { status: 200, headers })
   }
 }
