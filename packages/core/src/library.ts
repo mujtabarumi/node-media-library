@@ -391,9 +391,12 @@ export class MediaLibrary {
   /**
    * Streamed ZIP of `items` (records or ids, mixed disks fine) — no temp
    * file; entries stream from storage as the archive streams out. Foldering:
-   * a string `customProperties.zipFilenamePrefix` is prepended verbatim to
-   * that item's entry name. Not for concurrent mutation: items deleted while
-   * the archive streams will abort the response stream.
+   * a string `customProperties.zipFilenamePrefix` is prepended to that
+   * item's entry name, after `sanitizeZipPrefix()` strips leading slashes,
+   * backslashes, and `.`/`..` segments (zip-slip hardening — this value is
+   * caller-controlled data, not a trusted path). Not for concurrent
+   * mutation: items deleted while the archive streams will abort the
+   * response stream.
    *
    * Every item is resolved to a `MediaRecord` (and unknown ids fail fast)
    * BEFORE streaming starts, but no storage read is opened at that point —

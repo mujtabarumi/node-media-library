@@ -9,7 +9,7 @@ import { createMediaLibrary } from '../src/library.js'
 import { InMemoryMediaRepository } from '../src/repository/in-memory.js'
 import { collection } from '../src/definitions/collection.js'
 import { MediaLibraryError } from '../src/errors.js'
-import { zipEntryName } from '../src/downloads/zip.js'
+import { zipEntryName, sanitizeZipPrefix } from '../src/downloads/zip.js'
 
 /** Entry-name → content map, via yauzl (buffer mode). */
 function readZip(buffer: Buffer): Promise<Map<string, Buffer>> {
@@ -188,6 +188,31 @@ describe('zip', () => {
     it('5d. prefix is applied verbatim and preserved through collisions', () => {
       const taken = new Set<string>(['photos/a.jpg'])
       expect(zipEntryName('a.jpg', 'photos/', taken)).toBe('photos/a-2.jpg')
+    })
+
+    it('5e. a zip-slip prefix ("../../etc/") has its ".." segments dropped', () => {
+      const taken = new Set<string>()
+      expect(zipEntryName('a.jpg', '../../etc/', taken)).toBe('etc/a.jpg')
+    })
+
+    it('5f. a leading-slash prefix is not treated as archive-root-absolute', () => {
+      const taken = new Set<string>()
+      expect(zipEntryName('a.jpg', '/etc/', taken)).toBe('etc/a.jpg')
+    })
+
+    it('5g. backslashes in the prefix are dropped, not treated as separators', () => {
+      const taken = new Set<string>()
+      expect(zipEntryName('a.jpg', '..\\..\\etc\\', taken)).toBe('....etca.jpg')
+    })
+  })
+
+  describe('sanitizeZipPrefix (pure)', () => {
+    it('strips leading slashes, drops "." and ".." segments, and removes backslashes', () => {
+      expect(sanitizeZipPrefix('../../etc/')).toBe('etc/')
+      expect(sanitizeZipPrefix('/etc/passwd/')).toBe('etc/passwd/')
+      expect(sanitizeZipPrefix('photos/')).toBe('photos/')
+      expect(sanitizeZipPrefix('./photos/')).toBe('photos/')
+      expect(sanitizeZipPrefix('')).toBe('')
     })
   })
 })
