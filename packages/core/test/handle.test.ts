@@ -27,6 +27,7 @@ beforeEach(() => {
         collections: {
           gallery: collection(),
           'empty-registered': collection().fallbackUrl('/d.png'),
+          'empty-default-only': collection().fallbackUrl('/default.png'),
         },
       },
     },
@@ -79,6 +80,17 @@ describe('ModelMediaHandle retrieval', () => {
     await library.for('User', 1).add(png).toCollection('gallery')
     const galleryUrl = await library.for('User', 1).firstUrl('gallery')
     expect(galleryUrl).toMatch(/^http:\/\/localhost:9000\/media\//)
+  })
+
+  it('firstUrl falls back to the collection\'s default (\'\') fallback when no conversion-specific one is registered', async () => {
+    // Only the default ('') fallback is registered — a conversion-scoped
+    // lookup ('thumb') must still resolve to it rather than returning null,
+    // matching Spatie's behavior.
+    const viaConversion = await library.for('User', 1).firstUrl('empty-default-only', 'thumb')
+    expect(viaConversion).toBe('/default.png')
+
+    const viaSigned = await library.for('User', 1).firstSignedUrl('empty-default-only', 'thumb')
+    expect(viaSigned).toBe('/default.png')
   })
 
   it('reorder(ids) flips the order returned by getAll', async () => {

@@ -3,6 +3,7 @@ import type { MediaSource } from './pipeline/source.js'
 import type { MediaLibrary } from './library.js'
 import type { JsonObject, MediaRecord } from './types.js'
 import type { SignedUrlOptions } from './storage/url-generator.js'
+import type { CollectionDefinition } from './definitions/collection.js'
 
 export type MediaQueryFilter = JsonObject | ((media: MediaRecord) => boolean)
 
@@ -62,6 +63,20 @@ export class ModelMediaHandle {
   }
 
   /**
+   * `collection().fallbackUrl(url, conversionName)` registers under
+   * `conversionName ?? ''` — `''` is the collection's DEFAULT fallback.
+   * When a specific conversion name has no fallback of its own registered,
+   * Spatie falls back to that default rather than returning nothing, so a
+   * collection that only calls `.fallbackUrl(url)` (no conversion name)
+   * still backs every conversion-scoped `firstUrl()`/`firstSignedUrl()`
+   * call, not just the no-conversion one.
+   */
+  private fallbackUrlFor(definition: CollectionDefinition, conversionName?: string): string | null {
+    if (conversionName === undefined) return definition.fallbackUrls[''] ?? null
+    return definition.fallbackUrls[conversionName] ?? definition.fallbackUrls[''] ?? null
+  }
+
+  /**
    * Returns the URL of the first media item in `collection`, or the
    * collection's registered fallback URL (if any) when it's empty, or
    * `null` when there's no media and no fallback configured.
@@ -70,7 +85,7 @@ export class ModelMediaHandle {
     const first = await this.first(collection)
     if (!first) {
       const definition = this.library.getCollectionDefinition(this.modelType, collection ?? 'default')
-      return definition.fallbackUrls[conversionName ?? ''] ?? null
+      return this.fallbackUrlFor(definition, conversionName)
     }
     return this.library.urlGenerator.url(first, conversionName)
   }
@@ -83,7 +98,7 @@ export class ModelMediaHandle {
     const first = await this.first(collection)
     if (!first) {
       const definition = this.library.getCollectionDefinition(this.modelType, collection ?? 'default')
-      return definition.fallbackUrls[conversionName ?? ''] ?? null
+      return this.fallbackUrlFor(definition, conversionName)
     }
     return this.library.urlGenerator.signedUrl(first, conversionName, opts)
   }
