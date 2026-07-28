@@ -129,7 +129,9 @@ Pipeline order: **sniff mime** (magic bytes, `file-type`) → **validate** (glob
 
 Retrieval on the handle: `getAll(collection?, filter?)` (filter: customProperties match or predicate), `first(collection?)`, `firstUrl(collection, conversion?)`, `firstSignedUrl(collection, conversion?, opts?)`, `availableUrl(collection, [conversions])` (first *generated*, else original), `reorder([ids])`, `clear(collection?)`, `delete(mediaId)`. Fallback URL returned for empty collections when configured, else `null`.
 
-Media-level API: `url(conversion?)`, `signedUrl(...)`, `srcset(conversion?)`, `download()/inline()`, `move(toType, toId, collection?)`, `copy(...)` (re-runs target conversions, carries name + customProperties), `setCustomProperty`, `regenerate()`.
+Media-level API: `url(conversion?)`, `signedUrl(...)`, `srcset(conversion?)`, `download()/inline()`, `regenerate()`.
+
+**Post-v1 (not in current release):** `move(toType, toId, collection?)`, `copy(...)` (re-runs target conversions, carries name + customProperties), `setCustomProperty`. These were part of the original design surface but were never implemented in v1 — deferred rather than cut, and not currently on any package's public API. A caller who needs move/copy semantics today can delete + re-`add()`, or update `customProperties` via the repository directly.
 
 ## 8. Conversions engine
 

@@ -2,10 +2,10 @@
 
 Node.js port of [spatie/laravel-medialibrary](https://github.com/spatie/laravel-medialibrary) — manage media files (images, documents, etc.) for your application models.
 
-> **Pre-release**: Not yet published to npm. The library is feature-complete: file upload, storage, retrieval,
+> **Pre-release**: Not yet published to npm. The v1 surface covers file upload, storage, retrieval,
 > collection organization, image conversions, responsive images, queue-backed dispatch, downloads/ZIP, a CLI, and
 > offline maintenance (`clean()`). PDF/video conversion generators live in `@node-media-library/pdf` and
-> `@node-media-library/video`.
+> `@node-media-library/video`. Some design-spec surface didn't make v1 — see [Roadmap](#roadmap) below.
 
 ## Installation
 
@@ -134,6 +134,38 @@ If a media file's MIME type isn't `supports()`-ed by any configured generator, c
 images for that file are skipped silently — the upload itself still succeeds and the file remains usable as a
 plain (attachment-only) piece of media.
 
+## Security model
+
+- **MIME type is sniffed, never trusted.** The pipeline detects MIME from the actual file bytes (`file-type`'s
+  magic-byte sniffing) for every source kind — buffer, stream, path, base64, or URL download. A client-supplied
+  `Content-Type` header or filename extension is never used as the MIME type; `acceptsMimeTypes` and generator
+  dispatch (`ImageGenerator.supports()`) both check the sniffed value.
+- **Extension blocklist + filename sanitizer.** The default disallowed-extension list (`php`, `phtml`, `phar`,
+  `htaccess`) is checked against **every dot-separated segment** of the filename, not just the final extension —
+  `evil.php.jpg` is rejected. The default `fileNameSanitizer` also strips path separators (`/`, `\`), control
+  characters, and leading dots, and resolves via `basename()` before that check runs, so a filename can't smuggle
+  a nested storage key or `..` traversal past it. **This applies to every filename source** — a source-derived
+  name and an explicit `usingFileName(...)` are both sanitized the same way.
+  **Loud warning**: if you replace `limits.fileNameSanitizer` with your own function, you also replace the
+  traversal/blocklist protection it provides — a permissive custom sanitizer that doesn't strip `/`, `\`, and
+  `..` reopens exactly the holes described above. Extend the default sanitizer rather than starting from scratch
+  unless you're certain of what you're removing.
+- **`maxFileSize` is enforced during accumulation, not just after.** For stream and URL sources, bytes are capped
+  as they arrive (`FileTooLargeError` thrown as soon as the running total exceeds the limit) rather than being
+  buffered in full first — a hostile stream or URL response can't force unbounded memory use before the size
+  check runs.
+- **URL ingestion (`{ url, allowedHosts }` sources)**: an `allowedHosts` allowlist can restrict downloads to
+  specific hosts (exact host:port match, case-insensitive), and redirects are followed with `redirect: 'error'`
+  so a redirect to a non-allowlisted host can't defeat the allowlist. Caveat: the allowlist checks the hostname
+  as given — it does not defend against DNS-rebinding, or against a hostname you've explicitly allowlisted that
+  happens to resolve to a private/internal IP. If you ingest URLs from untrusted input, put a network-level
+  proxy or egress policy in front of this rather than relying on `allowedHosts` alone.
+- **Private-by-default storage.** Disks default to `visibility: 'private'` (see `synthesizeDefaultDisk` in
+  `storage/resolve.ts`); `url()` vs. `signedUrl()` is the caller's per-call choice regardless of a collection's
+  visibility setting. `collection().public()` marks that collection's writes (original, conversions, and
+  responsive variants) with `{ visibility: 'public' }` so the underlying disk driver applies public ACLs/
+  permissions at write time — it does not change which URL-generation method you call.
+
 ## CLI
 
 The package ships a `node-media-library` bin with `regenerate` and `clean` commands. It expects a config module
@@ -151,6 +183,10 @@ need to be executed with a TypeScript loader such as `tsx`.
 ## Roadmap
 
 **Current**: File upload, storage, retrieval, collections, image conversions, responsive images, queue-backed dispatch (sync and BullMQ), Prisma adapter, PDF/video image generators, downloads/ZIP, CLI, offline maintenance (`clean()`).
+
+**Not yet implemented** (part of the original design spec, deferred rather than cut):
+- Media-level `move(toType, toId, collection?)`, `copy(...)`, and `setCustomProperty(...)` — see the design spec's §7 for the intended shape. Workaround today: delete + re-`add()`, or update `customProperties` via the repository directly.
+- A GCS (Google Cloud Storage) disk driver — only `fs` and `s3` are wired up in `DiskConfig`. flydrive itself supports GCS; adding it here is just missing glue code.
 
 **Remaining**: Publish to npm.
 

@@ -22,6 +22,13 @@ Start with [`packages/core/README.md`](packages/core/README.md) — it covers in
 
 `@node-media-library/pdf` shells out to `pdftoppm` (poppler-utils) and `@node-media-library/video` shells out to `ffmpeg`. Both packages skip their binary-gated tests when the binary isn't on `PATH`; install the binaries to exercise those suites and to use the generators at runtime. CI (see `.github/workflows/ci.yml`) installs both via `apt-get` so those suites — plus the BullMQ Redis-backed suite — run for real there, even though they're skipped in most local/dev environments.
 
+## Roadmap / not yet implemented
+
+The original design spec (`docs/superpowers/specs/2026-07-26-node-media-library-design.md`) included a few
+items that didn't make it into v1: media-level `move()`, `copy()`, and `setCustomProperty()`, and a GCS storage
+driver (only `fs` and `s3` are wired up today). See [`packages/core/README.md`](packages/core/README.md#roadmap)
+for details and workarounds.
+
 ## Development
 
 ```bash
