@@ -78,17 +78,6 @@ pnpm format                   # prettier --write
 pnpm format:check             # prettier --check (what CI runs)
 ```
 
-Formatting is enforced, so run `pnpm format` before committing. Prettier's config lives under the
-`prettier` key in the root `package.json` and matches the existing house style — single quotes, no
-semicolons, two-space indent, 100 columns.
-
-The repository was formatted in one bulk commit, which would otherwise dominate `git blame`. Skip it
-locally with:
-
-```bash
-git config blame.ignoreRevsFile .git-blame-ignore-revs
-```
-
 Scope to one package with `--filter`, and pass a substring to target a single test file:
 
 ```bash
@@ -99,6 +88,17 @@ pnpm --filter @node-media-library/prisma test
 
 The CLI's bin points at built output (`dist/cli.js`), so exercising it from a checkout requires
 `pnpm build` first. `.ts` config modules need a TypeScript loader such as `tsx`.
+
+Formatting is enforced in CI, so run `pnpm format` before committing. Prettier's config lives under the
+`prettier` key in the root `package.json` and matches the existing house style — single quotes, no
+semicolons, two-space indent, 100 columns.
+
+The repository was formatted in one bulk commit, which would otherwise dominate `git blame`. Skip it
+locally with:
+
+```bash
+git config blame.ignoreRevsFile .git-blame-ignore-revs
+```
 
 ## Project conventions
 
@@ -133,7 +133,7 @@ Two dependencies are held back deliberately, and `.github/dependabot.yml` ignore
 
 - **`flydrive` stays on `^1.3.0`.** 2.x requires Node `>=24`, and this project supports Node `>=20`
   (CI tests 20 and 22). Only revisit when the support floor itself moves.
-- **`@types/node` stays on `^20`.** Node types should track the *minimum* supported runtime, so we
+- **`@types/node` stays on `^20`.** Node types should track the _minimum_ supported runtime, so we
   don't silently compile against APIs that Node 20 doesn't have.
 
 Every package must declare `@types/node` itself rather than relying on pnpm hoisting — an
