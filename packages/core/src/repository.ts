@@ -31,4 +31,8 @@ export interface MediaRepository {
   markConversionGenerated(id: string, name: string, generated: boolean): Promise<MediaRecord>
   /** Same contract for `responsiveImages[conversion] = entry`. */
   mergeResponsiveImages(id: string, conversion: string, entry: JsonObject): Promise<MediaRecord>
+  /** Atomically set a single custom property key, preserving sibling keys. */
+  setCustomProperty(id: string, key: string, value: unknown): Promise<MediaRecord>
+  /** Atomically remove a single custom property key, preserving sibling keys. */
+  removeCustomProperty(id: string, key: string): Promise<MediaRecord>
 }

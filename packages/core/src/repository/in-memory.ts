@@ -117,4 +117,30 @@ export class InMemoryMediaRepository implements MediaRepository {
     this.records.set(id, updated)
     return updated
   }
+
+  async setCustomProperty(id: string, key: string, value: unknown): Promise<MediaRecord> {
+    const existing = this.records.get(id)
+    if (!existing) {
+      throw new MediaLibraryError(`Media record with id "${id}" was not found`, 'NOT_FOUND')
+    }
+    const updated: MediaRecord = {
+      ...existing,
+      customProperties: { ...existing.customProperties, [key]: value },
+      updatedAt: new Date(),
+    }
+    this.records.set(id, updated)
+    return updated
+  }
+
+  async removeCustomProperty(id: string, key: string): Promise<MediaRecord> {
+    const existing = this.records.get(id)
+    if (!existing) {
+      throw new MediaLibraryError(`Media record with id "${id}" was not found`, 'NOT_FOUND')
+    }
+    const customProperties = { ...existing.customProperties }
+    delete customProperties[key]
+    const updated: MediaRecord = { ...existing, customProperties, updatedAt: new Date() }
+    this.records.set(id, updated)
+    return updated
+  }
 }

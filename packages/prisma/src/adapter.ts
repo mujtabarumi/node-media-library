@@ -144,7 +144,7 @@ class PrismaMediaRepository implements MediaRepository {
    */
   private async mergeJsonColumn(
     id: string,
-    column: 'generatedConversions' | 'responsiveImages',
+    column: 'generatedConversions' | 'responsiveImages' | 'customProperties',
     key: string,
     value: unknown,
   ): Promise<MediaRecord> {
@@ -166,6 +166,29 @@ class PrismaMediaRepository implements MediaRepository {
 
   async mergeResponsiveImages(id: string, conversion: string, entry: JsonObject): Promise<MediaRecord> {
     return this.mergeJsonColumn(id, 'responsiveImages', conversion, entry)
+  }
+
+  async setCustomProperty(id: string, key: string, value: unknown): Promise<MediaRecord> {
+    return this.mergeJsonColumn(id, 'customProperties', key, value)
+  }
+
+  /**
+   * Same read-merge-write shape as mergeJsonColumn but deletes the key.
+   * Shares mergeJsonColumn's honesty caveat: inside $transaction when the
+   * client provides one, but not lock-safe on read-committed Postgres/MySQL.
+   */
+  async removeCustomProperty(id: string, key: string): Promise<MediaRecord> {
+    const run = async (tx: { media: MediaDelegate }) => {
+      const row = await tx.media.findUnique({ where: { id } })
+      if (!row) {
+        throw new MediaLibraryError(`Media record with id "${id}" was not found`, 'NOT_FOUND')
+      }
+      const current = { ...((row.customProperties ?? {}) as Record<string, unknown>) }
+      delete current[key]
+      return tx.media.update({ where: { id }, data: { customProperties: current } })
+    }
+    const row = this.client.$transaction ? await this.client.$transaction(run) : await run(this.client)
+    return toMediaRecord(row)
   }
 }
 

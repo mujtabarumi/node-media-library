@@ -207,5 +207,43 @@ export function runMediaRepositoryContract(
       })
       await expect(repo.mergeResponsiveImages('nope', 'thumb', {})).rejects.toThrow(MediaLibraryError)
     })
+
+    it('setCustomProperty merges one key without clobbering others', async () => {
+      const created = await repo.create(makeRecord({ customProperties: { alt: 'a cat' } }))
+      const updated = await repo.setCustomProperty(created.id, 'credit', 'Jane')
+      expect(updated.customProperties).toEqual({ alt: 'a cat', credit: 'Jane' })
+    })
+
+    it('setCustomProperty overwrites an existing key in place', async () => {
+      const created = await repo.create(makeRecord({ customProperties: { alt: 'old' } }))
+      const updated = await repo.setCustomProperty(created.id, 'alt', 'new')
+      expect(updated.customProperties).toEqual({ alt: 'new' })
+    })
+
+    it('removeCustomProperty deletes only the named key', async () => {
+      const created = await repo.create(makeRecord({ customProperties: { alt: 'a cat', credit: 'Jane' } }))
+      const updated = await repo.removeCustomProperty(created.id, 'credit')
+      expect(updated.customProperties).toEqual({ alt: 'a cat' })
+    })
+
+    it('removeCustomProperty of a missing key is a no-op', async () => {
+      const created = await repo.create(makeRecord({ customProperties: { alt: 'a cat' } }))
+      const updated = await repo.removeCustomProperty(created.id, 'nope')
+      expect(updated.customProperties).toEqual({ alt: 'a cat' })
+    })
+
+    it('setCustomProperty on unknown id throws NOT_FOUND', async () => {
+      await expect(repo.setCustomProperty('missing', 'k', 'v')).rejects.toMatchObject({ code: 'NOT_FOUND' })
+    })
+
+    it('concurrent setCustomProperty calls for different keys both persist', async () => {
+      const created = await repo.create(makeRecord())
+      await Promise.all([
+        repo.setCustomProperty(created.id, 'a', 1),
+        repo.setCustomProperty(created.id, 'b', 2),
+      ])
+      const found = await repo.findById(created.id)
+      expect(found?.customProperties).toEqual({ a: 1, b: 2 })
+    })
   })
 }
