@@ -1,5 +1,7 @@
-import { describe, it, expect } from 'vitest'
-import { readFile } from 'node:fs/promises'
+import { describe, it, expect, afterEach } from 'vitest'
+import { mkdtemp, readFile, rm, writeFile, chmod } from 'node:fs/promises'
+import { tmpdir, platform } from 'node:os'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { MediaRecord } from '@node-media-library/core'
 import { jpegoptimOptimizer, pngquantOptimizer, jpegoptimAvailable, pngquantAvailable } from '../src/optimizers.js'
@@ -50,6 +52,31 @@ describe('pngquantOptimizer (no binary needed)', () => {
     const optimizer = pngquantOptimizer({ pngquantPath: '/nonexistent/pngquant' })
     const input = await readFile(`${fixturesDir}sample.png`)
     expect(await optimizer.optimize(input, ctx('png'))).toBeNull()
+  })
+
+  // Exit code 99 is pngquant's "couldn't meet the requested --quality" signal
+  // (common on already-small/well-compressed PNGs) — not a real failure. This
+  // is exercised with a tiny fake executable rather than the real pngquant
+  // binary so it runs everywhere, unconditionally. POSIX-only (shebang script
+  // + execute bit); skipped on Windows where that mechanism doesn't apply.
+  describe.runIf(platform() !== 'win32')('exit code 99 (fake binary, no pngquant needed)', () => {
+    let dir: string | undefined
+
+    afterEach(async () => {
+      if (dir) await rm(dir, { recursive: true, force: true })
+      dir = undefined
+    })
+
+    it('treats it as "could not improve" and returns null rather than throwing', async () => {
+      dir = await mkdtemp(join(tmpdir(), 'nml-pngquant-fake-'))
+      const fakeBin = join(dir, 'pngquant-exit99')
+      await writeFile(fakeBin, '#!/bin/sh\nexit 99\n')
+      await chmod(fakeBin, 0o755)
+
+      const optimizer = pngquantOptimizer({ pngquantPath: fakeBin })
+      const input = await readFile(`${fixturesDir}sample.png`)
+      await expect(optimizer.optimize(input, ctx('png'))).resolves.toBeNull()
+    })
   })
 })
 

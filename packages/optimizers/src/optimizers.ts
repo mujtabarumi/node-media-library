@@ -65,7 +65,17 @@ export function pngquantOptimizer(opts: PngquantOptions = {}): ImageOptimizer {
         try {
           await runBinary(bin, buildPngquantArgs(input, output, opts))
         } catch (error) {
-          if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null
+          // execFile (via util.promisify) rejects with an ExecException whose `code`
+          // is the ENOENT errno string for spawn failures, or the process's numeric
+          // exit code for a non-zero, non-signal exit — hence the wider union here
+          // rather than NodeJS.ErrnoException's `string`-only `code`.
+          const code = (error as { code?: string | number }).code
+          if (code === 'ENOENT') return null
+          // pngquant exits 99 when the requested --quality can't be met (common on
+          // already well-compressed PNGs) — that's "couldn't improve it", not a
+          // failure, so treat it the same as an unhandled format: pass the original
+          // buffer through rather than surfacing an engine warning.
+          if (code === 99) return null
           throw error
         }
         return await readFile(output)
