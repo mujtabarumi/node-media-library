@@ -13,6 +13,7 @@ import type { WidthCalculator } from '../responsive/width-calculator.js'
 import { responsiveFileName } from '../responsive/naming.js'
 import { renderVariant, tinyPlaceholder } from '../responsive/generator.js'
 import type { ResponsiveVariant, ResponsiveImagesEntry } from '../responsive/types.js'
+import type { ImageOptimizer, OptimizeContext } from './optimizer.js'
 
 export interface RegenerateOptions {
   modelType?: string
@@ -38,6 +39,7 @@ export interface ConversionEngineDeps {
   collectionFor(modelType: string, collection: string): CollectionDefinition
   widthCalculator: WidthCalculator
   responsivePlaceholders: boolean
+  optimizers: readonly ImageOptimizer[]
 }
 
 /**
@@ -55,6 +57,32 @@ function snapshot(record: MediaRecord): MediaRecord {
 
 export class ConversionEngine {
   constructor(private readonly deps: ConversionEngineDeps) {}
+
+  /**
+   * Runs `buffer` through the configured optimizers in order, each fed the
+   * previous output. A result is accepted only if non-empty AND strictly
+   * smaller than what it's replacing; a throwing or unhelpful optimizer is
+   * skipped (logged via console.warn) rather than failing the conversion —
+   * optimization is a best-effort improvement, never a correctness
+   * requirement.
+   */
+  private async optimizeBytes(buffer: Buffer, ctx: OptimizeContext): Promise<Buffer> {
+    let out = buffer
+    for (const optimizer of this.deps.optimizers) {
+      try {
+        const result = await optimizer.optimize(out, ctx)
+        if (result && result.length > 0 && result.length < out.length) {
+          out = result
+        }
+      } catch (error) {
+        console.warn(
+          `[media-library] optimizer "${optimizer.name}" failed for ${ctx.fileName}; using unoptimized bytes`,
+          error,
+        )
+      }
+    }
+    return out
+  }
 
   /**
    * Definitions for `media`'s own collection, filtered by
@@ -143,7 +171,13 @@ export class ConversionEngine {
     for (const width of widths) {
       const variant = await renderVariant(source, width, format, quality)
       const fileName = responsiveFileName(media.fileName, conversionName, variant.width, variant.height, format)
-      await disk.put(`${dir}/${fileName}`, variant.buffer, writeOptions)
+      const optimized = await this.optimizeBytes(variant.buffer, {
+        format,
+        fileName,
+        media,
+        kind: 'responsive',
+      })
+      await disk.put(`${dir}/${fileName}`, optimized, writeOptions)
       files.push({ fileName, width: variant.width, height: variant.height })
     }
 
@@ -271,7 +305,13 @@ export class ConversionEngine {
         const writeOptions = writeOptionsFor(
           this.deps.collectionFor(media.modelType, media.collectionName).public,
         )
-        await conversionsDisk.put(key, output, writeOptions)
+        const optimized = await this.optimizeBytes(output, {
+          format: effectiveDef.format,
+          fileName: key,
+          media,
+          kind: 'conversion',
+        })
+        await conversionsDisk.put(key, optimized, writeOptions)
         if (effectiveDef.responsiveImages) {
           // A failure here lands in this same catch block and counts as
           // this conversion's failure — the conversion file was written,

@@ -57,6 +57,7 @@ export class MediaLibrary {
       collectionFor: (modelType, collection) => this.getCollectionDefinition(modelType, collection),
       widthCalculator: this.resolved.responsiveWidthCalculator,
       responsivePlaceholders: this.resolved.responsivePlaceholders,
+      optimizers: this.resolved.optimizers,
     })
     this.resolved.queue.registerProcessor((job) => this.engine.perform(job.mediaId, job.conversionNames))
 

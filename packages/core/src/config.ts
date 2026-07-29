@@ -15,6 +15,7 @@ import type { ImageGenerator } from './conversions/image-generator.js'
 import { sharpImageGenerator } from './conversions/image-generator.js'
 import type { WidthCalculator } from './responsive/width-calculator.js'
 import { FileSizeOptimizedWidthCalculator } from './responsive/width-calculator.js'
+import type { ImageOptimizer } from './conversions/optimizer.js'
 
 export interface MediaLibraryConfig {
   repository: MediaRepository
@@ -40,6 +41,8 @@ export interface MediaLibraryConfig {
   responsiveWidthCalculator?: WidthCalculator
   /** Generate LQIP placeholders for responsive variants. Default true. */
   responsivePlaceholders?: boolean
+  /** Default `[]`. */
+  optimizers?: ImageOptimizer[]
 }
 
 /**
@@ -62,6 +65,7 @@ export interface ResolvedConfig {
   readonly imageGenerators: readonly ImageGenerator[]
   readonly responsiveWidthCalculator: WidthCalculator
   readonly responsivePlaceholders: boolean
+  readonly optimizers: readonly ImageOptimizer[]
 }
 
 const DEFAULT_MAX_FILE_SIZE = 10 * 1024 * 1024
@@ -105,5 +109,6 @@ export function resolveConfig(config: MediaLibraryConfig): ResolvedConfig {
     imageGenerators: Object.freeze(config.imageGenerators ?? [sharpImageGenerator()]),
     responsiveWidthCalculator: config.responsiveWidthCalculator ?? new FileSizeOptimizedWidthCalculator(),
     responsivePlaceholders: config.responsivePlaceholders ?? true,
+    optimizers: Object.freeze([...(config.optimizers ?? [])]),
   })
 }
