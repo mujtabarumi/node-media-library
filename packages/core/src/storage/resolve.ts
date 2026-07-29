@@ -23,6 +23,16 @@ export type DiskConfig =
       visibility?: 'public' | 'private'
       baseUrl?: string
     }
+  | {
+      driver: 'gcs'
+      bucket: string
+      visibility?: 'public' | 'private'
+      usingUniformAcl?: boolean
+      projectId?: string
+      keyFilename?: string
+      credentials?: Record<string, unknown>
+      baseUrl?: string
+    }
 
 export interface StorageConfig {
   default?: string
@@ -50,6 +60,9 @@ function synthesizeDefaultDisk(env: Record<string, string | undefined>): DiskCon
       endpoint: env.MEDIA_S3_ENDPOINT,
       visibility: 'private',
     }
+  }
+  if (env.MEDIA_GCS_BUCKET) {
+    return { driver: 'gcs', bucket: env.MEDIA_GCS_BUCKET, visibility: 'private' }
   }
   return {
     driver: 'fs',
@@ -99,13 +112,30 @@ export function resolveStorage(
       return instance
     }
 
-    const { S3Driver } = await import('flydrive/drivers/s3')
+    if (cfg.driver === 's3') {
+      const { S3Driver } = await import('flydrive/drivers/s3')
+      const instance = new DiskCtor(
+        new S3Driver({
+          bucket: cfg.bucket,
+          region: cfg.region,
+          endpoint: cfg.endpoint,
+          visibility: cfg.visibility ?? 'private',
+        }),
+      )
+      cache.set(diskName, instance)
+      return instance
+    }
+
+    const { GCSDriver } = await import('flydrive/drivers/gcs')
+    const { bucket, visibility = 'private', usingUniformAcl, projectId, keyFilename, credentials } = cfg
     const instance = new DiskCtor(
-      new S3Driver({
-        bucket: cfg.bucket,
-        region: cfg.region,
-        endpoint: cfg.endpoint,
-        visibility: cfg.visibility ?? 'private',
+      new GCSDriver({
+        bucket,
+        visibility,
+        ...(usingUniformAcl !== undefined ? { usingUniformAcl } : {}),
+        ...(projectId ? { projectId } : {}),
+        ...(keyFilename ? { keyFilename } : {}),
+        ...(credentials ? { credentials } : {}),
       }),
     )
     cache.set(diskName, instance)
