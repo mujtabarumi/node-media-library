@@ -1,0 +1,6 @@
+# Bulk reformats with no behavior change. Activate locally with:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+# GitHub applies this file to its blame view automatically.
+
+# style: apply Prettier to the repository
+f3a148b81dd7cd931f2d3e424ffdb3e10405f2f5

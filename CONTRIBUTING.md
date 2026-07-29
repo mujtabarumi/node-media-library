@@ -73,6 +73,20 @@ Run from the repository root:
 pnpm -r test                  # every package's suite
 pnpm -r typecheck             # tsc --noEmit everywhere
 pnpm build                    # tsc -p tsconfig.build.json in every package
+pnpm lint                     # eslint
+pnpm format                   # prettier --write
+pnpm format:check             # prettier --check (what CI runs)
+```
+
+Formatting is enforced, so run `pnpm format` before committing. Prettier's config lives under the
+`prettier` key in the root `package.json` and matches the existing house style — single quotes, no
+semicolons, two-space indent, 100 columns.
+
+The repository was formatted in one bulk commit, which would otherwise dominate `git blame`. Skip it
+locally with:
+
+```bash
+git config blame.ignoreRevsFile .git-blame-ignore-revs
 ```
 
 Scope to one package with `--filter`, and pass a substring to target a single test file:
@@ -147,8 +161,10 @@ Before opening a PR:
 
 - [ ] `pnpm -r typecheck` passes
 - [ ] `pnpm -r test` passes (skips for missing binaries/Redis are expected)
+- [ ] `pnpm lint` and `pnpm format:check` pass
 - [ ] New behavior has tests that would fail without the change
 - [ ] Docs, JSDoc, and the design spec reflect the new behavior — including its caveats
+- [ ] `pnpm changeset` run for any user-facing change (see [Releases](#releases))
 - [ ] Commits follow Conventional Commits
 
 In the PR description, explain **why** the change is needed, not just what it does, and call out any
@@ -157,17 +173,34 @@ deviation from the design spec so a reviewer can confirm it's intentional.
 Small, focused PRs get reviewed fastest. If you're planning something large or architectural, please
 open an issue first so we can agree on the approach before you invest the time.
 
-## Publishing
+## Releases
 
-Releases go through **pnpm only**:
+Versioning and changelogs are managed with [Changesets](https://github.com/changesets/changesets).
+**If your change affects users of any package, include a changeset in the same PR:**
 
 ```bash
-pnpm publish
+pnpm changeset
 ```
 
-Each package's `prepack` script (`scripts/ensure-pnpm-pack.mjs`) deliberately fails under bare
-`npm publish` / `npm pack`, because npm ignores `publishConfig.exports` and would ship a tarball whose
-entry points reference unbuilt `src/`.
+It asks which packages changed and whether the change is a patch, minor, or major, then writes a small
+Markdown file under `.changeset/` for you to commit. Write the summary for someone reading the changelog
+later, not for the reviewer — it becomes the CHANGELOG entry verbatim.
+
+Skip the changeset only for changes with no user-visible effect: tests, internal refactors, CI, or
+repository tooling.
+
+Maintainers cut a release with:
+
+```bash
+pnpm version   # consume changesets: bump versions, write CHANGELOG.md files
+pnpm release   # pnpm build && changeset publish
+```
+
+### Publishing
+
+Publishing goes through **pnpm only**. Each package's `prepack` script
+(`scripts/ensure-pnpm-pack.mjs`) deliberately fails under bare `npm publish` / `npm pack`, because npm
+ignores `publishConfig.exports` and would ship a tarball whose entry points reference unbuilt `src/`.
 
 ## Reporting bugs and security issues
 
