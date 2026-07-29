@@ -1,5 +1,9 @@
 # node-media-library
 
+[![CI](https://github.com/mujtabarumi/node-media-library/actions/workflows/ci.yml/badge.svg)](https://github.com/mujtabarumi/node-media-library/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Node](https://img.shields.io/badge/node-%3E%3D20-brightgreen.svg)](package.json)
+
 A Node.js port of [spatie/laravel-medialibrary](https://github.com/spatie/laravel-medialibrary): attach one or more files to Eloquent-like models, organize them into collections, generate image/PDF/video conversions and responsive image sets, download or zip them back out, and manage it all from a CLI or programmatically — backed by pluggable storage (via [flydrive](https://flydrive.dev)), a pluggable repository (Prisma adapter included), and a pluggable job queue (BullMQ adapter included).
 
 This is a pnpm workspace monorepo. Each package is independently publishable and depends only on `@node-media-library/core`.
