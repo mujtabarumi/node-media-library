@@ -27,6 +27,10 @@ createMediaLibrary({
 Each optimizer inspects `OptimizeContext.format` and returns `null` (pass — the un-optimized buffer is kept) for
 formats it doesn't handle, or when its binary is missing from `PATH`/the configured path.
 
+`ctx.format` is only populated for conversions with an explicit `.format('jpeg')`/`.format('png')` (plus PDF/video
+rasterizations, which resolve to `png`) — it's `null` for conversions left at the keep-original-format default and
+for responsive variants generated from the original file, so those pass through both optimizers unoptimized.
+
 ## Acceptance rule
 
 Core only ever accepts an optimizer's output when it is **strictly smaller** than the buffer it was given —

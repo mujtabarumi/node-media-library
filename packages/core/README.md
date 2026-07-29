@@ -98,6 +98,11 @@ createMediaLibrary({
 makes the optimizer a no-op. You can also write your own by implementing the `ImageOptimizer` interface
 (`{ name, optimize(buffer, ctx: OptimizeContext): Promise<Buffer | null> }`).
 
+The shipped optimizers key off `ctx.format`, which is only set for conversions with an explicit
+`.format('jpeg')`/`.format('png')` (or a PDF/video rasterization, which resolves to `png`) — a conversion left at
+the keep-original-format default, and responsive variants generated from the original file, carry no `ctx.format`
+and pass through both optimizers unoptimized.
+
 ## Responsive images
 
 Opt in per collection, per conversion, or per upload:
