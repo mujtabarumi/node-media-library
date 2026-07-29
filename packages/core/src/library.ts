@@ -304,6 +304,22 @@ export class MediaLibrary {
     this.events.emit('media:deleted', { media })
   }
 
+  /** Set one custom property atomically (sibling keys preserved). */
+  async setCustomProperty(
+    mediaOrId: MediaRecord | string,
+    key: string,
+    value: unknown,
+  ): Promise<MediaRecord> {
+    const media = await this.requireMedia(mediaOrId)
+    return this.resolved.repository.setCustomProperty(media.id, key, value)
+  }
+
+  /** Remove one custom property atomically (sibling keys preserved). */
+  async removeCustomProperty(mediaOrId: MediaRecord | string, key: string): Promise<MediaRecord> {
+    const media = await this.requireMedia(mediaOrId)
+    return this.resolved.repository.removeCustomProperty(media.id, key)
+  }
+
   /**
    * Deletes every record in `collection` (or all collections, when omitted
    * or `'*'`) for the given model and emits `collection:cleared`. This is
