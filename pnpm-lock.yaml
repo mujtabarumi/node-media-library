@@ -58,6 +58,19 @@ importers:
         specifier: ^3.1.3
         version: 3.4.0
 
+  packages/optimizers:
+    dependencies:
+      '@node-media-library/core':
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      typescript:
+        specifier: ^5.5.0
+        version: 5.9.3
+      vitest:
+        specifier: ^2.0.0
+        version: 2.1.9(@types/node@20.19.43)
+
   packages/pdf:
     dependencies:
       '@node-media-library/core':

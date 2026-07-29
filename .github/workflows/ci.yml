@@ -13,7 +13,7 @@ jobs:
         ports: ['6379:6379']
     steps:
       - uses: actions/checkout@v4
-      - run: sudo apt-get update && sudo apt-get install -y poppler-utils ffmpeg
+      - run: sudo apt-get update && sudo apt-get install -y poppler-utils ffmpeg jpegoptim pngquant
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with: { node-version: '${{ matrix.node }}', cache: pnpm }

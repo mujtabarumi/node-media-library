@@ -1,0 +1,27 @@
+{
+  "name": "@node-media-library/optimizers",
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Binary image optimizers (jpegoptim, pngquant) for node-media-library",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "git+https://github.com/mujtabarumi/node-media-library.git" },
+  "keywords": ["media-library", "uploads", "conversions", "optimizers", "jpegoptim", "pngquant"],
+  "engines": { "node": ">=20" },
+  "files": ["dist", "README.md", "LICENSE"],
+  "exports": { ".": "./src/index.ts" },
+  "publishConfig": {
+    "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } }
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "pnpm build",
+    "prepack": "node ../../scripts/ensure-pnpm-pack.mjs"
+  },
+  "dependencies": { "@node-media-library/core": "workspace:*" },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  }
+}
