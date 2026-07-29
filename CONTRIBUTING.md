@@ -127,6 +127,18 @@ subprocess invocations — not mocks of those boundaries. Please keep it that wa
 belong behind an availability gate (`describe.runIf(...)`) with an ungated companion test covering the
 binary-missing path, following `packages/optimizers/test/optimizers.test.ts`.
 
+### Pinned dependencies
+
+Two dependencies are held back deliberately, and `.github/dependabot.yml` ignores major bumps for both:
+
+- **`flydrive` stays on `^1.3.0`.** 2.x requires Node `>=24`, and this project supports Node `>=20`
+  (CI tests 20 and 22). Only revisit when the support floor itself moves.
+- **`@types/node` stays on `^20`.** Node types should track the *minimum* supported runtime, so we
+  don't silently compile against APIs that Node 20 doesn't have.
+
+Every package must declare `@types/node` itself rather than relying on pnpm hoisting — an
+undeclared version resolves to whatever a sibling happens to pull in.
+
 ### ESM, with explicit extensions
 
 Everything is ESM (`"type": "module"`). Relative imports carry an explicit `.js` suffix even in
