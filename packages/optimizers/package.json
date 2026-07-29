@@ -4,15 +4,41 @@
   "type": "module",
   "description": "Binary image optimizers (jpegoptim, pngquant) for node-media-library",
   "license": "MIT",
-  "repository": { "type": "git", "url": "git+https://github.com/mujtabarumi/node-media-library.git", "directory": "packages/optimizers" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mujtabarumi/node-media-library.git",
+    "directory": "packages/optimizers"
+  },
   "homepage": "https://github.com/mujtabarumi/node-media-library/tree/main/packages/optimizers#readme",
-  "bugs": { "url": "https://github.com/mujtabarumi/node-media-library/issues" },
-  "keywords": ["media-library", "uploads", "conversions", "optimizers", "jpegoptim", "pngquant"],
-  "engines": { "node": ">=20" },
-  "files": ["dist", "README.md", "LICENSE"],
-  "exports": { ".": "./src/index.ts" },
+  "bugs": {
+    "url": "https://github.com/mujtabarumi/node-media-library/issues"
+  },
+  "keywords": [
+    "media-library",
+    "uploads",
+    "conversions",
+    "optimizers",
+    "jpegoptim",
+    "pngquant"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "publishConfig": {
-    "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } }
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
   },
   "scripts": {
     "test": "vitest run",
@@ -21,8 +47,11 @@
     "prepublishOnly": "pnpm build",
     "prepack": "node ../../scripts/ensure-pnpm-pack.mjs"
   },
-  "dependencies": { "@node-media-library/core": "workspace:*" },
+  "dependencies": {
+    "@node-media-library/core": "workspace:*"
+  },
   "devDependencies": {
+    "@types/node": "^20.19.43",
     "typescript": "^5.5.0",
     "vitest": "^2.0.0"
   }

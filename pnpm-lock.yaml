@@ -33,6 +33,9 @@ importers:
         specifier: workspace:*
         version: link:../core
     devDependencies:
+      '@types/node':
+        specifier: ^20.19.43
+        version: 20.19.43
       bullmq:
         specifier: ^5.81.2
         version: 5.81.2
@@ -86,6 +89,9 @@ importers:
         specifier: workspace:*
         version: link:../core
     devDependencies:
+      '@types/node':
+        specifier: ^20.19.43
+        version: 20.19.43
       typescript:
         specifier: ^5.5.0
         version: 5.9.3
@@ -99,6 +105,9 @@ importers:
         specifier: workspace:*
         version: link:../core
     devDependencies:
+      '@types/node':
+        specifier: ^20.19.43
+        version: 20.19.43
       sharp:
         specifier: ^0.35.3
         version: 0.35.3(@types/node@20.19.43)
@@ -121,6 +130,9 @@ importers:
       '@prisma/client':
         specifier: ^7.9.0
         version: 7.9.0(prisma@7.9.0(@types/react@19.2.17)(better-sqlite3@12.11.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@5.9.3))(typescript@5.9.3)
+      '@types/node':
+        specifier: ^20.19.43
+        version: 20.19.43
       prisma:
         specifier: ^7.9.0
         version: 7.9.0(@types/react@19.2.17)(better-sqlite3@12.11.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@5.9.3)
@@ -137,6 +149,9 @@ importers:
         specifier: workspace:*
         version: link:../core
     devDependencies:
+      '@types/node':
+        specifier: ^20.19.43
+        version: 20.19.43
       sharp:
         specifier: ^0.35.3
         version: 0.35.3(@types/node@20.19.43)

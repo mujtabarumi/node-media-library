@@ -4,15 +4,39 @@
   "type": "module",
   "description": "pdftoppm-backed ImageGenerator for rasterizing PDF originals in @node-media-library/core.",
   "license": "MIT",
-  "repository": { "type": "git", "url": "git+https://github.com/mujtabarumi/node-media-library.git", "directory": "packages/pdf" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mujtabarumi/node-media-library.git",
+    "directory": "packages/pdf"
+  },
   "homepage": "https://github.com/mujtabarumi/node-media-library/tree/main/packages/pdf#readme",
-  "bugs": { "url": "https://github.com/mujtabarumi/node-media-library/issues" },
-  "keywords": ["media-library", "uploads", "conversions", "pdf"],
-  "engines": { "node": ">=20" },
-  "files": ["dist", "README.md", "LICENSE"],
-  "exports": { ".": "./src/index.ts" },
+  "bugs": {
+    "url": "https://github.com/mujtabarumi/node-media-library/issues"
+  },
+  "keywords": [
+    "media-library",
+    "uploads",
+    "conversions",
+    "pdf"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "publishConfig": {
-    "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } }
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
   },
   "scripts": {
     "test": "vitest run",
@@ -21,8 +45,11 @@
     "prepublishOnly": "pnpm build",
     "prepack": "node ../../scripts/ensure-pnpm-pack.mjs"
   },
-  "dependencies": { "@node-media-library/core": "workspace:*" },
+  "dependencies": {
+    "@node-media-library/core": "workspace:*"
+  },
   "devDependencies": {
+    "@types/node": "^20.19.43",
     "sharp": "^0.35.3",
     "typescript": "^5.5.0",
     "vitest": "^2.0.0"
