@@ -1,0 +1,11 @@
+node_modules
+dist
+pnpm-lock.yaml
+packages/prisma/test/prisma/generated
+
+# Hand-formatted with compact single-line objects; reformatting adds churn
+# without improving readability.
+**/package.json
+
+# Archived planning documents — kept verbatim as a historical record.
+docs/superpowers/plans
