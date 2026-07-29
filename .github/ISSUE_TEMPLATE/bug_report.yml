@@ -1,0 +1,90 @@
+name: Bug report
+description: Report incorrect behavior in one of the node-media-library packages
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a report. Please **do not use this form for security
+        vulnerabilities** — follow [SECURITY.md](https://github.com/mujtabarumi/node-media-library/blob/main/SECURITY.md)
+        instead.
+
+  - type: dropdown
+    id: package
+    attributes:
+      label: Affected package
+      multiple: true
+      options:
+        - '@node-media-library/core'
+        - '@node-media-library/prisma'
+        - '@node-media-library/bullmq'
+        - '@node-media-library/pdf'
+        - '@node-media-library/video'
+        - '@node-media-library/optimizers'
+        - Not sure
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: Package version, or the commit SHA if you're running from a checkout.
+      placeholder: '0.1.0 — or a9198c4'
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: |
+        Node version (`node -v`), OS, and — if relevant to the bug — your storage driver, repository
+        backend, queue driver, and the versions of any system binaries involved
+        (`pdftoppm -v`, `ffmpeg -version`, `jpegoptim --version`, `pngquant --version`).
+      placeholder: |
+        Node: v20.11.0
+        OS: macOS 15.2 (arm64)
+        Storage: s3
+        Repository: @node-media-library/prisma with Postgres 16
+        Queue: syncDriver
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen, and what makes you expect it (docs, spec, Spatie parity)?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What happened instead? Include the full error message and stack trace if there is one.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: |
+        Minimal code that reproduces the problem — ideally your `MediaLibrary` config plus the calls that
+        trigger it. A failing test against this repo is the fastest possible path to a fix.
+      render: typescript
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and this isn't a duplicate
+          required: true
+        - label: This is not a security vulnerability (those go through SECURITY.md)
+          required: true

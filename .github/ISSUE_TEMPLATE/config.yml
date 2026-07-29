@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/mujtabarumi/node-media-library/security/advisories/new
+    about: Please report vulnerabilities privately — never in a public issue. See SECURITY.md.
+  - name: Question or usage help
+    url: https://github.com/mujtabarumi/node-media-library/discussions
+    about: Ask how to configure or use the library. Start with the package READMEs first.

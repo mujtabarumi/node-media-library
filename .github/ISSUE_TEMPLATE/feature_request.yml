@@ -1,0 +1,70 @@
+name: Feature request
+description: Propose new functionality or an API change
+labels: ['enhancement']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before filing, please check the roadmap and known limitations in
+        [`packages/core/README.md`](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/README.md#roadmap)
+        and the design spec under `docs/superpowers/specs/` — the behavior you want may already be
+        documented as intentional, or as a known architectural limitation.
+
+  - type: dropdown
+    id: package
+    attributes:
+      label: Which package would this affect?
+      multiple: true
+      options:
+        - '@node-media-library/core'
+        - '@node-media-library/prisma'
+        - '@node-media-library/bullmq'
+        - '@node-media-library/pdf'
+        - '@node-media-library/video'
+        - '@node-media-library/optimizers'
+        - A new package
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: |
+        What are you trying to do that you can't do today? Describe the situation, not the solution —
+        it helps us find the right shape for a fix.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed API
+      description: What would the code look like if this existed?
+      render: typescript
+
+  - type: input
+    id: spatie
+    attributes:
+      label: Spatie equivalent
+      description: |
+        If spatie/laravel-medialibrary has this feature, name the method or config option. Parity with
+        Spatie is a strong argument for inclusion.
+      placeholder: 'e.g. Media::orderColumn / withResponsiveImages()'
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Workarounds you've tried, and why they aren't sufficient.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and this isn't a duplicate
+          required: true
+        - label: I checked the roadmap and known limitations
+          required: true
