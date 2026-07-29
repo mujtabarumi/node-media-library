@@ -133,7 +133,7 @@ Media-level API: `url(conversion?)`, `signedUrl(...)`, `srcset(conversion?)`, `d
 
 **Shipped (Spatie parity):** `media.copyMedia(mediaOrId, toModelType, toModelId, opts?: CopyMediaOptions { toCollection? })` and `media.moveMedia(...)` (same signature) on `MediaLibrary`. Copy re-runs the full add pipeline against the target model/collection — new `id`/`uuid`, target-collection validation/rules/disks govern the result, and conversions + responsive images are **regenerated**, never byte-copied from the source's derived files (matches Spatie's copy semantics: only the original bytes are transferred, everything derived is rebuilt). Move is copy-then-delete-source; if the copy step fails, the source is left untouched. Both emit typed events: `media:copied` (`{ media, copy }`) and `media:moved` (`{ media, moved }`).
 
-`media.setCustomProperty(mediaOrId, key, value)` / `media.removeCustomProperty(mediaOrId, key)` — atomic single-key updates that preserve sibling keys already present in `customProperties`, backed by dedicated repository primitives (both the in-memory and Prisma adapters implement them without a read-modify-write race on the full JSON blob).
+`media.setCustomProperty(mediaOrId, key, value)` / `media.removeCustomProperty(mediaOrId, key)` — atomic single-key updates that preserve sibling keys already present in `customProperties`, backed by dedicated repository primitives (both the in-memory and Prisma adapters implement them without a read-modify-write race on the full JSON blob; the per-key lost-update caveat on read-committed SQL still applies (see the Prisma adapter's docs)).
 
 ## 8. Conversions engine
 
