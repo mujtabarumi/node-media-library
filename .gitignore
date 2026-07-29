@@ -5,3 +5,8 @@ dist/
 .DS_Store
 packages/prisma/test/prisma/generated/
 packages/prisma/test/tmp/
+
+# Local editor/agent state
+.claude/settings.local.json
+.idea/
+.vscode/
