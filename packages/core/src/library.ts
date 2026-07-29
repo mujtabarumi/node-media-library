@@ -25,6 +25,11 @@ export function createMediaLibrary(config: MediaLibraryConfig): MediaLibrary {
   return new MediaLibrary(config)
 }
 
+export interface CopyMediaOptions {
+  /** Target collection; defaults to the source record's collection name. */
+  toCollection?: string
+}
+
 /** Limits/fields FileAdder and ModelMediaHandle need to validate incoming files (Task 11+). */
 export interface ResolvedLimits {
   readonly maxFileSize: number
@@ -318,6 +323,55 @@ export class MediaLibrary {
   async removeCustomProperty(mediaOrId: MediaRecord | string, key: string): Promise<MediaRecord> {
     const media = await this.requireMedia(mediaOrId)
     return this.resolved.repository.removeCustomProperty(media.id, key)
+  }
+
+  /**
+   * Copy a media record to another model/collection by re-running the full
+   * add pipeline on the target (Spatie semantics): the copy gets a new
+   * id/uuid, the target collection's validation, disk config, and rules
+   * (singleFile/keepLatest) apply, and conversions/responsive images are
+   * regenerated rather than byte-copied. The source is never modified.
+   */
+  async copyMedia(
+    mediaOrId: MediaRecord | string,
+    toModelType: string,
+    toModelId: string | number,
+    opts: CopyMediaOptions = {},
+  ): Promise<MediaRecord> {
+    const media = await this.requireMedia(mediaOrId)
+    const handle = this.for(toModelType, toModelId) // throws UnknownModelError for unregistered models
+    const disk = await this.resolved.storage.disk(media.disk)
+    const stream = await disk.getStream(this.resolved.pathGenerator.path(media))
+    const adder = handle
+      .add(stream)
+      .usingName(media.name)
+      .usingFileName(media.fileName)
+      .withCustomProperties({ ...media.customProperties })
+      .withManipulations(structuredClone(media.manipulations))
+    if (media.responsiveImages['requested'] === true) {
+      adder.withResponsiveImages()
+    }
+    const copy = await adder.toCollection(opts.toCollection ?? media.collectionName)
+    this.events.emit('media:copied', { media, copy })
+    return copy
+  }
+
+  /**
+   * Move = copy + delete-source (Spatie semantics). If the copy fails the
+   * source record and files are untouched. Derived files regenerate on the
+   * target; they are not carried over.
+   */
+  async moveMedia(
+    mediaOrId: MediaRecord | string,
+    toModelType: string,
+    toModelId: string | number,
+    opts: CopyMediaOptions = {},
+  ): Promise<MediaRecord> {
+    const media = await this.requireMedia(mediaOrId)
+    const moved = await this.copyMedia(media, toModelType, toModelId, opts)
+    await this.deleteMedia(media)
+    this.events.emit('media:moved', { media, moved })
+    return moved
   }
 
   /**

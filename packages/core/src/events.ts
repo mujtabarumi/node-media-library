@@ -9,6 +9,8 @@ export interface MediaEventMap {
   'media:deleting': { media: MediaRecord }
   'media:deleted': { media: MediaRecord }
   'collection:cleared': { modelType: string; modelId: string; collection: string }
+  'media:copied': { media: MediaRecord; copy: MediaRecord }
+  'media:moved': { media: MediaRecord; moved: MediaRecord }
   'conversion:started': { media: MediaRecord; conversion: string }
   'conversion:completed': { media: MediaRecord; conversion: string }
   'conversion:failed': { media: MediaRecord; conversion: string; error: unknown }
