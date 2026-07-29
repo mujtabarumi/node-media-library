@@ -36,7 +36,15 @@ function makeDeps(
       recorder.cleanCalls.push(opts)
       return overrides.clean
         ? overrides.clean(opts)
-        : { orphanedMediaDeleted: 0, staleFilesDeleted: 0, staleEntriesRemoved: 0, skippedUnregistered: 0, dryRun: false }
+        : {
+            orphanedMediaDeleted: 0,
+            staleFilesDeleted: 0,
+            staleEntriesRemoved: 0,
+            skippedUnregistered: 0,
+            skippedUnregisteredTargets: 0,
+            skippedWithoutGenerator: 0,
+            dryRun: false,
+          }
     },
   }
 
@@ -87,6 +95,8 @@ describe('runCli', () => {
       staleFilesDeleted: 5,
       staleEntriesRemoved: 1,
       skippedUnregistered: 0,
+      skippedUnregisteredTargets: 0,
+      skippedWithoutGenerator: 0,
       dryRun: true,
     }
     const { deps, recorder } = makeDeps({ clean: async () => cleanResult })
@@ -101,6 +111,26 @@ describe('runCli', () => {
     expect(recorder.logs.some((l) => l.includes('2'))).toBe(true)
     expect(recorder.logs.some((l) => l.includes('5'))).toBe(true)
     expect(recorder.logs.some((l) => l.includes('1'))).toBe(true)
+  })
+
+  it('clean command prints the per-reason skip breakdown when records were skipped', async () => {
+    const cleanResult: CleanResult = {
+      orphanedMediaDeleted: 0,
+      staleFilesDeleted: 0,
+      staleEntriesRemoved: 0,
+      skippedUnregistered: 3,
+      skippedUnregisteredTargets: 2,
+      skippedWithoutGenerator: 1,
+      dryRun: false,
+    }
+    const { deps, recorder } = makeDeps({ clean: async () => cleanResult })
+
+    const code = await runCli(['clean', '--config', 'c.mjs'], deps)
+
+    expect(code).toBe(0)
+    expect(recorder.logs.some((l) => l.includes('Skipped') && l.includes('3'))).toBe(true)
+    expect(recorder.logs.some((l) => l.includes('unregistered model/collection') && l.includes('2'))).toBe(true)
+    expect(recorder.logs.some((l) => l.includes('no generator for mime') && l.includes('1'))).toBe(true)
   })
 
   it('fails when --config is missing', async () => {

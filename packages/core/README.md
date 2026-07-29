@@ -4,8 +4,10 @@ Node.js port of [spatie/laravel-medialibrary](https://github.com/spatie/laravel-
 
 > **Pre-release**: Not yet published to npm. The v1 surface covers file upload, storage, retrieval,
 > collection organization, image conversions, responsive images, queue-backed dispatch, downloads/ZIP, a CLI, and
-> offline maintenance (`clean()`). PDF/video conversion generators live in `@node-media-library/pdf` and
-> `@node-media-library/video`. Some design-spec surface didn't make v1 — see [Roadmap](#roadmap) below.
+> offline maintenance (`clean()`), plus Spatie-parity extras: `copyMedia`/`moveMedia`, atomic custom-property
+> updates, an image optimizer seam, and a GCS disk driver. PDF/video conversion generators live in
+> `@node-media-library/pdf` and `@node-media-library/video`. A little design-spec surface still hasn't shipped —
+> see [Roadmap](#roadmap) below.
 
 ## Installation
 
@@ -51,6 +53,50 @@ const thumbUrl = await library.for('User', userId).firstUrl('avatar', 'thumb')
 await library.for('User', userId).reorder([mediaId2, mediaId1])
 await library.for('User', userId).clear('gallery')
 ```
+
+## Custom properties, copy, and move
+
+`setCustomProperty`/`removeCustomProperty` update a single key atomically — sibling keys already present in
+`customProperties` are preserved, and the update is a dedicated repository primitive (not a read-modify-write of
+the whole `customProperties` blob at the library layer):
+
+```typescript
+await library.setCustomProperty(media.id, 'alt', 'A sunset over the bay')
+await library.removeCustomProperty(media.id, 'alt')
+```
+
+`copyMedia`/`moveMedia` re-run the full add pipeline against a target model/collection — the target collection's
+validation, rules, and disks govern the result, and every derived file (conversions, responsive variants) is
+**regenerated**, never byte-copied from the source's derived files. `moveMedia` is copy-then-delete-source: if
+the copy step fails, the source media is left untouched.
+
+```typescript
+const copy = await library.copyMedia(media.id, 'User', otherUserId, { toCollection: 'avatar' })
+const moved = await library.moveMedia(media.id, 'User', otherUserId)
+```
+
+Both emit typed events: `media:copied` (`{ media, copy }`) and `media:moved` (`{ media, moved }`).
+
+## Image optimizers
+
+Optionally register binary optimizers to run before every conversion/responsive file write. A result is only
+accepted if it's strictly smaller than the input; an optimizer that throws is warned and skipped (never fails the
+conversion); originals and LQIP placeholders are never optimized.
+
+```typescript
+import { createMediaLibrary } from '@node-media-library/core'
+import { jpegoptimOptimizer, pngquantOptimizer } from '@node-media-library/optimizers'
+
+createMediaLibrary({
+  // ...
+  optimizers: [jpegoptimOptimizer(), pngquantOptimizer()],
+})
+```
+
+`jpegoptimOptimizer()`/`pngquantOptimizer()` shell out to the `jpegoptim`/`pngquant` SYSTEM binaries (install via
+`apt install jpegoptim pngquant` or `brew install jpegoptim pngquant` — they are not bundled). A missing binary
+makes the optimizer a no-op. You can also write your own by implementing the `ImageOptimizer` interface
+(`{ name, optimize(buffer, ctx: OptimizeContext): Promise<Buffer | null> }`).
 
 ## Responsive images
 
@@ -126,6 +172,31 @@ createMediaLibrary({
 - `@node-media-library/video` extracts a still frame via the `ffmpeg` binary — select the timestamp with
   `conversion().videoFrameAtSecond(n)` (default 0). Requires `ffmpeg` on the system.
 
+## Storage disks
+
+`storage.disks` accepts `fs`, `s3`, and `gcs` driver configs. Without explicit config, the default disk is
+synthesized from env vars at startup: `MEDIA_S3_BUCKET` set → S3; else `MEDIA_GCS_BUCKET` set → GCS (S3 takes
+precedence when both are present); else local fs (`MEDIA_FS_ROOT`, default `./storage/media`).
+
+```typescript
+createMediaLibrary({
+  storage: {
+    disks: {
+      default: {
+        driver: 'gcs',
+        bucket: 'my-bucket',
+        visibility: 'private', // default
+        projectId: 'my-gcp-project', // optional; falls back to ADC/env
+        keyFilename: '/path/to/service-account.json', // optional
+      },
+    },
+  },
+})
+```
+
+Requires the optional peer `@google-cloud/storage ^7.10.2` — install it alongside `@node-media-library/core` to
+use the `gcs` driver.
+
 Both generators also implement `toSourceImage`, so `.withResponsiveImages()` (collection, conversion, or
 per-upload) works the same way it does for images: it rasterizes the source once and derives the responsive
 variant set from that raster, not from the original PDF/video bytes.
@@ -182,11 +253,12 @@ need to be executed with a TypeScript loader such as `tsx`.
 
 ## Roadmap
 
-**Current**: File upload, storage, retrieval, collections, image conversions, responsive images, queue-backed dispatch (sync and BullMQ), Prisma adapter, PDF/video image generators, downloads/ZIP, CLI, offline maintenance (`clean()`).
+**Current**: File upload, storage (fs/s3/gcs), retrieval, collections, image conversions, responsive images, queue-backed dispatch (sync and BullMQ), Prisma adapter, PDF/video image generators, downloads/ZIP, CLI, offline maintenance (`clean()`), `copyMedia`/`moveMedia`, atomic custom-property updates, and an image optimizer seam (`@node-media-library/optimizers`).
 
-**Not yet implemented** (part of the original design spec, deferred rather than cut):
-- Media-level `move(toType, toId, collection?)`, `copy(...)`, and `setCustomProperty(...)` — see the design spec's §7 for the intended shape. Workaround today: delete + re-`add()`, or update `customProperties` via the repository directly.
-- A GCS (Google Cloud Storage) disk driver — only `fs` and `s3` are wired up in `DiskConfig`. flydrive itself supports GCS; adding it here is just missing glue code.
+**Known limitations** (architectural, not scheduled for v1):
+- `@node-media-library/video` reads the whole source video into memory (`Buffer`) before shelling out to `ffmpeg`, and spawns a separate `ffmpeg` process per frame extraction — an N+1 spawn pattern when a media item has multiple video-derived conversions. Fine for typical use; not tuned for very large video files or high-conversion-count workloads.
+- The Prisma adapter's JSON-column merges (`setCustomProperty`, `markConversionGenerated`, `mergeResponsiveImages`, etc.) run inside `$transaction` when the client provides one, but that alone doesn't take a row lock on Postgres/MySQL's default read-committed isolation — two concurrent merges on the *same* record can still lose a write. SQLite's single-writer model doesn't have this gap. See the honesty note on `mergeJsonColumn` in `packages/prisma/src/adapter.ts`.
+- `s3`/`gcs` disk configs accept a `baseUrl` option but it's currently unconsumed by those drivers (only the `fs` driver's URL generator reads it) — public URLs for S3/GCS are derived from the driver's own defaults, not `baseUrl`.
 
 **Remaining**: Publish to npm.
 

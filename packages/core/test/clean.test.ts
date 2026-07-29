@@ -207,6 +207,8 @@ describe('MediaLibrary.clean()', () => {
       staleFilesDeleted: 0,
       staleEntriesRemoved: 0,
       skippedUnregistered: 0,
+      skippedUnregisteredTargets: 0,
+      skippedWithoutGenerator: 0,
       dryRun: false,
     })
   })
@@ -234,6 +236,8 @@ describe('MediaLibrary.clean()', () => {
     const result = await libraryWithoutModel.clean()
 
     expect(result.skippedUnregistered).toBe(1)
+    expect(result.skippedUnregisteredTargets).toBe(1)
+    expect(result.skippedWithoutGenerator).toBe(0)
     expect(result.staleFilesDeleted).toBe(0)
     expect(result.staleEntriesRemoved).toBe(0)
     expect(warnSpy).toHaveBeenCalledTimes(1)
@@ -269,6 +273,8 @@ describe('MediaLibrary.clean()', () => {
     const result = await libraryWithDifferentCollection.clean()
 
     expect(result.skippedUnregistered).toBe(1)
+    expect(result.skippedUnregisteredTargets).toBe(1)
+    expect(result.skippedWithoutGenerator).toBe(0)
     expect(result.staleFilesDeleted).toBe(0)
     expect(result.staleEntriesRemoved).toBe(0)
     warnSpy.mockRestore()
@@ -336,6 +342,8 @@ describe('MediaLibrary.clean()', () => {
     const result = await libraryWithoutGenerator.clean()
 
     expect(result.skippedUnregistered).toBe(1)
+    expect(result.skippedUnregisteredTargets).toBe(0)
+    expect(result.skippedWithoutGenerator).toBe(1)
     expect(result.staleFilesDeleted).toBe(0)
     expect(result.staleEntriesRemoved).toBe(0)
     expect(warnSpy).toHaveBeenCalledTimes(1)
@@ -344,5 +352,81 @@ describe('MediaLibrary.clean()', () => {
     expect(await conversionsDirFiles(media.id)).toContain('doc-thumb.jpeg')
     const afterClean = await repo.findById(media.id)
     expect(afterClean?.generatedConversions['thumb']).toBe(true)
+  })
+
+  it('9. counts both skip reasons independently when both occur in the same clean() run', async () => {
+    const fakeGenerator: ImageGenerator = {
+      supports: (mime) => mime === 'application/x-fake',
+      toImage: async () => Buffer.from('fake-thumb-bytes'),
+    }
+
+    const libraryWithFakeGenerator = createMediaLibrary({
+      repository: repo,
+      storage: { disks: { default: { driver: 'fs', root, baseUrl } } },
+      imageGenerators: [fakeGenerator],
+      models: {
+        Post: {
+          collections: {
+            images: collection().conversions({
+              thumb: conversion().width(8).height(8).format('jpeg').nonQueued(),
+            }),
+          },
+        },
+      },
+    })
+
+    // Record 1: will be skipped for "no generator" (fake mimeType, generator absent in the clean() config below).
+    const noGeneratorMedia = await libraryWithFakeGenerator
+      .for('Post', 1)
+      .add(jpeg)
+      .usingFileName('doc.jpg')
+      .toCollection('images')
+    await repo.update(noGeneratorMedia.id, { mimeType: 'application/x-fake' })
+    await libraryWithFakeGenerator.performConversions(noGeneratorMedia.id, ['thumb'])
+
+    // Record 2: will be skipped for "unregistered target" (modelType 'User' isn't registered below).
+    const libraryWithUser = createMediaLibrary({
+      repository: repo,
+      storage: { disks: { default: { driver: 'fs', root, baseUrl } } },
+      models: {
+        User: { collections: { avatars: collection() } },
+      },
+    })
+    const unregisteredMedia = await libraryWithUser
+      .for('User', 2)
+      .add(jpeg)
+      .usingFileName('avatar.jpg')
+      .toCollection('avatars')
+
+    // clean() config: registers 'Post'/'images' (same generator gap as test 8) but not 'User' at all.
+    const libraryForClean = createMediaLibrary({
+      repository: repo,
+      storage: { disks: { default: { driver: 'fs', root, baseUrl } } },
+      models: {
+        Post: {
+          collections: {
+            images: collection().conversions({
+              thumb: conversion().width(8).height(8).format('jpeg').nonQueued(),
+            }),
+          },
+        },
+      },
+    })
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const result = await libraryForClean.clean()
+    warnSpy.mockRestore()
+
+    expect(result.skippedUnregisteredTargets).toBe(1)
+    expect(result.skippedWithoutGenerator).toBe(1)
+    expect(result.skippedUnregistered).toBe(result.skippedUnregisteredTargets + result.skippedWithoutGenerator)
+    expect(result.skippedUnregistered).toBe(2)
+
+    // Both records' files/JSON were left untouched.
+    expect(await conversionsDirFiles(noGeneratorMedia.id)).toContain('doc-thumb.jpeg')
+    const afterCleanNoGen = await repo.findById(noGeneratorMedia.id)
+    expect(afterCleanNoGen?.generatedConversions['thumb']).toBe(true)
+    const afterCleanUnregistered = await repo.findById(unregisteredMedia.id)
+    expect(afterCleanUnregistered).not.toBeNull()
   })
 })

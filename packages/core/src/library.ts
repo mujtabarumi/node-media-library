@@ -611,6 +611,8 @@ export class MediaLibrary {
       staleFilesDeleted: 0,
       staleEntriesRemoved: 0,
       skippedUnregistered: 0,
+      skippedUnregisteredTargets: 0,
+      skippedWithoutGenerator: 0,
       dryRun,
     }
 
@@ -626,6 +628,7 @@ export class MediaLibrary {
 
       if (!this.isRegistered(record.modelType, record.collectionName)) {
         result.skippedUnregistered += 1
+        result.skippedUnregisteredTargets += 1
         console.warn(
           `[media-library] clean(): skipping media "${record.id}" — modelType "${record.modelType}" / ` +
             `collection "${record.collectionName}" is not registered in this config, so its expected ` +
@@ -639,6 +642,7 @@ export class MediaLibrary {
       const hasGeneratedConversions = Object.values(record.generatedConversions).some((v) => v === true)
       if (hasGeneratedConversions && !this.hasGeneratorFor(record.mimeType)) {
         result.skippedUnregistered += 1
+        result.skippedWithoutGenerator += 1
         console.warn(
           `[media-library] clean(): skipping media "${record.id}" — it has generated conversions but no ` +
             `configured imageGenerator supports mimeType "${record.mimeType}", so the expected on-disk ` +

@@ -131,7 +131,9 @@ Retrieval on the handle: `getAll(collection?, filter?)` (filter: customPropertie
 
 Media-level API: `url(conversion?)`, `signedUrl(...)`, `srcset(conversion?)`, `download()/inline()`, `regenerate()`.
 
-**Post-v1 (not in current release):** `move(toType, toId, collection?)`, `copy(...)` (re-runs target conversions, carries name + customProperties), `setCustomProperty`. These were part of the original design surface but were never implemented in v1 — deferred rather than cut, and not currently on any package's public API. A caller who needs move/copy semantics today can delete + re-`add()`, or update `customProperties` via the repository directly.
+**Shipped (Spatie parity):** `media.copyMedia(mediaOrId, toModelType, toModelId, opts?: CopyMediaOptions { toCollection? })` and `media.moveMedia(...)` (same signature) on `MediaLibrary`. Copy re-runs the full add pipeline against the target model/collection — new `id`/`uuid`, target-collection validation/rules/disks govern the result, and conversions + responsive images are **regenerated**, never byte-copied from the source's derived files (matches Spatie's copy semantics: only the original bytes are transferred, everything derived is rebuilt). Move is copy-then-delete-source; if the copy step fails, the source is left untouched. Both emit typed events: `media:copied` (`{ media, copy }`) and `media:moved` (`{ media, moved }`).
+
+`media.setCustomProperty(mediaOrId, key, value)` / `media.removeCustomProperty(mediaOrId, key)` — atomic single-key updates that preserve sibling keys already present in `customProperties`, backed by dedicated repository primitives (both the in-memory and Prisma adapters implement them without a read-modify-write race on the full JSON blob).
 
 ## 8. Conversions engine
 
@@ -153,7 +155,8 @@ Media-level API: `url(conversion?)`, `signedUrl(...)`, `srcset(conversion?)`, `d
 
 ## 10. Storage, paths, URLs
 
-- **FlyDrive DriveManager** with named disks. Package defaults: if S3 env keys present → S3 disk; else local fs disk. Every default overridable via config object or env keys (driver, bucket/root, prefix, region, endpoint, visibility, signed-URL expiry). Warn (not error) when `NODE_ENV=production` runs on the local driver; warning text names the concept, not raw env var names.
+- **FlyDrive DriveManager** with named disks. Package defaults: if `MEDIA_S3_BUCKET` is set → S3 disk; else if `MEDIA_GCS_BUCKET` is set → GCS disk (S3 takes precedence when both are present); else local fs disk (`MEDIA_FS_ROOT`, default `./storage/media`). Every default overridable via config object or env keys (driver, bucket/root, prefix, region, endpoint, visibility, signed-URL expiry). Warn (not error) when `NODE_ENV=production` runs on the local driver; warning text names the concept, not raw env var names.
+  - `gcs` disk config shape: `{ driver: 'gcs', bucket, visibility?='private', usingUniformAcl?, projectId?, keyFilename?, credentials?, baseUrl? }`. Env synthesis fills in only `bucket` (from `MEDIA_GCS_BUCKET`) and defaults `visibility` to `'private'`; the rest are config-only. Requires the optional peer `@google-cloud/storage ^7.10.2`.
 - **Visibility:** private by default. `collection().public()` opts a collection into public visibility. Both URL kinds always available where the disk supports them: `url()` (public) and `signedUrl()` (default expiry configurable, per-call override).
 - **PathGenerator interface** (swappable): `path(media)`, `conversionsPath(media)`, `responsivePath(media)`. Default: id-based directory per media item, so deletion = remove one directory. Global `prefix` supported.
 - **UrlGenerator interface** (swappable): public URL, signed URL, optional `?v={updatedAt}` cache-busting (config `versionUrls`).
@@ -200,4 +203,6 @@ Both are also exposed programmatically (`media.regenerate(opts)`, `media.clean(o
 
 ## 16. Out of scope for v1
 
-Frontend upload components and temporary-uploads flow (Spatie Pro territory), HTML rendering helpers, image optimizer binary chain (sharp's encoders suffice initially), Drizzle/Mongoose/Kysely adapters, pg-boss driver, per-model path generator overrides (global swap only in v1).
+Frontend upload components and temporary-uploads flow (Spatie Pro territory), HTML rendering helpers, Drizzle/Mongoose/Kysely adapters, pg-boss driver, per-model path generator overrides (global swap only in v1).
+
+**Image optimizer seam (shipped, Plan 7):** core exposes an `optimizers?: ImageOptimizer[]` config option (default `[]`) — `ImageOptimizer { name, optimize(buffer, ctx: OptimizeContext): Promise<Buffer | null> }`, `OptimizeContext { format, fileName, media, kind: 'conversion' | 'responsive' }`. Registered optimizers run in order before every conversion/responsive file write; a result is only accepted if it's strictly smaller than the input, an optimizer that throws is warned and skipped (never fails the conversion), and originals/LQIP are never optimized. The `@node-media-library/optimizers` package ships `jpegoptimOptimizer()`/`pngquantOptimizer()` wrapping the `jpegoptim`/`pngquant` SYSTEM binaries (not bundled — install via apt/brew); a missing binary makes the optimizer a no-op (passes the buffer through unchanged, returns `null`).

@@ -13,6 +13,7 @@ This is a pnpm workspace monorepo. Each package is independently publishable and
 | [`@node-media-library/bullmq`](packages/bullmq/README.md) | BullMQ queue adapter for dispatching conversion jobs. |
 | [`@node-media-library/pdf`](packages/pdf/README.md) | `pdftoppm`-backed `ImageGenerator` for rasterizing PDF originals. |
 | [`@node-media-library/video`](packages/video/README.md) | `ffmpeg`-backed `ImageGenerator` for extracting video frame thumbnails. |
+| [`@node-media-library/optimizers`](packages/optimizers/README.md) | `jpegoptim`/`pngquant`-backed `ImageOptimizer`s for shrinking conversion/responsive output. |
 
 ## Quickstart
 
@@ -22,12 +23,15 @@ Start with [`packages/core/README.md`](packages/core/README.md) — it covers in
 
 `@node-media-library/pdf` shells out to `pdftoppm` (poppler-utils) and `@node-media-library/video` shells out to `ffmpeg`. Both packages skip their binary-gated tests when the binary isn't on `PATH`; install the binaries to exercise those suites and to use the generators at runtime. CI (see `.github/workflows/ci.yml`) installs both via `apt-get` so those suites — plus the BullMQ Redis-backed suite — run for real there, even though they're skipped in most local/dev environments.
 
-## Roadmap / not yet implemented
+## Roadmap / known limitations
 
-The original design spec (`docs/superpowers/specs/2026-07-26-node-media-library-design.md`) included a few
-items that didn't make it into v1: media-level `move()`, `copy()`, and `setCustomProperty()`, and a GCS storage
-driver (only `fs` and `s3` are wired up today). See [`packages/core/README.md`](packages/core/README.md#roadmap)
-for details and workarounds.
+v1 now includes everything from the original design spec (`docs/superpowers/specs/2026-07-26-node-media-library-design.md`)
+plus Spatie-parity extras shipped afterward: `copyMedia`/`moveMedia`, atomic custom-property updates, an image
+optimizer seam, and a GCS storage driver. What's left is architectural, not scheduled work: `@node-media-library/video`
+buffers the whole source video in memory and spawns one `ffmpeg` process per frame extraction; the Prisma
+adapter's JSON-column merges aren't lock-safe against concurrent merges on the same record under Postgres/MySQL's
+read-committed isolation (SQLite is fine — single-writer). See
+[`packages/core/README.md`](packages/core/README.md#roadmap) for details.
 
 ## Development
 

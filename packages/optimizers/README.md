@@ -24,7 +24,16 @@ createMediaLibrary({
 })
 ```
 
-Each optimizer inspects `OptimizeContext.format` and returns `null` (pass) for formats it doesn't handle, or when its binary is missing.
+Each optimizer inspects `OptimizeContext.format` and returns `null` (pass — the un-optimized buffer is kept) for
+formats it doesn't handle, or when its binary is missing from `PATH`/the configured path.
+
+## Acceptance rule
+
+Core only ever accepts an optimizer's output when it is **strictly smaller** than the buffer it was given —
+larger-or-equal results are discarded and the original buffer is kept, and an optimizer that throws is warned
+(`console.warn`) and skipped rather than failing the conversion/responsive write. This applies uniformly whether
+the buffer came from `jpegoptimOptimizer`/`pngquantOptimizer` or a custom `ImageOptimizer`. Originals and LQIP
+placeholders are never passed through an optimizer.
 
 ## Configuration
 

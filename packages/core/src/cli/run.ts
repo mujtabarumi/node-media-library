@@ -164,6 +164,8 @@ export async function runCli(argv: string[], deps: CliDeps): Promise<number> {
     deps.log(`${prefix}Stale entries removed: ${result.staleEntriesRemoved}`)
     if (result.skippedUnregistered > 0) {
       deps.log(`${prefix}Skipped (unregistered model/collection/generator): ${result.skippedUnregistered}`)
+      deps.log(`${prefix}  - unregistered model/collection: ${result.skippedUnregisteredTargets}`)
+      deps.log(`${prefix}  - no generator for mime: ${result.skippedWithoutGenerator}`)
     }
     return 0
   } catch (err) {

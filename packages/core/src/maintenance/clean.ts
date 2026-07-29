@@ -14,7 +14,7 @@ export interface CleanResult {
   staleFilesDeleted: number
   staleEntriesRemoved: number
   /**
-   * Records skipped entirely for staleness checks (files + JSON left
+   * Total records skipped entirely for staleness checks (files + JSON left
    * untouched) because either (a) their modelType/collection isn't
    * registered in the config `clean()` was run with, or (b) they have
    * generated conversions but no configured `imageGenerator` supports their
@@ -23,9 +23,13 @@ export interface CleanResult {
    * derived files as stale would delete real, still-referenced files. Does
    * NOT include orphaned-media deletions (`orphanedMediaDeleted`), which are
    * driven by `repository.ownerExists` and unaffected by config
-   * registration.
+   * registration. Equal to `skippedUnregisteredTargets + skippedWithoutGenerator`.
    */
   skippedUnregistered: number
+  /** Skipped: record's modelType/collection isn't registered in this config. */
+  skippedUnregisteredTargets: number
+  /** Skipped: record has generated conversions but no registered imageGenerator supports its mimeType. */
+  skippedWithoutGenerator: number
   dryRun: boolean
 }
 

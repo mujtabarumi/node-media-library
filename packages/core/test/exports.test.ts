@@ -271,6 +271,8 @@ describe('public exports', () => {
       staleFilesDeleted: 0,
       staleEntriesRemoved: 0,
       skippedUnregistered: 0,
+      skippedUnregisteredTargets: 0,
+      skippedWithoutGenerator: 0,
       dryRun: false,
     }
     expect(result).toBeDefined()
@@ -295,6 +297,8 @@ describe('public exports', () => {
         staleFilesDeleted: 0,
         staleEntriesRemoved: 0,
         skippedUnregistered: 0,
+        skippedUnregisteredTargets: 0,
+        skippedWithoutGenerator: 0,
         dryRun: false,
       }),
     }
@@ -310,6 +314,8 @@ describe('public exports', () => {
           staleFilesDeleted: 0,
           staleEntriesRemoved: 0,
           skippedUnregistered: 0,
+          skippedUnregisteredTargets: 0,
+          skippedWithoutGenerator: 0,
           dryRun: false,
         }),
       }),
