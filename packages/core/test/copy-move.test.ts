@@ -102,6 +102,11 @@ describe('MediaLibrary copyMedia/moveMedia', () => {
     const src = await library.for('post', '1').add(pngBuffer)
       .withResponsiveImages().toCollection('default')
     const copy = await library.copyMedia(src, 'page', '9')
-    expect(copy.responsiveImages['requested'] === true || 'original' in copy.responsiveImages).toBe(true)
+    // The record returned by toCollection()/copyMedia() is a snapshot taken before
+    // dispatchConversions() runs; with the sync queue driver, responsive generation
+    // completes and lands in the repository, but the 'original' entry it merges in
+    // is on a separate object reference the caller never sees. Only the `requested`
+    // flag set at creation time is guaranteed to be on the returned record.
+    expect(copy.responsiveImages['requested']).toBe(true)
   })
 })
