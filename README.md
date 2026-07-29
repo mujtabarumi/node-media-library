@@ -46,6 +46,16 @@ Publishing must go through `pnpm publish` (or `pnpm pack`) — each package's `p
 (`scripts/ensure-pnpm-pack.mjs`) fails fast under bare `npm publish`/`npm pack`, since npm ignores
 `publishConfig.exports` and would ship a tarball pointing at unbuilt `src/`.
 
+## Contributing
+
+Contributions are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) covers prerequisites, the optional system
+binaries the gated test suites need, how to scope tests to one package, and the project conventions
+enforced during review — including the rule that docs must match shipped behavior, and that repository
+changes go through the shared contract suite.
+
+Please report security vulnerabilities privately via [SECURITY.md](SECURITY.md) rather than opening a
+public issue. Participation is governed by our [Code of Conduct](CODE_OF_CONDUCT.md).
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
