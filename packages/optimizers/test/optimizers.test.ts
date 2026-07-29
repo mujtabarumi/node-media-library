@@ -96,12 +96,19 @@ describe('pngquantOptimizer (no binary needed)', () => {
 const jpegoptimReady = await jpegoptimAvailable()
 const pngquantReady = await pngquantAvailable()
 
+// An ImageOptimizer promises "optimized bytes, or null to pass" — it does NOT
+// promise the result is smaller. Discarding a result that failed to shrink is
+// ConversionEngine.optimizeBytes' job (`result.length < out.length`), covered by
+// 'a larger result is rejected' in packages/core/test/optimizer.test.ts. These
+// tests therefore assert the format contract, not the size: on fixtures this
+// small, both binaries can legitimately emit a *larger* file than they were
+// given, since header/palette overhead dominates at a few hundred bytes.
 describe.runIf(jpegoptimReady)('jpegoptimOptimizer (jpegoptim required)', () => {
-  it('optimizes a jpeg fixture in place, output not larger than input', async () => {
+  it('optimizes a jpeg fixture in place, returning null or JPEG bytes', async () => {
     const input = await readFile(`${fixturesDir}sample.jpg`)
     const output = await jpegoptimOptimizer().optimize(input, ctx('jpeg'))
-    expect(output === null || output.length <= input.length).toBe(true)
     if (output !== null) {
+      expect(output.length).toBeGreaterThan(0)
       expect(output[0]).toBe(0xff)
       expect(output[1]).toBe(0xd8)
     }
@@ -115,11 +122,11 @@ describe.runIf(!jpegoptimReady)('jpegoptim missing on this machine', () => {
 })
 
 describe.runIf(pngquantReady)('pngquantOptimizer (pngquant required)', () => {
-  it('optimizes a png fixture to a separate output, not larger than input', async () => {
+  it('optimizes a png fixture to a separate output, returning null or PNG bytes', async () => {
     const input = await readFile(`${fixturesDir}sample.png`)
     const output = await pngquantOptimizer().optimize(input, ctx('png'))
-    expect(output === null || output.length <= input.length).toBe(true)
     if (output !== null) {
+      expect(output.length).toBeGreaterThan(0)
       expect(output.subarray(0, 4).toString('latin1')).toBe('\x89PNG')
     }
   })
