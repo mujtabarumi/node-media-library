@@ -146,7 +146,10 @@ describe('public exports', () => {
   })
 
   it('exports ConversionJob type', async () => {
-    const job: import('../src/index.js').ConversionJob = { mediaId: 'm1', conversionNames: ['thumb'] }
+    const job: import('../src/index.js').ConversionJob = {
+      mediaId: 'm1',
+      conversionNames: ['thumb'],
+    }
     expect(job).toBeDefined()
   })
 
@@ -261,7 +264,11 @@ describe('public exports', () => {
   })
 
   it('exports CleanOptions type', async () => {
-    const opts: import('../src/index.js').CleanOptions = { dryRun: true, deleteOrphaned: true, rateLimit: 5 }
+    const opts: import('../src/index.js').CleanOptions = {
+      dryRun: true,
+      deleteOrphaned: true,
+      rateLimit: 5,
+    }
     expect(opts).toBeDefined()
   })
 

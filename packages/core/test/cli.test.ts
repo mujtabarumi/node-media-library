@@ -17,7 +17,7 @@ function makeDeps(
     regenerate?: (opts: RegenerateOptions) => Promise<{ enqueued: number }>
     clean?: (opts?: CleanOptions) => Promise<CleanResult>
     loadLibrary?: (configPath: string) => Promise<CliLibrary>
-  } = {}
+  } = {},
 ): { deps: CliDeps; recorder: Recorder } {
   const recorder: Recorder = {
     configPaths: [],
@@ -78,13 +78,19 @@ describe('runCli', () => {
         '--only-missing',
         '--with-responsive',
       ],
-      deps
+      deps,
     )
 
     expect(code).toBe(0)
     expect(recorder.configPaths).toEqual(['media.config.mjs'])
     expect(recorder.regenerateCalls).toEqual([
-      { modelType: 'User', ids: ['a', 'b'], only: ['thumb', 'preview'], onlyMissing: true, withResponsive: true },
+      {
+        modelType: 'User',
+        ids: ['a', 'b'],
+        only: ['thumb', 'preview'],
+        onlyMissing: true,
+        withResponsive: true,
+      },
     ])
     expect(recorder.logs.some((l) => l.includes('Enqueued 3'))).toBe(true)
   })
@@ -103,7 +109,7 @@ describe('runCli', () => {
 
     const code = await runCli(
       ['clean', '--config', 'c.mjs', '--dry-run', '--delete-orphaned', '--rate-limit', '10'],
-      deps
+      deps,
     )
 
     expect(code).toBe(0)
@@ -129,8 +135,12 @@ describe('runCli', () => {
 
     expect(code).toBe(0)
     expect(recorder.logs.some((l) => l.includes('Skipped') && l.includes('3'))).toBe(true)
-    expect(recorder.logs.some((l) => l.includes('unregistered model/collection') && l.includes('2'))).toBe(true)
-    expect(recorder.logs.some((l) => l.includes('no generator for mime') && l.includes('1'))).toBe(true)
+    expect(
+      recorder.logs.some((l) => l.includes('unregistered model/collection') && l.includes('2')),
+    ).toBe(true)
+    expect(recorder.logs.some((l) => l.includes('no generator for mime') && l.includes('1'))).toBe(
+      true,
+    )
   })
 
   it('fails when --config is missing', async () => {
@@ -183,7 +193,9 @@ describe('runCli', () => {
     const code = await runCli(['regenerate', '--config', 'bad.mjs'], deps)
 
     expect(code).toBe(1)
-    expect(recorder.errors.some((l) => l.includes('config must default-export a MediaLibrary instance'))).toBe(true)
+    expect(
+      recorder.errors.some((l) => l.includes('config must default-export a MediaLibrary instance')),
+    ).toBe(true)
   })
 
   it('fails with a clear message when --rate-limit is 0', async () => {
@@ -225,7 +237,9 @@ describe('runCli', () => {
     const code = await runCli(['regenerate', '--config', 'c.mjs', '--rate-limit', '5'], deps)
 
     expect(code).toBe(1)
-    expect(recorder.errors.some((l) => l.includes('--rate-limit') && l.includes('regenerate'))).toBe(true)
+    expect(
+      recorder.errors.some((l) => l.includes('--rate-limit') && l.includes('regenerate')),
+    ).toBe(true)
     expect(recorder.regenerateCalls).toEqual([])
     expect(recorder.configPaths).toEqual([])
   })
@@ -236,7 +250,9 @@ describe('runCli', () => {
     const code = await runCli(['clean', '--config', 'c.mjs', '--with-responsive'], deps)
 
     expect(code).toBe(1)
-    expect(recorder.errors.some((l) => l.includes('--with-responsive') && l.includes('clean'))).toBe(true)
+    expect(
+      recorder.errors.some((l) => l.includes('--with-responsive') && l.includes('clean')),
+    ).toBe(true)
     expect(recorder.cleanCalls).toEqual([])
   })
 

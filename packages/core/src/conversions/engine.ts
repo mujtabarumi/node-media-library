@@ -96,7 +96,10 @@ export class ConversionEngine {
     const result: Record<string, ConversionDefinition> = {}
 
     for (const [name, def] of Object.entries(defs)) {
-      if (def.performOnCollections !== null && !def.performOnCollections.includes(media.collectionName)) {
+      if (
+        def.performOnCollections !== null &&
+        !def.performOnCollections.includes(media.collectionName)
+      ) {
         continue
       }
       const overrides = media.manipulations[name]
@@ -153,10 +156,16 @@ export class ConversionEngine {
     const intrinsicWidth = swapped ? meta.height : meta.width
     const intrinsicHeight = swapped ? meta.width : meta.height
 
-    const widths = this.deps.widthCalculator.calculateWidths(source.byteLength, intrinsicWidth, intrinsicHeight)
+    const widths = this.deps.widthCalculator.calculateWidths(
+      source.byteLength,
+      intrinsicWidth,
+      intrinsicHeight,
+    )
     const disk = await this.deps.storage.disk(media.disk)
     const dir = this.deps.pathGenerator.responsivePath(media)
-    const writeOptions = writeOptionsFor(this.deps.collectionFor(media.modelType, media.collectionName).public)
+    const writeOptions = writeOptionsFor(
+      this.deps.collectionFor(media.modelType, media.collectionName).public,
+    )
 
     // Captured BEFORE the new variants are written, so a regenerate can
     // clean up whichever of the previous entry's files the new variant plan
@@ -164,13 +173,20 @@ export class ConversionEngine {
     // Read fresh rather than trusting the caller's `media` snapshot, since
     // that may already be stale by the time this runs.
     const current = await this.deps.repository.findById(media.id)
-    const previousEntry = current?.responsiveImages[conversionName] as ResponsiveImagesEntry | undefined
+    const previousEntry = current?.responsiveImages[conversionName] as
+      ResponsiveImagesEntry | undefined
     const previousFiles = Array.isArray(previousEntry?.files) ? previousEntry.files : []
 
     const files: ResponsiveVariant[] = []
     for (const width of widths) {
       const variant = await renderVariant(source, width, format, quality)
-      const fileName = responsiveFileName(media.fileName, conversionName, variant.width, variant.height, format)
+      const fileName = responsiveFileName(
+        media.fileName,
+        conversionName,
+        variant.width,
+        variant.height,
+        format,
+      )
       const optimized = await this.optimizeBytes(variant.buffer, {
         format,
         fileName,
@@ -186,8 +202,13 @@ export class ConversionEngine {
       entry.placeholder = await tinyPlaceholder(source)
     }
 
-    const updated = await this.deps.repository.mergeResponsiveImages(media.id, conversionName, { ...entry })
-    this.deps.events.emit('responsive:generated', { media: snapshot(updated), conversion: conversionName })
+    const updated = await this.deps.repository.mergeResponsiveImages(media.id, conversionName, {
+      ...entry,
+    })
+    this.deps.events.emit('responsive:generated', {
+      media: snapshot(updated),
+      conversion: conversionName,
+    })
 
     // Stale-variant cleanup happens AFTER the new files are written and the
     // merge has landed, so readers never see a gap where neither the old nor
@@ -236,7 +257,8 @@ export class ConversionEngine {
     // When `names` is omitted (regenerate-everything path) original
     // responsive regenerates whenever the media opted in; when `names` is
     // given, it only runs if 'original' was explicitly among them.
-    const runOriginal = originalExplicit || (names === undefined && this.wantsOriginalResponsive(media))
+    const runOriginal =
+      originalExplicit || (names === undefined && this.wantsOriginalResponsive(media))
 
     if (entries.length === 0 && !runOriginal) return
 
@@ -271,7 +293,11 @@ export class ConversionEngine {
         // sentinel failing, not a named conversion, so it can never surface
         // as that conversion's 'conversion:failed' — 'responsive:failed' is
         // the only observable signal for it either way.
-        this.deps.events.emit('responsive:failed', { media: snapshot(media), conversion: 'original', error: err })
+        this.deps.events.emit('responsive:failed', {
+          media: snapshot(media),
+          conversion: 'original',
+          error: err,
+        })
         if (entries.length === 0) {
           throw err
         }
@@ -298,7 +324,10 @@ export class ConversionEngine {
       // written bytes, the on-disk file name, and the responsive variants
       // below all agree. Ordinary image sources are unaffected (def is
       // returned unchanged).
-      const effectiveDef: ConversionDefinition = { ...def, format: this.effectiveFormat(media, def) }
+      const effectiveDef: ConversionDefinition = {
+        ...def,
+        format: this.effectiveFormat(media, def),
+      }
       try {
         const output = await generator.toImage(originalBuffer, effectiveDef)
         const key = conversionKey(media, this.deps.pathGenerator, effectiveDef, name)
@@ -316,7 +345,13 @@ export class ConversionEngine {
           // A failure here lands in this same catch block and counts as
           // this conversion's failure — the conversion file was written,
           // but it isn't marked generated and 'conversion:failed' fires.
-          await this.generateResponsive(media, name, output, effectiveDef.format, effectiveDef.quality)
+          await this.generateResponsive(
+            media,
+            name,
+            output,
+            effectiveDef.format,
+            effectiveDef.quality,
+          )
         }
         // The merge is delegated to the repository (Plan 4): no read→write
         // gap in this layer, which serializes it as far as its backend
@@ -324,10 +359,17 @@ export class ConversionEngine {
         // eliminate, the lost-update window for concurrent perform() calls
         // (see MediaRepository.markConversionGenerated's JSDoc).
         const updated = await this.deps.repository.markConversionGenerated(mediaId, name, true)
-        this.deps.events.emit('conversion:completed', { media: snapshot(updated), conversion: name })
+        this.deps.events.emit('conversion:completed', {
+          media: snapshot(updated),
+          conversion: name,
+        })
       } catch (error) {
         failures += 1
-        this.deps.events.emit('conversion:failed', { media: snapshot(before), conversion: name, error })
+        this.deps.events.emit('conversion:failed', {
+          media: snapshot(before),
+          conversion: name,
+          error,
+        })
       }
     }
 

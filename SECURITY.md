@@ -5,10 +5,10 @@
 This project has not yet had a stable release. Until `1.0.0` is published, only the latest commit on
 `main` receives security fixes.
 
-| Version | Supported |
-| --- | --- |
-| `main` | Yes |
-| Pre-release tags | No |
+| Version          | Supported |
+| ---------------- | --------- |
+| `main`           | Yes       |
+| Pre-release tags | No        |
 
 ## Reporting a vulnerability
 

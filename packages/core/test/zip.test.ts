@@ -78,8 +78,16 @@ function buildLibrary() {
 describe('zip', () => {
   it('1. zip(archiveName, items) streams a ZIP with the correct headers and entry bytes', async () => {
     const library = buildLibrary()
-    const mediaA = await library.for('Post', 1).add(jpegA).usingFileName('a.jpg').toCollection('images')
-    const mediaB = await library.for('Post', 1).add(jpegB).usingFileName('b.jpg').toCollection('images')
+    const mediaA = await library
+      .for('Post', 1)
+      .add(jpegA)
+      .usingFileName('a.jpg')
+      .toCollection('images')
+    const mediaB = await library
+      .for('Post', 1)
+      .add(jpegB)
+      .usingFileName('b.jpg')
+      .toCollection('images')
 
     const response = await library.zip('archive.zip', [mediaA.id, mediaB.id])
 
@@ -95,7 +103,11 @@ describe('zip', () => {
 
   it('2. zipFilenamePrefix from customProperties folders the entry', async () => {
     const library = buildLibrary()
-    const mediaA = await library.for('Post', 1).add(jpegA).usingFileName('a.jpg').toCollection('images')
+    const mediaA = await library
+      .for('Post', 1)
+      .add(jpegA)
+      .usingFileName('a.jpg')
+      .toCollection('images')
     const jpegC = await sharp({
       create: { width: 10, height: 10, channels: 3, background: { r: 1, g: 2, b: 3 } },
     })
@@ -118,8 +130,16 @@ describe('zip', () => {
 
   it('3. duplicate entry names get deduplicated with -2, -3, ...', async () => {
     const library = buildLibrary()
-    const mediaA1 = await library.for('Post', 1).add(jpegA).usingFileName('a.jpg').toCollection('images')
-    const mediaA2 = await library.for('Post', 1).add(jpegB).usingFileName('a.jpg').toCollection('images')
+    const mediaA1 = await library
+      .for('Post', 1)
+      .add(jpegA)
+      .usingFileName('a.jpg')
+      .toCollection('images')
+    const mediaA2 = await library
+      .for('Post', 1)
+      .add(jpegB)
+      .usingFileName('a.jpg')
+      .toCollection('images')
 
     const response = await library.zip('archive.zip', [mediaA1.id, mediaA2.id])
     const entries = await readZip(Buffer.from(await response.arrayBuffer()))
@@ -131,15 +151,27 @@ describe('zip', () => {
 
   it('4. zip with an unknown id rejects with MediaLibraryError before streaming', async () => {
     const library = buildLibrary()
-    const mediaA = await library.for('Post', 1).add(jpegA).usingFileName('a.jpg').toCollection('images')
+    const mediaA = await library
+      .for('Post', 1)
+      .add(jpegA)
+      .usingFileName('a.jpg')
+      .toCollection('images')
 
     await expect(library.zip('archive.zip', [mediaA.id, 'nope'])).rejects.toThrow(MediaLibraryError)
   })
 
   it('6. entry streams open lazily — disk.getStream() is not called until the archive actually reads that entry', async () => {
     const library = buildLibrary()
-    const mediaA = await library.for('Post', 1).add(jpegA).usingFileName('a.jpg').toCollection('images')
-    const mediaB = await library.for('Post', 1).add(jpegB).usingFileName('b.jpg').toCollection('images')
+    const mediaA = await library
+      .for('Post', 1)
+      .add(jpegA)
+      .usingFileName('a.jpg')
+      .toCollection('images')
+    const mediaB = await library
+      .for('Post', 1)
+      .add(jpegB)
+      .usingFileName('b.jpg')
+      .toCollection('images')
 
     const disk = await library.storage.disk('default')
     const originalGetStream = disk.getStream.bind(disk)

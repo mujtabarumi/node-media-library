@@ -48,7 +48,7 @@ Use `conversion().pdfPageNumber(n)` to select which page to render (default is p
 
 ```typescript
 conversion()
-  .pdfPageNumber(2)  // Render page 2
+  .pdfPageNumber(2) // Render page 2
   .width(800)
   .toDefinition()
 ```

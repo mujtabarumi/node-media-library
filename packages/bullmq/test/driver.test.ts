@@ -9,7 +9,11 @@ if (!hasRedis) console.warn('[bullmq tests] REDIS_URL not set — driver contrac
 describe.skipIf(!hasRedis)('bullmqDriver contract (requires REDIS_URL)', () => {
   runQueueDriverContract(
     'bullmqDriver',
-    async () => bullmqDriver({ connection: { url: process.env.REDIS_URL! }, queueName: `mlq-${randomUUID()}` }),
+    async () =>
+      bullmqDriver({
+        connection: { url: process.env.REDIS_URL! },
+        queueName: `mlq-${randomUUID()}`,
+      }),
     { waitForAsync: () => new Promise((r) => setTimeout(r, 500)), skipNoProcessorRule: true },
   )
 })

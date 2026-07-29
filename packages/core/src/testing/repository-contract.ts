@@ -75,12 +75,7 @@ export function runMediaRepositoryContract(
       const withOrder1 = await repo.create(makeRecord({ orderColumn: 1 }))
 
       const results = await repo.findForModel('User', 'u1')
-      expect(results.map((r) => r.id)).toEqual([
-        withOrder1.id,
-        withOrder2.id,
-        first.id,
-        second.id,
-      ])
+      expect(results.map((r) => r.id)).toEqual([withOrder1.id, withOrder2.id, first.id, second.id])
     })
 
     it('findForModel filters by collection when given', async () => {
@@ -108,9 +103,7 @@ export function runMediaRepositoryContract(
       const customProperties = { tags: ['a', 'b'], meta: { rating: 5, nested: { deep: true } } }
       const manipulations = { thumb: { width: 100, filters: ['grayscale'] } }
 
-      const created = await repo.create(
-        makeRecord({ customProperties, manipulations }),
-      )
+      const created = await repo.create(makeRecord({ customProperties, manipulations }))
       const found = await repo.findById(created.id)
 
       expect(found?.customProperties).toEqual(customProperties)
@@ -164,7 +157,10 @@ export function runMediaRepositoryContract(
       expect(userOnly.length).toBe(2)
 
       const userGallery: string[] = []
-      for await (const record of repo.iterateAll({ modelType: 'User', collectionName: 'gallery' })) {
+      for await (const record of repo.iterateAll({
+        modelType: 'User',
+        collectionName: 'gallery',
+      })) {
         expect(record.modelType).toBe('User')
         expect(record.collectionName).toBe('gallery')
         userGallery.push(record.id)
@@ -183,7 +179,9 @@ export function runMediaRepositoryContract(
     })
 
     it('markConversionGenerated rejects unknown id with MediaLibraryError', async () => {
-      await expect(repo.markConversionGenerated('nope', 'thumb', true)).rejects.toThrow(MediaLibraryError)
+      await expect(repo.markConversionGenerated('nope', 'thumb', true)).rejects.toThrow(
+        MediaLibraryError,
+      )
     })
 
     it('concurrent markConversionGenerated calls for different names both persist', async () => {
@@ -200,12 +198,16 @@ export function runMediaRepositoryContract(
       const created = await repo.create(
         makeRecord({ responsiveImages: { original: { files: [] } } }),
       )
-      const updated = await repo.mergeResponsiveImages(created.id, 'thumb', { files: [{ fileName: 'x', width: 1, height: 1 }] })
+      const updated = await repo.mergeResponsiveImages(created.id, 'thumb', {
+        files: [{ fileName: 'x', width: 1, height: 1 }],
+      })
       expect(updated.responsiveImages).toEqual({
         original: { files: [] },
         thumb: { files: [{ fileName: 'x', width: 1, height: 1 }] },
       })
-      await expect(repo.mergeResponsiveImages('nope', 'thumb', {})).rejects.toThrow(MediaLibraryError)
+      await expect(repo.mergeResponsiveImages('nope', 'thumb', {})).rejects.toThrow(
+        MediaLibraryError,
+      )
     })
 
     it('setCustomProperty merges one key without clobbering others', async () => {
@@ -221,7 +223,9 @@ export function runMediaRepositoryContract(
     })
 
     it('removeCustomProperty deletes only the named key', async () => {
-      const created = await repo.create(makeRecord({ customProperties: { alt: 'a cat', credit: 'Jane' } }))
+      const created = await repo.create(
+        makeRecord({ customProperties: { alt: 'a cat', credit: 'Jane' } }),
+      )
       const updated = await repo.removeCustomProperty(created.id, 'credit')
       expect(updated.customProperties).toEqual({ alt: 'a cat' })
     })
@@ -233,7 +237,9 @@ export function runMediaRepositoryContract(
     })
 
     it('setCustomProperty on unknown id throws NOT_FOUND', async () => {
-      await expect(repo.setCustomProperty('missing', 'k', 'v')).rejects.toMatchObject({ code: 'NOT_FOUND' })
+      await expect(repo.setCustomProperty('missing', 'k', 'v')).rejects.toMatchObject({
+        code: 'NOT_FOUND',
+      })
     })
 
     it('concurrent setCustomProperty calls for different keys both persist', async () => {

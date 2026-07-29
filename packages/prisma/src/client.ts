@@ -22,7 +22,10 @@ export interface MediaRow {
 export interface MediaDelegate {
   create(args: { data: Record<string, unknown> }): Promise<MediaRow>
   update(args: { where: { id: string }; data: Record<string, unknown> }): Promise<MediaRow>
-  updateMany(args: { where: Record<string, unknown>; data: Record<string, unknown> }): Promise<{ count: number }>
+  updateMany(args: {
+    where: Record<string, unknown>
+    data: Record<string, unknown>
+  }): Promise<{ count: number }>
   findUnique(args: { where: Record<string, unknown> }): Promise<MediaRow | null>
   findMany(args?: Record<string, unknown>): Promise<MediaRow[]>
   delete(args: { where: { id: string } }): Promise<MediaRow>

@@ -47,7 +47,7 @@ Use `conversion().videoFrameAtSecond(n)` to select which frame to extract (defau
 
 ```typescript
 conversion()
-  .videoFrameAtSecond(2.5)  // Extract frame at 2.5 seconds
+  .videoFrameAtSecond(2.5) // Extract frame at 2.5 seconds
   .width(800)
   .toDefinition()
 ```

@@ -46,15 +46,25 @@ afterEach(async () => {
 
 describe('conversion urls', () => {
   it("firstUrl(collection, 'thumb') returns the conversion URL once generated", async () => {
-    const media = await library.for('Post', 1).add(png).usingFileName('photo.png').toCollection('images')
+    const media = await library
+      .for('Post', 1)
+      .add(png)
+      .usingFileName('photo.png')
+      .toCollection('images')
     const url = await library.for('Post', 1).firstUrl('images', 'thumb')
     expect(url).not.toBeNull()
     expect(url!.startsWith('http://localhost:9000/media')).toBe(true)
-    expect(url!.endsWith(`/conversions/${media.fileName.replace(/\.png$/, '')}-thumb.png`)).toBe(true)
+    expect(url!.endsWith(`/conversions/${media.fileName.replace(/\.png$/, '')}-thumb.png`)).toBe(
+      true,
+    )
   })
 
   it('url falls back to original for an unknown/ungenerated name', async () => {
-    const media = await library.for('Post', 1).add(png).usingFileName('photo.png').toCollection('images')
+    const media = await library
+      .for('Post', 1)
+      .add(png)
+      .usingFileName('photo.png')
+      .toCollection('images')
     const original = await library.urlGenerator.url(media)
     const fallback = await library.urlGenerator.url(media, 'nope')
     expect(fallback).toBe(original)
@@ -69,7 +79,11 @@ describe('conversion urls', () => {
   })
 
   it('regenerate({ onlyMissing: true }) skips fully-generated media and regenerates missing ones', async () => {
-    const media = await library.for('Post', 1).add(png).usingFileName('photo.png').toCollection('images')
+    const media = await library
+      .for('Post', 1)
+      .add(png)
+      .usingFileName('photo.png')
+      .toCollection('images')
 
     const fullyGenerated = await library.regenerate({ onlyMissing: true })
     expect(fullyGenerated).toEqual({ enqueued: 0 })

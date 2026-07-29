@@ -12,6 +12,7 @@ Node.js port of [spatie/laravel-medialibrary](https://github.com/spatie/laravel-
 ## Installation
 
 Once published:
+
 ```bash
 pnpm add @node-media-library/core
 ```
@@ -19,7 +20,12 @@ pnpm add @node-media-library/core
 ## Quick Start
 
 ```typescript
-import { createMediaLibrary, InMemoryMediaRepository, collection, conversion } from '@node-media-library/core'
+import {
+  createMediaLibrary,
+  InMemoryMediaRepository,
+  collection,
+  conversion,
+} from '@node-media-library/core'
 import { join } from 'node:path'
 
 const library = createMediaLibrary({
@@ -41,7 +47,7 @@ const library = createMediaLibrary({
 })
 
 // Add a file
-const file = await import('node:fs/promises').then(fs => fs.readFile('photo.png'))
+const file = await import('node:fs/promises').then((fs) => fs.readFile('photo.png'))
 const media = await library.for('User', userId).add(file).usingName('Avatar').toCollection('avatar')
 
 // Retrieve files
@@ -108,9 +114,9 @@ and pass through both optimizers unoptimized.
 Opt in per collection, per conversion, or per upload:
 
 ```typescript
-collection().withResponsiveImages()                                   // every original gets variants
-conversion().width(400).format('webp').withResponsiveImages()         // + variants for this conversion
-library.for('User', userId).add(file).withResponsiveImages()          // one-off, even without collection opt-in
+collection().withResponsiveImages() // every original gets variants
+conversion().width(400).format('webp').withResponsiveImages() // + variants for this conversion
+library.for('User', userId).add(file).withResponsiveImages() // one-off, even without collection opt-in
 ```
 
 When enabled, a set of progressively narrower variants is generated for the original file (stored under the
@@ -120,10 +126,10 @@ placeholder (LQIP).
 Read the results with:
 
 ```typescript
-const srcset = await library.srcset(media.id)               // 'url1 1600w, url2 1120w, ...' — original variants
+const srcset = await library.srcset(media.id) // 'url1 1600w, url2 1120w, ...' — original variants
 const previewSrcset = await library.srcset(media.id, 'preview') // variants for the 'preview' conversion
-const urls = await library.responsiveUrls(media.id)          // widest-first URL array
-const placeholder = await library.placeholder(media.id)      // 'data:image/svg+xml;base64,...' or null
+const urls = await library.responsiveUrls(media.id) // widest-first URL array
+const placeholder = await library.placeholder(media.id) // 'data:image/svg+xml;base64,...' or null
 ```
 
 All three return `null`/`[]` when there's no responsive entry for that conversion (or for a custom
@@ -150,7 +156,7 @@ e.g. `{mediaId}/responsive/photo___original_1600_1200.jpg` and `{mediaId}/respon
 To backfill or repair responsive variants for existing media, pass `withResponsive: true` to `regenerate()`:
 
 ```typescript
-await library.regenerate({ withResponsive: true })               // (re)generate for every eligible record
+await library.regenerate({ withResponsive: true }) // (re)generate for every eligible record
 await library.regenerate({ withResponsive: true, onlyMissing: true }) // only records missing an 'original' entry
 ```
 
@@ -261,8 +267,9 @@ need to be executed with a TypeScript loader such as `tsx`.
 **Current**: File upload, storage (fs/s3/gcs), retrieval, collections, image conversions, responsive images, queue-backed dispatch (sync and BullMQ), Prisma adapter, PDF/video image generators, downloads/ZIP, CLI, offline maintenance (`clean()`), `copyMedia`/`moveMedia`, atomic custom-property updates, and an image optimizer seam (`@node-media-library/optimizers`).
 
 **Known limitations** (architectural, not scheduled for v1):
+
 - `@node-media-library/video` reads the whole source video into memory (`Buffer`) before shelling out to `ffmpeg`, and spawns a separate `ffmpeg` process per frame extraction — an N+1 spawn pattern when a media item has multiple video-derived conversions. Fine for typical use; not tuned for very large video files or high-conversion-count workloads.
-- The Prisma adapter's JSON-column merges (`setCustomProperty`, `markConversionGenerated`, `mergeResponsiveImages`, etc.) run inside `$transaction` when the client provides one, but that alone doesn't take a row lock on Postgres/MySQL's default read-committed isolation — two concurrent merges on the *same* record can still lose a write. SQLite's single-writer model doesn't have this gap. See the honesty note on `mergeJsonColumn` in `packages/prisma/src/adapter.ts`.
+- The Prisma adapter's JSON-column merges (`setCustomProperty`, `markConversionGenerated`, `mergeResponsiveImages`, etc.) run inside `$transaction` when the client provides one, but that alone doesn't take a row lock on Postgres/MySQL's default read-committed isolation — two concurrent merges on the _same_ record can still lose a write. SQLite's single-writer model doesn't have this gap. See the honesty note on `mergeJsonColumn` in `packages/prisma/src/adapter.ts`.
 - `s3`/`gcs` disk configs accept a `baseUrl` option but it's currently unconsumed by those drivers (only the `fs` driver's URL generator reads it) — public URLs for S3/GCS are derived from the driver's own defaults, not `baseUrl`.
 
 **Remaining**: Publish to npm.

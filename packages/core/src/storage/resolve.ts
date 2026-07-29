@@ -77,8 +77,9 @@ export function resolveStorage(
 ): ResolvedStorage {
   const defaultDisk = config?.default ?? 'default'
   const prefix = config?.prefix ?? env.MEDIA_PREFIX ?? ''
-  const disks: Record<string, DiskConfig> =
-    config?.disks ?? { [defaultDisk]: synthesizeDefaultDisk(env) }
+  const disks: Record<string, DiskConfig> = config?.disks ?? {
+    [defaultDisk]: synthesizeDefaultDisk(env),
+  }
 
   if (env.NODE_ENV === 'production' && disks[defaultDisk]?.driver === 'fs') {
     console.warn(PRODUCTION_FS_WARNING)
@@ -127,7 +128,14 @@ export function resolveStorage(
     }
 
     const { GCSDriver } = await import('flydrive/drivers/gcs')
-    const { bucket, visibility = 'private', usingUniformAcl, projectId, keyFilename, credentials } = cfg
+    const {
+      bucket,
+      visibility = 'private',
+      usingUniformAcl,
+      projectId,
+      keyFilename,
+      credentials,
+    } = cfg
     const instance = new DiskCtor(
       new GCSDriver({
         bucket,

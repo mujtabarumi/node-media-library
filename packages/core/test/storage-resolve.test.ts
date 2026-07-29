@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { mkdtempSync } from 'node:fs'; import { tmpdir } from 'node:os'; import { join } from 'node:path'
+import { mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { resolveStorage } from '../src/storage/resolve.js'
 afterEach(() => vi.restoreAllMocks())
 describe('resolveStorage', () => {
@@ -17,7 +19,10 @@ describe('resolveStorage', () => {
     expect(s.diskConfig()).toMatchObject({ driver: 's3', bucket: 'b' })
   })
   it('explicit config wins over env', () => {
-    const s = resolveStorage({ disks: { default: { driver: 'fs', root: '/x' } } }, { MEDIA_S3_BUCKET: 'b' })
+    const s = resolveStorage(
+      { disks: { default: { driver: 'fs', root: '/x' } } },
+      { MEDIA_S3_BUCKET: 'b' },
+    )
     expect(s.diskConfig()).toMatchObject({ driver: 'fs', root: '/x' })
   })
   it('warns once in production on fs driver, without env var names', () => {

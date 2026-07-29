@@ -3,7 +3,11 @@ import { mkdtemp, readdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
-  collection, conversion, createMediaLibrary, InMemoryMediaRepository, sharpImageGenerator,
+  collection,
+  conversion,
+  createMediaLibrary,
+  InMemoryMediaRepository,
+  sharpImageGenerator,
 } from '@node-media-library/core'
 import { pdfImageGenerator } from '../src/generator.js'
 import { pdftoppmAvailable } from '../src/run.js'

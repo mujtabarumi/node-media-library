@@ -50,7 +50,11 @@ afterEach(async () => {
 
 describe('responsive images end-to-end', () => {
   it('runs the full add -> read -> delete cycle', async () => {
-    const media = await library.for('Post', 1).add(jpeg).usingFileName('photo.jpg').toCollection('images')
+    const media = await library
+      .for('Post', 1)
+      .add(jpeg)
+      .usingFileName('photo.jpg')
+      .toCollection('images')
 
     // conversion file exists; responsive variants exist for BOTH 'original' and 'preview'
     const pathGen = new DefaultPathGenerator()
@@ -60,8 +64,12 @@ describe('responsive images end-to-end', () => {
 
     const stored = await repo.findById(media.id)
     expect(stored).not.toBeNull()
-    const originalEntry = stored!.responsiveImages['original'] as { files: Array<{ fileName: string; width: number }> }
-    const previewEntry = stored!.responsiveImages['preview'] as { files: Array<{ fileName: string; width: number }> }
+    const originalEntry = stored!.responsiveImages['original'] as {
+      files: Array<{ fileName: string; width: number }>
+    }
+    const previewEntry = stored!.responsiveImages['preview'] as {
+      files: Array<{ fileName: string; width: number }>
+    }
     expect(originalEntry?.files?.length).toBeGreaterThan(0)
     expect(previewEntry?.files?.length).toBeGreaterThan(0)
 

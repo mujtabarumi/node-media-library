@@ -27,7 +27,9 @@ export function validateFile(file: IncomingFile, ctx: ValidationContext): void {
 
   for (const segment of segments) {
     if (ctx.disallowedExtensions.includes(segment)) {
-      throw new DisallowedExtensionError(`File "${file.fileName}" has a disallowed extension: "${segment}"`)
+      throw new DisallowedExtensionError(
+        `File "${file.fileName}" has a disallowed extension: "${segment}"`,
+      )
     }
   }
 
@@ -41,7 +43,10 @@ export function validateFile(file: IncomingFile, ctx: ValidationContext): void {
   const { acceptsMimeTypes, acceptsFile } = ctx.collection
 
   if (acceptsMimeTypes !== null) {
-    if (file.mimeType === null || !acceptsMimeTypes.some((pattern) => matchesMime(pattern, file.mimeType as string))) {
+    if (
+      file.mimeType === null ||
+      !acceptsMimeTypes.some((pattern) => matchesMime(pattern, file.mimeType as string))
+    ) {
       throw new UnacceptableFileError(
         `File "${file.fileName}" with mime type "${file.mimeType ?? 'unknown'}" is not accepted by this collection`,
       )
@@ -49,7 +54,9 @@ export function validateFile(file: IncomingFile, ctx: ValidationContext): void {
   }
 
   if (acceptsFile && !acceptsFile(file)) {
-    throw new UnacceptableFileError(`File "${file.fileName}" was rejected by the collection's acceptsFile check`)
+    throw new UnacceptableFileError(
+      `File "${file.fileName}" was rejected by the collection's acceptsFile check`,
+    )
   }
 }
 

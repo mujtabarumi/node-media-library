@@ -53,7 +53,11 @@ describe('responsive engine integration', () => {
     const events: Array<{ media: unknown; conversion: string }> = []
     library.events.on('responsive:generated', (p) => events.push(p))
 
-    const media = await library.for('Post', 1).add(jpeg).usingFileName('photo.jpg').toCollection('images')
+    const media = await library
+      .for('Post', 1)
+      .add(jpeg)
+      .usingFileName('photo.jpg')
+      .toCollection('images')
 
     const dir = responsiveDir(media.id)
     expect(existsSync(dir)).toBe(true)
@@ -103,7 +107,11 @@ describe('responsive engine integration', () => {
       },
     })
 
-    const media = await library.for('Post', 1).add(jpeg).usingFileName('photo.jpg').toCollection('images')
+    const media = await library
+      .for('Post', 1)
+      .add(jpeg)
+      .usingFileName('photo.jpg')
+      .toCollection('images')
 
     const dir = responsiveDir(media.id)
     expect(existsSync(dir)).toBe(true)
@@ -126,7 +134,11 @@ describe('responsive engine integration', () => {
       },
     })
 
-    const media = await library.for('Post', 1).add(jpeg).usingFileName('photo.jpg').toCollection('images')
+    const media = await library
+      .for('Post', 1)
+      .add(jpeg)
+      .usingFileName('photo.jpg')
+      .toCollection('images')
 
     const updated = await repo.findById(media.id)
     const entry = updated?.responsiveImages.original as { files: unknown[]; placeholder?: string }
@@ -149,7 +161,11 @@ describe('responsive engine integration', () => {
       },
     })
 
-    const media = await library.for('Post', 1).add(jpeg).usingFileName('photo.jpg').toCollection('images')
+    const media = await library
+      .for('Post', 1)
+      .add(jpeg)
+      .usingFileName('photo.jpg')
+      .toCollection('images')
 
     const updated = await repo.findById(media.id)
     expect(updated?.responsiveImages).toEqual({})
@@ -165,7 +181,11 @@ describe('responsive engine integration', () => {
       },
     })
 
-    const media = await library.for('Post', 1).add(jpeg).usingFileName('photo.jpg').toCollection('images')
+    const media = await library
+      .for('Post', 1)
+      .add(jpeg)
+      .usingFileName('photo.jpg')
+      .toCollection('images')
 
     const beforeWipe = await repo.findById(media.id)
     expect(beforeWipe?.responsiveImages.original).toBeDefined()
@@ -234,9 +254,16 @@ describe('responsive engine integration', () => {
     })
 
     const tinySource = await buildJpegFixture(10, 10)
-    const media = await library.for('Post', 1).add(tinySource).usingFileName('photo.jpg').toCollection('images')
+    const media = await library
+      .for('Post', 1)
+      .add(tinySource)
+      .usingFileName('photo.jpg')
+      .toCollection('images')
 
-    await repo.update(media.id, { mimeType: 'application/x-fake', responsiveImages: { requested: true } })
+    await repo.update(media.id, {
+      mimeType: 'application/x-fake',
+      responsiveImages: { requested: true },
+    })
 
     await library.performConversions(media.id, ['original'])
 
@@ -258,7 +285,11 @@ describe('responsive engine integration', () => {
       },
     })
 
-    const media = await library.for('Post', 1).add(jpeg).usingFileName('photo.jpg').toCollection('images')
+    const media = await library
+      .for('Post', 1)
+      .add(jpeg)
+      .usingFileName('photo.jpg')
+      .toCollection('images')
 
     const updated = await repo.findById(media.id)
     const entry = updated?.responsiveImages.original as { files: Array<{ width: number }> }
@@ -286,9 +317,16 @@ describe('responsive engine integration', () => {
     })
 
     const tinySource = await buildJpegFixture(10, 10)
-    const media = await library.for('Post', 1).add(tinySource).usingFileName('doc.pdf').toCollection('images')
+    const media = await library
+      .for('Post', 1)
+      .add(tinySource)
+      .usingFileName('doc.pdf')
+      .toCollection('images')
 
-    await repo.update(media.id, { mimeType: 'application/x-fake', responsiveImages: { requested: true } })
+    await repo.update(media.id, {
+      mimeType: 'application/x-fake',
+      responsiveImages: { requested: true },
+    })
     await library.performConversions(media.id, ['original'])
 
     const dir = responsiveDir(media.id)
@@ -329,7 +367,11 @@ describe('responsive engine integration', () => {
     })
 
     const tinySource = await buildJpegFixture(10, 10)
-    const media = await library.for('Post', 1).add(tinySource).usingFileName('doc.pdf').toCollection('images')
+    const media = await library
+      .for('Post', 1)
+      .add(tinySource)
+      .usingFileName('doc.pdf')
+      .toCollection('images')
 
     await repo.update(media.id, { mimeType: 'application/x-fake' })
     await library.performConversions(media.id, ['thumb'])
@@ -355,7 +397,11 @@ describe('responsive engine integration', () => {
       },
     })
 
-    const media = await library.for('Post', 1).add(jpeg).usingFileName('photo.jpg').toCollection('images')
+    const media = await library
+      .for('Post', 1)
+      .add(jpeg)
+      .usingFileName('photo.jpg')
+      .toCollection('images')
 
     const dir = responsiveDir(media.id)
     const originalFiles = readdirSync(dir)
@@ -398,7 +444,11 @@ describe('responsive engine integration', () => {
     }
 
     const library = createMediaLibrary({ repository: repo, storage, models })
-    const media = await library.for('Post', 1).add(jpeg).usingFileName('photo.jpg').toCollection('images')
+    const media = await library
+      .for('Post', 1)
+      .add(jpeg)
+      .usingFileName('photo.jpg')
+      .toCollection('images')
 
     const library2 = createMediaLibrary({
       repository: repo,
@@ -431,7 +481,11 @@ describe('responsive engine integration', () => {
     }
 
     const library = createMediaLibrary({ repository: repo, storage, models })
-    const media = await library.for('Post', 1).add(jpeg).usingFileName('photo.jpg').toCollection('images')
+    const media = await library
+      .for('Post', 1)
+      .add(jpeg)
+      .usingFileName('photo.jpg')
+      .toCollection('images')
 
     const library2 = createMediaLibrary({
       repository: repo,

@@ -15,7 +15,9 @@ import { extname, basename } from 'node:path'
 export function sanitizeZipPrefix(prefix: string): string {
   const noBackslashes = prefix.replace(/\\/g, '')
   const noLeadingSlashes = noBackslashes.replace(/^\/+/, '')
-  const segments = noLeadingSlashes.split('/').filter((segment) => segment !== '.' && segment !== '..')
+  const segments = noLeadingSlashes
+    .split('/')
+    .filter((segment) => segment !== '.' && segment !== '..')
   return segments.join('/')
 }
 

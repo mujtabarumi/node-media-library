@@ -1,4 +1,9 @@
-import { DEFAULT_SIGNED_URL_EXPIRES_IN, MediaLibraryConfig, ResolvedConfig, resolveConfig } from './config.js'
+import {
+  DEFAULT_SIGNED_URL_EXPIRES_IN,
+  MediaLibraryConfig,
+  ResolvedConfig,
+  resolveConfig,
+} from './config.js'
 import { ModelMediaHandle } from './handle.js'
 import { TypedEmitter } from './events.js'
 import type { MediaEventMap } from './events.js'
@@ -59,7 +64,9 @@ export class MediaLibrary {
       responsivePlaceholders: this.resolved.responsivePlaceholders,
       optimizers: this.resolved.optimizers,
     })
-    this.resolved.queue.registerProcessor((job) => this.engine.perform(job.mediaId, job.conversionNames))
+    this.resolved.queue.registerProcessor((job) =>
+      this.engine.perform(job.mediaId, job.conversionNames),
+    )
 
     // Built here (after `this.engine` exists) rather than reused from
     // `resolveConfig()`'s own default, since the `conversionFileNameFor` dep
@@ -73,7 +80,9 @@ export class MediaLibrary {
         signedUrlExpiresIn: config.signedUrlExpiresIn ?? DEFAULT_SIGNED_URL_EXPIRES_IN,
         conversionFileNameFor: (media, name) => {
           const def = this.engine.applicable(media)[name]
-          return def ? conversionFileName(media.fileName, name, this.engine.effectiveFormat(media, def)) : null
+          return def
+            ? conversionFileName(media.fileName, name, this.engine.effectiveFormat(media, def))
+            : null
         },
       })
   }
@@ -164,7 +173,9 @@ export class MediaLibrary {
         await dispatch(record)
       }
     } else {
-      for await (const record of this.resolved.repository.iterateAll({ modelType: opts.modelType })) {
+      for await (const record of this.resolved.repository.iterateAll({
+        modelType: opts.modelType,
+      })) {
         await dispatch(record)
       }
     }
@@ -253,13 +264,17 @@ export class MediaLibrary {
       if (!this.urlGeneratorInstance.responsiveSignedUrl) return []
       return Promise.all(
         entry.files.map((f) =>
-          this.urlGeneratorInstance.responsiveSignedUrl!(media, f.fileName, { expiresIn: opts.expiresIn }),
+          this.urlGeneratorInstance.responsiveSignedUrl!(media, f.fileName, {
+            expiresIn: opts.expiresIn,
+          }),
         ),
       )
     }
 
     if (!this.urlGeneratorInstance.responsiveUrl) return []
-    return Promise.all(entry.files.map((f) => this.urlGeneratorInstance.responsiveUrl!(media, f.fileName)))
+    return Promise.all(
+      entry.files.map((f) => this.urlGeneratorInstance.responsiveUrl!(media, f.fileName)),
+    )
   }
 
   /** `'url1 800w, url2 669w'` srcset string; `null` when there's no entry/empty files. */
@@ -285,13 +300,19 @@ export class MediaLibrary {
 
     if (!this.urlGeneratorInstance.responsiveUrl) return null
     const parts = await Promise.all(
-      entry.files.map(async (f) => `${await this.urlGeneratorInstance.responsiveUrl!(media, f.fileName)} ${f.width}w`),
+      entry.files.map(
+        async (f) =>
+          `${await this.urlGeneratorInstance.responsiveUrl!(media, f.fileName)} ${f.width}w`,
+      ),
     )
     return parts.join(', ')
   }
 
   /** The LQIP base64 SVG data URI for `conversion`, or `null` when absent. */
-  async placeholder(mediaOrId: MediaRecord | string, conversion = 'original'): Promise<string | null> {
+  async placeholder(
+    mediaOrId: MediaRecord | string,
+    conversion = 'original',
+  ): Promise<string | null> {
     const media = await this.requireMedia(mediaOrId)
     return this.responsiveEntry(media, conversion)?.placeholder ?? null
   }
@@ -506,13 +527,17 @@ export class MediaLibrary {
           yield chunk as Buffer
         }
       }
-      archive.append(Readable.from(lazySource()), { name: zipEntryName(media.fileName, prefix, taken) })
+      archive.append(Readable.from(lazySource()), {
+        name: zipEntryName(media.fileName, prefix, taken),
+      })
     }
     // finalize() resolves when the archive finishes writing; it must not be
     // awaited here (the consumer hasn't started reading yet — awaiting would
     // deadlock on backpressure for large archives). Failures surface by
     // destroying the archive stream, which errors the Response body.
-    archive.finalize().catch((err: unknown) => archive.destroy(err instanceof Error ? err : new Error(String(err))))
+    archive
+      .finalize()
+      .catch((err: unknown) => archive.destroy(err instanceof Error ? err : new Error(String(err))))
 
     const headers = new Headers({
       'Content-Type': 'application/zip',
@@ -542,7 +567,10 @@ export class MediaLibrary {
    * first page. The `fs` driver returns everything in a single call with no
    * token, so this runs its body exactly once for it.
    */
-  private async listDirectChildren(disk: Disk, dir: string): Promise<Array<{ key: string; name: string }>> {
+  private async listDirectChildren(
+    disk: Disk,
+    dir: string,
+  ): Promise<Array<{ key: string; name: string }>> {
     const prefix = `${dir}/`
     const results: Array<{ key: string; name: string }> = []
     try {
@@ -617,7 +645,10 @@ export class MediaLibrary {
     }
 
     for await (const record of this.resolved.repository.iterateAll()) {
-      if (opts.deleteOrphaned && !(await this.resolved.repository.ownerExists(record.modelType, record.modelId))) {
+      if (
+        opts.deleteOrphaned &&
+        !(await this.resolved.repository.ownerExists(record.modelType, record.modelId))
+      ) {
         result.orphanedMediaDeleted += 1
         if (!dryRun) {
           await gate.wait()
@@ -639,7 +670,9 @@ export class MediaLibrary {
         continue
       }
 
-      const hasGeneratedConversions = Object.values(record.generatedConversions).some((v) => v === true)
+      const hasGeneratedConversions = Object.values(record.generatedConversions).some(
+        (v) => v === true,
+      )
       if (hasGeneratedConversions && !this.hasGeneratorFor(record.mimeType)) {
         result.skippedUnregistered += 1
         result.skippedWithoutGenerator += 1
@@ -658,10 +691,14 @@ export class MediaLibrary {
       // --- Stale conversion files -------------------------------------
       const expectedConversionFiles = new Set<string>()
       for (const [name, def] of Object.entries(applicable)) {
-        expectedConversionFiles.add(conversionFileName(record.fileName, name, this.engine.effectiveFormat(record, def)))
+        expectedConversionFiles.add(
+          conversionFileName(record.fileName, name, this.engine.effectiveFormat(record, def)),
+        )
       }
 
-      const conversionsDisk = await this.resolved.storage.disk(record.conversionsDisk ?? record.disk)
+      const conversionsDisk = await this.resolved.storage.disk(
+        record.conversionsDisk ?? record.disk,
+      )
       const conversionsDir = this.resolved.pathGenerator.conversionsPath(record)
       for (const { key, name } of await this.listDirectChildren(conversionsDisk, conversionsDir)) {
         if (expectedConversionFiles.has(name)) continue
@@ -716,7 +753,10 @@ export class MediaLibrary {
       if (removedKeys > 0) {
         result.staleEntriesRemoved += removedKeys
         if (!dryRun) {
-          await this.resolved.repository.update(record.id, { generatedConversions, responsiveImages })
+          await this.resolved.repository.update(record.id, {
+            generatedConversions,
+            responsiveImages,
+          })
         }
       }
     }

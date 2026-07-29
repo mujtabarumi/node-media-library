@@ -82,7 +82,7 @@ describe('ModelMediaHandle retrieval', () => {
     expect(galleryUrl).toMatch(/^http:\/\/localhost:9000\/media\//)
   })
 
-  it('firstUrl falls back to the collection\'s default (\'\') fallback when no conversion-specific one is registered', async () => {
+  it("firstUrl falls back to the collection's default ('') fallback when no conversion-specific one is registered", async () => {
     // Only the default ('') fallback is registered — a conversion-scoped
     // lookup ('thumb') must still resolve to it rather than returning null,
     // matching Spatie's behavior.

@@ -4,21 +4,34 @@ import { tmpdir, platform } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { MediaRecord } from '@node-media-library/core'
-import { jpegoptimOptimizer, pngquantOptimizer, jpegoptimAvailable, pngquantAvailable } from '../src/optimizers.js'
+import {
+  jpegoptimOptimizer,
+  pngquantOptimizer,
+  jpegoptimAvailable,
+  pngquantAvailable,
+} from '../src/optimizers.js'
 
 const fixturesDir = fileURLToPath(new URL('./fixtures/', import.meta.url))
 
 const fakeMedia: MediaRecord = {
-  id: 'm1', modelType: 'Post', modelId: 'p1', uuid: 'u1',
-  collectionName: 'default', name: 'sample', fileName: 'sample.jpg',
-  mimeType: 'image/jpeg', disk: 'default', conversionsDisk: null,
+  id: 'm1',
+  modelType: 'Post',
+  modelId: 'p1',
+  uuid: 'u1',
+  collectionName: 'default',
+  name: 'sample',
+  fileName: 'sample.jpg',
+  mimeType: 'image/jpeg',
+  disk: 'default',
+  conversionsDisk: null,
   size: 0,
   manipulations: {},
   customProperties: {},
   generatedConversions: {},
   responsiveImages: {},
   orderColumn: null,
-  createdAt: new Date(), updatedAt: new Date(),
+  createdAt: new Date(),
+  updatedAt: new Date(),
 }
 
 function ctx(format: 'jpeg' | 'png' | 'webp' | 'avif' | null) {

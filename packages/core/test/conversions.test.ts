@@ -56,13 +56,21 @@ describe('conversions', () => {
 
   it('perform generates files, marks generatedConversions, emits started+completed', async () => {
     const events: Array<{ event: keyof MediaEventMap; conversion?: string }> = []
-    library.events.on('conversion:started', (p) => events.push({ event: 'conversion:started', conversion: p.conversion }))
-    library.events.on('conversion:completed', (p) => events.push({ event: 'conversion:completed', conversion: p.conversion }))
+    library.events.on('conversion:started', (p) =>
+      events.push({ event: 'conversion:started', conversion: p.conversion }),
+    )
+    library.events.on('conversion:completed', (p) =>
+      events.push({ event: 'conversion:completed', conversion: p.conversion }),
+    )
 
     // Both `thumb` and `web` are nonQueued, so `add()` already dispatches
     // and runs them inline (Task 4) — no need to call performConversions()
     // again here; doing so would double-run and double-emit.
-    const media = await library.for('Post', 1).add(png).usingFileName('photo.png').toCollection('images')
+    const media = await library
+      .for('Post', 1)
+      .add(png)
+      .usingFileName('photo.png')
+      .toCollection('images')
 
     const pathGen = new DefaultPathGenerator()
     const thumbDef = library.getCollectionDefinition('Post', 'images').conversions.thumb!
@@ -79,12 +87,26 @@ describe('conversions', () => {
     const updated = await repo.findById(media.id)
     expect(updated?.generatedConversions).toEqual({ thumb: true, web: true })
 
-    expect(events.filter((e) => e.event === 'conversion:started').map((e) => e.conversion).sort()).toEqual(['thumb', 'web'])
-    expect(events.filter((e) => e.event === 'conversion:completed').map((e) => e.conversion).sort()).toEqual(['thumb', 'web'])
+    expect(
+      events
+        .filter((e) => e.event === 'conversion:started')
+        .map((e) => e.conversion)
+        .sort(),
+    ).toEqual(['thumb', 'web'])
+    expect(
+      events
+        .filter((e) => e.event === 'conversion:completed')
+        .map((e) => e.conversion)
+        .sort(),
+    ).toEqual(['thumb', 'web'])
   })
 
   it('format switch produces webp', async () => {
-    const media = await library.for('Post', 1).add(png).usingFileName('photo.png').toCollection('images')
+    const media = await library
+      .for('Post', 1)
+      .add(png)
+      .usingFileName('photo.png')
+      .toCollection('images')
     await library.performConversions(media.id)
     const pathGen = new DefaultPathGenerator()
     const webDef = library.getCollectionDefinition('Post', 'images').conversions.web!
@@ -95,7 +117,11 @@ describe('conversions', () => {
   })
 
   it('per-media manipulations override', async () => {
-    const media = await library.for('Post', 1).add(png).usingFileName('photo.png').toCollection('images')
+    const media = await library
+      .for('Post', 1)
+      .add(png)
+      .usingFileName('photo.png')
+      .toCollection('images')
 
     const withOverride = await repo.update(media.id, { manipulations: { thumb: { width: 4 } } })
     await library.performConversions(withOverride.id, ['thumb'])
@@ -141,9 +167,15 @@ describe('conversions', () => {
 
   it('failed conversion emits failed and does not mark generated', async () => {
     const failures: Array<{ conversion: string; error: unknown }> = []
-    library.events.on('conversion:failed', (p) => failures.push({ conversion: p.conversion, error: p.error }))
+    library.events.on('conversion:failed', (p) =>
+      failures.push({ conversion: p.conversion, error: p.error }),
+    )
 
-    const media = await library.for('Post', 1).add(png).usingFileName('photo.png').toCollection('images')
+    const media = await library
+      .for('Post', 1)
+      .add(png)
+      .usingFileName('photo.png')
+      .toCollection('images')
 
     // `add()` already dispatched and generated `thumb` inline (Task 4,
     // nonQueued); reset the mark to simulate a conversion that hasn't been
@@ -163,8 +195,12 @@ describe('conversions', () => {
     expect(updated?.generatedConversions.thumb).toBeUndefined()
   })
 
-  it('concurrent perform() calls for the same media do not lose each other\'s generatedConversions marks', async () => {
-    const media = await library.for('Post', 1).add(png).usingFileName('photo.png').toCollection('images')
+  it("concurrent perform() calls for the same media do not lose each other's generatedConversions marks", async () => {
+    const media = await library
+      .for('Post', 1)
+      .add(png)
+      .usingFileName('photo.png')
+      .toCollection('images')
 
     await Promise.all([
       library.performConversions(media.id, ['thumb']),
@@ -178,8 +214,12 @@ describe('conversions', () => {
   it('event payloads are independent snapshots, not the same mutated record', async () => {
     const started: Array<{ conversion: string; media: MediaRecord }> = []
     const completed: Array<{ conversion: string; media: MediaRecord }> = []
-    library.events.on('conversion:started', (p) => started.push({ conversion: p.conversion, media: p.media }))
-    library.events.on('conversion:completed', (p) => completed.push({ conversion: p.conversion, media: p.media }))
+    library.events.on('conversion:started', (p) =>
+      started.push({ conversion: p.conversion, media: p.media }),
+    )
+    library.events.on('conversion:completed', (p) =>
+      completed.push({ conversion: p.conversion, media: p.media }),
+    )
 
     // Both `thumb` and `web` are nonQueued, so `add()` dispatches and runs
     // them inline (Task 4) in a single perform() call — listeners must be

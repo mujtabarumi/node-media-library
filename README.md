@@ -6,14 +6,14 @@ This is a pnpm workspace monorepo. Each package is independently publishable and
 
 ## Packages
 
-| Package | Description |
-| --- | --- |
-| [`@node-media-library/core`](packages/core/README.md) | Media library engine: storage, collections, conversions, responsive images, downloads/zip, CLI. |
-| [`@node-media-library/prisma`](packages/prisma/README.md) | Prisma adapter (`MediaRepository` + cascading deletes) for `@node-media-library/core`. |
-| [`@node-media-library/bullmq`](packages/bullmq/README.md) | BullMQ queue adapter for dispatching conversion jobs. |
-| [`@node-media-library/pdf`](packages/pdf/README.md) | `pdftoppm`-backed `ImageGenerator` for rasterizing PDF originals. |
-| [`@node-media-library/video`](packages/video/README.md) | `ffmpeg`-backed `ImageGenerator` for extracting video frame thumbnails. |
-| [`@node-media-library/optimizers`](packages/optimizers/README.md) | `jpegoptim`/`pngquant`-backed `ImageOptimizer`s for shrinking conversion/responsive output. |
+| Package                                                           | Description                                                                                     |
+| ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| [`@node-media-library/core`](packages/core/README.md)             | Media library engine: storage, collections, conversions, responsive images, downloads/zip, CLI. |
+| [`@node-media-library/prisma`](packages/prisma/README.md)         | Prisma adapter (`MediaRepository` + cascading deletes) for `@node-media-library/core`.          |
+| [`@node-media-library/bullmq`](packages/bullmq/README.md)         | BullMQ queue adapter for dispatching conversion jobs.                                           |
+| [`@node-media-library/pdf`](packages/pdf/README.md)               | `pdftoppm`-backed `ImageGenerator` for rasterizing PDF originals.                               |
+| [`@node-media-library/video`](packages/video/README.md)           | `ffmpeg`-backed `ImageGenerator` for extracting video frame thumbnails.                         |
+| [`@node-media-library/optimizers`](packages/optimizers/README.md) | `jpegoptim`/`pngquant`-backed `ImageOptimizer`s for shrinking conversion/responsive output.     |
 
 ## Quickstart
 

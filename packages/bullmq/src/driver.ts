@@ -1,6 +1,11 @@
 import { Queue, Worker } from 'bullmq'
 import type { ConnectionOptions } from 'bullmq'
-import { MediaLibraryError, type ConversionJob, type ConversionProcessor, type QueueDriver } from '@node-media-library/core'
+import {
+  MediaLibraryError,
+  type ConversionJob,
+  type ConversionProcessor,
+  type QueueDriver,
+} from '@node-media-library/core'
 
 const DEFAULT_QUEUE_NAME = 'media-conversions'
 const DEFAULT_WORKER_CONCURRENCY = 2

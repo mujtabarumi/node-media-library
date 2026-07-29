@@ -5,7 +5,11 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import {
-  collection, conversion, createMediaLibrary, InMemoryMediaRepository, sharpImageGenerator,
+  collection,
+  conversion,
+  createMediaLibrary,
+  InMemoryMediaRepository,
+  sharpImageGenerator,
 } from '@node-media-library/core'
 import { videoImageGenerator } from '../src/generator.js'
 import { ffmpegAvailable } from '../src/run.js'
@@ -22,8 +26,14 @@ describe.runIf(available)('video end-to-end through the media pipeline', () => {
     const out = join(fixtureDir, 'fixture.mp4')
     // 1s 64x48 synthetic clip; -pix_fmt yuv420p for broad decoder compat
     await execFileAsync('ffmpeg', [
-      '-f', 'lavfi', '-i', 'testsrc=duration=1:size=64x48:rate=10',
-      '-pix_fmt', 'yuv420p', '-y', out,
+      '-f',
+      'lavfi',
+      '-i',
+      'testsrc=duration=1:size=64x48:rate=10',
+      '-pix_fmt',
+      'yuv420p',
+      '-y',
+      out,
     ])
     fixture = await readFile(out)
     return async () => rm(fixtureDir, { recursive: true, force: true })

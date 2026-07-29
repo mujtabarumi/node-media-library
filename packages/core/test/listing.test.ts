@@ -24,7 +24,10 @@ function makeLibrary() {
 type FakeObject = { key: string; name: string; isFile: boolean }
 type FakePage = { paginationToken?: string; objects: FakeObject[] }
 
-function fakeDisk(pages: FakePage[]): { disk: Disk; calls: Array<{ prefix: string; paginationToken?: string }> } {
+function fakeDisk(pages: FakePage[]): {
+  disk: Disk
+  calls: Array<{ prefix: string; paginationToken?: string }>
+} {
   const calls: Array<{ prefix: string; paginationToken?: string }> = []
   let call = 0
   const disk = {
@@ -45,8 +48,11 @@ function listDirectChildren(
   disk: Disk,
   dir: string,
 ): Promise<Array<{ key: string; name: string }>> {
-  return (library as unknown as { listDirectChildren(d: Disk, dir: string): Promise<Array<{ key: string; name: string }>> })
-    .listDirectChildren(disk, dir)
+  return (
+    library as unknown as {
+      listDirectChildren(d: Disk, dir: string): Promise<Array<{ key: string; name: string }>>
+    }
+  ).listDirectChildren(disk, dir)
 }
 
 describe('MediaLibrary#listDirectChildren (S3-safe listing)', () => {

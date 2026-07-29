@@ -63,14 +63,22 @@ describe('FileAdder', () => {
     // nested "<id>/evil.php/x.jpg" storage key, since usingFileName() skipped
     // the sanitizer entirely. The sanitizer's basename() call collapses this
     // to just "x.jpg" — no slash reaches validation or storage.
-    const m = await library.for('User', 1).add(png).usingFileName('evil.php/x.jpg').toCollection('default')
+    const m = await library
+      .for('User', 1)
+      .add(png)
+      .usingFileName('evil.php/x.jpg')
+      .toCollection('default')
     expect(m.fileName).toBe('x.jpg')
     expect(existsSync(join(root, m.id, 'x.jpg'))).toBe(true)
     expect(readdirSync(join(root, m.id))).toEqual(['x.jpg'])
   })
 
   it('sanitizes a backslash out of an explicit usingFileName()', async () => {
-    const m = await library.for('User', 1).add(png).usingFileName('evil.php\\x.jpg').toCollection('default')
+    const m = await library
+      .for('User', 1)
+      .add(png)
+      .usingFileName('evil.php\\x.jpg')
+      .toCollection('default')
     expect(m.fileName).not.toContain('\\')
     expect(m.fileName).not.toContain('/')
   })

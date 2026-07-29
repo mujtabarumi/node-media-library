@@ -36,10 +36,14 @@ describe('FileSizeOptimizedWidthCalculator', () => {
 
 describe('responsiveFileName', () => {
   it('builds {base}___{conversion}_{w}_{h}{ext}', () => {
-    expect(responsiveFileName('photo.jpg', 'thumb', 800, 600, null)).toBe('photo___thumb_800_600.jpg')
+    expect(responsiveFileName('photo.jpg', 'thumb', 800, 600, null)).toBe(
+      'photo___thumb_800_600.jpg',
+    )
   })
   it('honors an output format override', () => {
-    expect(responsiveFileName('photo.jpg', 'original', 320, 240, 'webp')).toBe('photo___original_320_240.webp')
+    expect(responsiveFileName('photo.jpg', 'original', 320, 240, 'webp')).toBe(
+      'photo___original_320_240.webp',
+    )
   })
   it('handles extensionless names', () => {
     expect(responsiveFileName('file', 'original', 100, 50, null)).toBe('file___original_100_50')

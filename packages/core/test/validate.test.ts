@@ -1,7 +1,16 @@
 import { describe, it, expect } from 'vitest'
-import { validateFile, sanitizeFileName, DEFAULT_DISALLOWED_EXTENSIONS, ValidationContext } from '../src/pipeline/validate.js'
+import {
+  validateFile,
+  sanitizeFileName,
+  DEFAULT_DISALLOWED_EXTENSIONS,
+  ValidationContext,
+} from '../src/pipeline/validate.js'
 import { DEFAULT_COLLECTION } from '../src/definitions/collection.js'
-import { FileTooLargeError, DisallowedExtensionError, UnacceptableFileError } from '../src/errors.js'
+import {
+  FileTooLargeError,
+  DisallowedExtensionError,
+  UnacceptableFileError,
+} from '../src/errors.js'
 import type { IncomingFile } from '../src/types.js'
 
 function baseCtx(overrides: Partial<ValidationContext> = {}): ValidationContext {

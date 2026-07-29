@@ -102,12 +102,15 @@ export function resolveConfig(config: MediaLibraryConfig): ResolvedConfig {
     disallowedExtensions: Object.freeze([
       ...(config.disallowedExtensions ?? DEFAULT_DISALLOWED_EXTENSIONS),
     ]),
-    allowedExtensions: config.allowedExtensions ? Object.freeze([...config.allowedExtensions]) : null,
+    allowedExtensions: config.allowedExtensions
+      ? Object.freeze([...config.allowedExtensions])
+      : null,
     fileNameSanitizer: config.fileNameSanitizer ?? sanitizeFileName,
     models: Object.freeze(models),
     queue: config.queue ?? syncDriver(),
     imageGenerators: Object.freeze(config.imageGenerators ?? [sharpImageGenerator()]),
-    responsiveWidthCalculator: config.responsiveWidthCalculator ?? new FileSizeOptimizedWidthCalculator(),
+    responsiveWidthCalculator:
+      config.responsiveWidthCalculator ?? new FileSizeOptimizedWidthCalculator(),
     responsivePlaceholders: config.responsivePlaceholders ?? true,
     optimizers: Object.freeze([...(config.optimizers ?? [])]),
   })

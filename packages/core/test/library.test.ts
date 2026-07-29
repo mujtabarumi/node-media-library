@@ -49,7 +49,10 @@ describe('createMediaLibrary', () => {
 
   it('clearFor deletes the records and emits collection:cleared, same as handle.clear()', async () => {
     const library = makeLibrary()
-    const media = await library.for('User', 42).add(Buffer.from('avatar bytes')).toCollection('avatar')
+    const media = await library
+      .for('User', 42)
+      .add(Buffer.from('avatar bytes'))
+      .toCollection('avatar')
 
     const events: Array<{ modelType: string; modelId: string; collection: string }> = []
     library.events.on('collection:cleared', (payload) => events.push(payload))

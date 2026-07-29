@@ -48,10 +48,16 @@ describe('responsive read surface', () => {
       },
     })
 
-    const media = await library.for('Post', 1).add(jpeg).usingFileName('photo.jpg').toCollection('images')
+    const media = await library
+      .for('Post', 1)
+      .add(jpeg)
+      .usingFileName('photo.jpg')
+      .toCollection('images')
 
     const updated = await repo.findById(media.id)
-    const entry = updated!.responsiveImages.original as { files: Array<{ fileName: string; width: number }> }
+    const entry = updated!.responsiveImages.original as {
+      files: Array<{ fileName: string; width: number }>
+    }
 
     const urls = await library.responsiveUrls(media.id)
     expect(urls).toHaveLength(entry.files.length)
@@ -76,10 +82,16 @@ describe('responsive read surface', () => {
       },
     })
 
-    const media = await library.for('Post', 1).add(jpeg).usingFileName('photo.jpg').toCollection('images')
+    const media = await library
+      .for('Post', 1)
+      .add(jpeg)
+      .usingFileName('photo.jpg')
+      .toCollection('images')
 
     const updated = await repo.findById(media.id)
-    const entry = updated!.responsiveImages.original as { files: Array<{ fileName: string; width: number }> }
+    const entry = updated!.responsiveImages.original as {
+      files: Array<{ fileName: string; width: number }>
+    }
 
     const urls = await library.responsiveUrls(media.id)
     const expected = entry.files.map((f, i) => `${urls[i]} ${f.width}w`).join(', ')
@@ -97,7 +109,11 @@ describe('responsive read surface', () => {
       },
     })
 
-    const media = await library.for('Post', 1).add(jpeg).usingFileName('photo.jpg').toCollection('images')
+    const media = await library
+      .for('Post', 1)
+      .add(jpeg)
+      .usingFileName('photo.jpg')
+      .toCollection('images')
 
     const placeholder = await library.placeholder(media.id)
     expect(placeholder).not.toBeNull()
@@ -119,7 +135,11 @@ describe('responsive read surface', () => {
       },
     })
 
-    const media = await library.for('Post', 1).add(jpeg).usingFileName('photo.jpg').toCollection('images')
+    const media = await library
+      .for('Post', 1)
+      .add(jpeg)
+      .usingFileName('photo.jpg')
+      .toCollection('images')
 
     const srcset = await library.srcset(media.id, 'preview')
     expect(srcset).not.toBeNull()
@@ -141,7 +161,11 @@ describe('responsive read surface', () => {
       },
     })
 
-    const media = await library.for('Post', 1).add(jpeg).usingFileName('photo.jpg').toCollection('images')
+    const media = await library
+      .for('Post', 1)
+      .add(jpeg)
+      .usingFileName('photo.jpg')
+      .toCollection('images')
 
     expect(await library.responsiveUrls(media.id)).toEqual([])
     expect(await library.srcset(media.id)).toBeNull()
@@ -157,7 +181,11 @@ describe('responsive read surface', () => {
       },
     })
 
-    const media = await library.for('Post', 1).add(jpeg).usingFileName('photo.jpg').toCollection('images')
+    const media = await library
+      .for('Post', 1)
+      .add(jpeg)
+      .usingFileName('photo.jpg')
+      .toCollection('images')
 
     const beforeWipe = await repo.findById(media.id)
     expect(beforeWipe?.responsiveImages.original).toBeDefined()
@@ -185,7 +213,11 @@ describe('responsive read surface', () => {
       },
     })
 
-    const media = await library.for('Post', 1).add(jpeg).usingFileName('photo.jpg').toCollection('images')
+    const media = await library
+      .for('Post', 1)
+      .add(jpeg)
+      .usingFileName('photo.jpg')
+      .toCollection('images')
 
     const publicUrls = await library.responsiveUrls(media.id)
     const signedUrls = await library.responsiveUrls(media.id, 'original', { signed: true })
@@ -225,9 +257,16 @@ describe('responsive read surface', () => {
       },
     })
 
-    const media = await library.for('Post', 1).add(jpeg).usingFileName('photo.jpg').toCollection('images')
+    const media = await library
+      .for('Post', 1)
+      .add(jpeg)
+      .usingFileName('photo.jpg')
+      .toCollection('images')
 
-    const signedUrls = await library.responsiveUrls(media.id, 'original', { signed: true, expiresIn: 600 })
+    const signedUrls = await library.responsiveUrls(media.id, 'original', {
+      signed: true,
+      expiresIn: 600,
+    })
     expect(signedUrls.length).toBeGreaterThan(0)
     for (const url of signedUrls) {
       expect(url.startsWith(`signed://${media.id}/responsive/`)).toBe(true)
@@ -258,7 +297,11 @@ describe('responsive read surface', () => {
       },
     })
 
-    const media = await library.for('Post', 1).add(jpeg).usingFileName('photo.jpg').toCollection('images')
+    const media = await library
+      .for('Post', 1)
+      .add(jpeg)
+      .usingFileName('photo.jpg')
+      .toCollection('images')
 
     expect(await library.responsiveUrls(media.id, 'original', { signed: true })).toEqual([])
     expect(await library.srcset(media.id, 'original', { signed: true })).toBeNull()

@@ -17,16 +17,19 @@ function deepEqual(a: unknown, b: unknown): boolean {
   const aKeys = Object.keys(a as JsonObject)
   const bKeys = Object.keys(b as JsonObject)
   if (aKeys.length !== bKeys.length) return false
-  return aKeys.every((key) =>
-    Object.prototype.hasOwnProperty.call(b, key) &&
-    deepEqual((a as JsonObject)[key], (b as JsonObject)[key]),
+  return aKeys.every(
+    (key) =>
+      Object.prototype.hasOwnProperty.call(b, key) &&
+      deepEqual((a as JsonObject)[key], (b as JsonObject)[key]),
   )
 }
 
 function matchesFilter(media: MediaRecord, filter?: MediaQueryFilter): boolean {
   if (filter === undefined) return true
   if (typeof filter === 'function') return filter(media)
-  return Object.entries(filter).every(([key, value]) => deepEqual(media.customProperties[key], value))
+  return Object.entries(filter).every(([key, value]) =>
+    deepEqual(media.customProperties[key], value),
+  )
 }
 
 /**
@@ -84,7 +87,10 @@ export class ModelMediaHandle {
   async firstUrl(collection?: string, conversionName?: string): Promise<string | null> {
     const first = await this.first(collection)
     if (!first) {
-      const definition = this.library.getCollectionDefinition(this.modelType, collection ?? 'default')
+      const definition = this.library.getCollectionDefinition(
+        this.modelType,
+        collection ?? 'default',
+      )
       return this.fallbackUrlFor(definition, conversionName)
     }
     return this.library.urlGenerator.url(first, conversionName)
@@ -97,7 +103,10 @@ export class ModelMediaHandle {
   ): Promise<string | null> {
     const first = await this.first(collection)
     if (!first) {
-      const definition = this.library.getCollectionDefinition(this.modelType, collection ?? 'default')
+      const definition = this.library.getCollectionDefinition(
+        this.modelType,
+        collection ?? 'default',
+      )
       return this.fallbackUrlFor(definition, conversionName)
     }
     return this.library.urlGenerator.signedUrl(first, conversionName, opts)

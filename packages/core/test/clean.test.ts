@@ -84,7 +84,11 @@ async function conversionsDirFiles(mediaId: string): Promise<string[]> {
 describe('MediaLibrary.clean()', () => {
   it('1. deletes a stray file in the conversions dir without touching the real thumb or original', async () => {
     const library = buildLibraryWithThumb()
-    const media = await library.for('Post', 1).add(jpeg).usingFileName('photo.jpg').toCollection('images')
+    const media = await library
+      .for('Post', 1)
+      .add(jpeg)
+      .usingFileName('photo.jpg')
+      .toCollection('images')
 
     const conversionsDir = join(root, media.id, 'conversions')
     await writeFile(join(conversionsDir, 'photo-old.jpeg'), Buffer.from('stray'))
@@ -143,8 +147,16 @@ describe('MediaLibrary.clean()', () => {
   it('3. deleteOrphaned removes media (record + directory) only when the flag is set', async () => {
     const { library, ownerRepo } = buildLibraryWithOwnerExists((_type, id) => id !== 'gone')
 
-    const orphan = await library.for('User', 'gone').add(jpeg).usingFileName('avatar.jpg').toCollection('avatars')
-    const survivor = await library.for('User', 'stays').add(jpeg).usingFileName('avatar.jpg').toCollection('avatars')
+    const orphan = await library
+      .for('User', 'gone')
+      .add(jpeg)
+      .usingFileName('avatar.jpg')
+      .toCollection('avatars')
+    const survivor = await library
+      .for('User', 'stays')
+      .add(jpeg)
+      .usingFileName('avatar.jpg')
+      .toCollection('avatars')
 
     const withoutFlag = await library.clean({ deleteOrphaned: false })
     expect(withoutFlag.orphanedMediaDeleted).toBe(0)
@@ -178,7 +190,10 @@ describe('MediaLibrary.clean()', () => {
     expect(dryRunResult.staleEntriesRemoved).toBeGreaterThanOrEqual(1)
 
     // Nothing was actually touched.
-    expect((await conversionsDirFiles(media.id)).sort()).toEqual(['photo-old.jpeg', 'photo-thumb.jpeg'])
+    expect((await conversionsDirFiles(media.id)).sort()).toEqual([
+      'photo-old.jpeg',
+      'photo-thumb.jpeg',
+    ])
     const updated = await repo.findById(media.id)
     expect(updated?.generatedConversions['thumb']).toBe(true)
 
@@ -419,7 +434,9 @@ describe('MediaLibrary.clean()', () => {
 
     expect(result.skippedUnregisteredTargets).toBe(1)
     expect(result.skippedWithoutGenerator).toBe(1)
-    expect(result.skippedUnregistered).toBe(result.skippedUnregisteredTargets + result.skippedWithoutGenerator)
+    expect(result.skippedUnregistered).toBe(
+      result.skippedUnregisteredTargets + result.skippedWithoutGenerator,
+    )
     expect(result.skippedUnregistered).toBe(2)
 
     // Both records' files/JSON were left untouched.

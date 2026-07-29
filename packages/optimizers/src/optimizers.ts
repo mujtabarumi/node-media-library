@@ -2,7 +2,12 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { ImageOptimizer } from '@node-media-library/core'
-import { buildJpegoptimArgs, buildPngquantArgs, type JpegoptimOptions, type PngquantOptions } from './args.js'
+import {
+  buildJpegoptimArgs,
+  buildPngquantArgs,
+  type JpegoptimOptions,
+  type PngquantOptions,
+} from './args.js'
 import { binaryAvailable, runBinary } from './run.js'
 
 export type { JpegoptimOptions, PngquantOptions } from './args.js'

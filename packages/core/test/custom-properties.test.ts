@@ -45,8 +45,11 @@ describe('MediaLibrary custom property methods', () => {
   })
 
   it('removeCustomProperty deletes one key', async () => {
-    const media = await library.for('post', '1').add(pngBuffer)
-      .withCustomProperties({ alt: 'a cat', credit: 'Jane' }).toCollection('default')
+    const media = await library
+      .for('post', '1')
+      .add(pngBuffer)
+      .withCustomProperties({ alt: 'a cat', credit: 'Jane' })
+      .toCollection('default')
     const updated = await library.removeCustomProperty(media.id, 'credit')
     expect(updated.customProperties).toEqual({ alt: 'a cat' })
   })

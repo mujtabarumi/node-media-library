@@ -5,10 +5,10 @@ checkout, run the test suites, and open a pull request that's easy to review.
 
 ## Prerequisites
 
-| Requirement | Version | Notes |
-| --- | --- | --- |
-| Node.js | `>=20` | 20 and 22 are both tested in CI. |
-| pnpm | `10.25.0` | Pinned via the root `packageManager` field. Run `corepack enable` and pnpm will match it automatically. |
+| Requirement | Version   | Notes                                                                                                   |
+| ----------- | --------- | ------------------------------------------------------------------------------------------------------- |
+| Node.js     | `>=20`    | 20 and 22 are both tested in CI.                                                                        |
+| pnpm        | `10.25.0` | Pinned via the root `packageManager` field. Run `corepack enable` and pnpm will match it automatically. |
 
 This project **requires pnpm**. It's a pnpm workspace, and publishing depends on pnpm-specific
 `publishConfig.exports` handling — `npm install` / `npm publish` will not work correctly (see
@@ -20,12 +20,12 @@ Several packages shell out to system binaries instead of bundling native npm dep
 suites **skip themselves** when the binary isn't on `PATH`, so you can contribute without installing any
 of these — but you won't be exercising those code paths locally.
 
-| Binary | Needed by | macOS | Debian/Ubuntu |
-| --- | --- | --- | --- |
-| `pdftoppm` | `@node-media-library/pdf` | `brew install poppler` | `apt-get install poppler-utils` |
-| `ffmpeg` | `@node-media-library/video` | `brew install ffmpeg` | `apt-get install ffmpeg` |
-| `jpegoptim` | `@node-media-library/optimizers` | `brew install jpegoptim` | `apt-get install jpegoptim` |
-| `pngquant` | `@node-media-library/optimizers` | `brew install pngquant` | `apt-get install pngquant` |
+| Binary      | Needed by                        | macOS                    | Debian/Ubuntu                   |
+| ----------- | -------------------------------- | ------------------------ | ------------------------------- |
+| `pdftoppm`  | `@node-media-library/pdf`        | `brew install poppler`   | `apt-get install poppler-utils` |
+| `ffmpeg`    | `@node-media-library/video`      | `brew install ffmpeg`    | `apt-get install ffmpeg`        |
+| `jpegoptim` | `@node-media-library/optimizers` | `brew install jpegoptim` | `apt-get install jpegoptim`     |
+| `pngquant`  | `@node-media-library/optimizers` | `brew install pngquant`  | `apt-get install pngquant`      |
 
 `@node-media-library/bullmq`'s integration suite is gated on a `REDIS_URL` environment variable rather
 than a binary:

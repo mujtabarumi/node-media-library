@@ -17,7 +17,9 @@ let root: string
 let repo: InMemoryMediaRepository
 let png: Buffer
 
-function makeLibrary(overrides: Partial<Parameters<typeof createMediaLibrary>[0]> = {}): MediaLibrary {
+function makeLibrary(
+  overrides: Partial<Parameters<typeof createMediaLibrary>[0]> = {},
+): MediaLibrary {
   return createMediaLibrary({
     repository: repo,
     storage: { disks: { default: { driver: 'fs', root } } },
@@ -53,7 +55,11 @@ afterEach(async () => {
 describe('conversion dispatch from upload pipeline', () => {
   it('add() with syncDriver produces both derived files before toCollection resolves', async () => {
     const library = makeLibrary()
-    const media = await library.for('Post', 1).add(png).usingFileName('photo.png').toCollection('images')
+    const media = await library
+      .for('Post', 1)
+      .add(png)
+      .usingFileName('photo.png')
+      .toCollection('images')
 
     const pathGen = new DefaultPathGenerator()
     const thumbDef = library.getCollectionDefinition('Post', 'images').conversions.thumb!
@@ -67,7 +73,11 @@ describe('conversion dispatch from upload pipeline', () => {
 
   it('add() with deferDriver: nonQueued badge file exists immediately after toCollection, queued thumb eventually appears', async () => {
     const library = makeLibrary({ queue: deferDriver() })
-    const media = await library.for('Post', 1).add(png).usingFileName('photo.png').toCollection('images')
+    const media = await library
+      .for('Post', 1)
+      .add(png)
+      .usingFileName('photo.png')
+      .toCollection('images')
 
     const pathGen = new DefaultPathGenerator()
     const thumbDef = library.getCollectionDefinition('Post', 'images').conversions.thumb!
@@ -97,7 +107,11 @@ describe('conversion dispatch from upload pipeline', () => {
 
   it('updateManipulations persists and regenerates', async () => {
     const library = makeLibrary({ queue: deferDriver() })
-    const media = await library.for('Post', 1).add(png).usingFileName('photo.png').toCollection('images')
+    const media = await library
+      .for('Post', 1)
+      .add(png)
+      .usingFileName('photo.png')
+      .toCollection('images')
 
     const pathGen = new DefaultPathGenerator()
     const thumbDef = library.getCollectionDefinition('Post', 'images').conversions.thumb!

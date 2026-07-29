@@ -148,7 +148,9 @@ export class FileAdder {
       // repository.create error — log it and rethrow the original so the
       // caller sees the actual cause, not a secondary cleanup failure.
       try {
-        await disk.deleteAll(this.library.pathGenerator.directory(newRecord as unknown as MediaRecord))
+        await disk.deleteAll(
+          this.library.pathGenerator.directory(newRecord as unknown as MediaRecord),
+        )
       } catch (cleanupErr) {
         console.warn(
           `[media-library] Failed to roll back stored file after repository.create() failed for media "${newRecord.id}":`,

@@ -31,8 +31,14 @@ describe.runIf(available)('videoImageGenerator (ffmpeg required)', () => {
     const out = join(dir, 'fixture.mp4')
     // 1s 64x48 synthetic clip; -pix_fmt yuv420p for broad decoder compat
     await execFileAsync('ffmpeg', [
-      '-f', 'lavfi', '-i', 'testsrc=duration=1:size=64x48:rate=10',
-      '-pix_fmt', 'yuv420p', '-y', out,
+      '-f',
+      'lavfi',
+      '-i',
+      'testsrc=duration=1:size=64x48:rate=10',
+      '-pix_fmt',
+      'yuv420p',
+      '-y',
+      out,
     ])
     fixture = await readFile(out)
     return async () => rm(dir, { recursive: true, force: true })

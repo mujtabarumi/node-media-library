@@ -7,11 +7,22 @@ describe('prisma 7 sqlite fixture', () => {
     await client.media.deleteMany({})
     const created = await client.media.create({
       data: {
-        id: 'm1', uuid: 'u-1', modelType: 'User', modelId: '1',
-        collectionName: 'default', name: 'a', fileName: 'a.jpg',
-        mimeType: 'image/jpeg', disk: 'default', conversionsDisk: null,
-        size: 1, manipulations: {}, customProperties: { nested: { k: [1, 2] } },
-        generatedConversions: {}, responsiveImages: {}, orderColumn: null,
+        id: 'm1',
+        uuid: 'u-1',
+        modelType: 'User',
+        modelId: '1',
+        collectionName: 'default',
+        name: 'a',
+        fileName: 'a.jpg',
+        mimeType: 'image/jpeg',
+        disk: 'default',
+        conversionsDisk: null,
+        size: 1,
+        manipulations: {},
+        customProperties: { nested: { k: [1, 2] } },
+        generatedConversions: {},
+        responsiveImages: {},
+        orderColumn: null,
       },
     })
     expect(created.createdAt).toBeInstanceOf(Date)

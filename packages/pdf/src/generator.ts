@@ -22,7 +22,9 @@ export function pdfImageGenerator(opts: PdfGeneratorOptions = {}): ImageGenerato
   const sharpGen = sharpImageGenerator()
 
   const renderPage = (input: Buffer, page: number): Promise<Buffer> =>
-    renderViaTempFiles(binary, input, (pdfPath, outPrefix) => buildPdftoppmArgs(page, dpi, pdfPath, outPrefix))
+    renderViaTempFiles(binary, input, (pdfPath, outPrefix) =>
+      buildPdftoppmArgs(page, dpi, pdfPath, outPrefix),
+    )
 
   return {
     supports(mimeType) {

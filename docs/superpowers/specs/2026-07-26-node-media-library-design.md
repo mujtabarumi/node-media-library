@@ -6,31 +6,31 @@
 
 ## 1. Motivation
 
-Research (2026-07-26, against spatie.be v11 docs and package source) confirmed the Node ecosystem has no maintained equivalent: adonis-attachment is AdonisJS-locked with a JSON-column design and no collections; khrykin/attachments is archived; Payload/Keystone media handling is CMS-internal; multer/formidable are ingestion-only. The combination *polymorphic media table + collections + conversions + ORM-agnostic* is an empty niche.
+Research (2026-07-26, against spatie.be v11 docs and package source) confirmed the Node ecosystem has no maintained equivalent: adonis-attachment is AdonisJS-locked with a JSON-column design and no collections; khrykin/attachments is archived; Payload/Keystone media handling is CMS-internal; multer/formidable are ingestion-only. The combination _polymorphic media table + collections + conversions + ORM-agnostic_ is an empty niche.
 
 ## 2. Decisions already made
 
-| Decision | Choice |
-|---|---|
-| Architecture | ORM-agnostic core + adapter packages (monorepo) |
-| First DB adapter | Prisma |
-| API style | Config registry + fluent handle (`media.for(type, id)`) — no classes/decorators required |
-| Storage | FlyDrive (fs, S3, R2, GCS); S3-first, local-fs fallback; env-driven with package defaults |
-| Visibility | Private by default; public opt-in per collection; signed *and* public URLs, caller's per-call choice |
-| v1 scope | Queued conversions, PDF+video thumbnails, responsive images/srcset, downloads & ZIP streaming — all in |
-| Goal | Publish-grade open-source package |
+| Decision         | Choice                                                                                                 |
+| ---------------- | ------------------------------------------------------------------------------------------------------ |
+| Architecture     | ORM-agnostic core + adapter packages (monorepo)                                                        |
+| First DB adapter | Prisma                                                                                                 |
+| API style        | Config registry + fluent handle (`media.for(type, id)`) — no classes/decorators required               |
+| Storage          | FlyDrive (fs, S3, R2, GCS); S3-first, local-fs fallback; env-driven with package defaults              |
+| Visibility       | Private by default; public opt-in per collection; signed _and_ public URLs, caller's per-call choice   |
+| v1 scope         | Queued conversions, PDF+video thumbnails, responsive images/srcset, downloads & ZIP streaming — all in |
+| Goal             | Publish-grade open-source package                                                                      |
 
 Naming: packages are referred to below as `core`, `prisma`, `bullmq`, `pdf`, `video`. The final npm name/scope is a publish-time decision and does not affect this design.
 
 ## 3. Package layout (pnpm monorepo)
 
-| Package | Contents | Dependencies |
-|---|---|---|
-| `core` | Config registry, ingestion pipeline, collections, conversions engine, sharp image generator, responsive images, path/URL generators, events, sync + defer queue drivers, CLI, error types | `flydrive`, `sharp`, `file-type` |
-| `prisma` | `MediaRepository` implementation, paste-in Prisma schema snippet, opt-in client extension for delete cascade | peer `@prisma/client` |
-| `bullmq` | Persistent queue driver | peer `bullmq` |
-| `pdf` | PDF → image generator | `pdf-to-img` |
-| `video` | Video frame → image generator | `execa` (ffmpeg binary user-installed) |
+| Package  | Contents                                                                                                                                                                                  | Dependencies                           |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| `core`   | Config registry, ingestion pipeline, collections, conversions engine, sharp image generator, responsive images, path/URL generators, events, sync + defer queue drivers, CLI, error types | `flydrive`, `sharp`, `file-type`       |
+| `prisma` | `MediaRepository` implementation, paste-in Prisma schema snippet, opt-in client extension for delete cascade                                                                              | peer `@prisma/client`                  |
+| `bullmq` | Persistent queue driver                                                                                                                                                                   | peer `bullmq`                          |
+| `pdf`    | PDF → image generator                                                                                                                                                                     | `pdf-to-img`                           |
+| `video`  | Video frame → image generator                                                                                                                                                             | `execa` (ffmpeg binary user-installed) |
 
 Rules: core has no ORM, HTTP-framework, or queue-infra dependency. sharp is core's only heavy dependency. PDF/video are separate installs. Future adapters (Drizzle, Mongoose, Kysely; pg-boss) are additive packages implementing the same interfaces.
 
@@ -41,8 +41,8 @@ Users write one config file (e.g. `media.config.ts`):
 ```ts
 export const media = createMediaLibrary({
   repository: prismaAdapter(prisma),
-  queue: bullmqDriver({ connection: redis }),   // optional; default: syncDriver()
-  storage: { /* optional; defaults + env override, see §10 */ },
+  queue: bullmqDriver({ connection: redis }), // optional; default: syncDriver()
+  storage: {/* optional; defaults + env override, see §10 */},
   models: {
     User: {
       collections: {
@@ -67,25 +67,25 @@ export const media = createMediaLibrary({
 
 One `media` table, owned by this library, created in the host app's migration workflow (Prisma: paste-in model snippet).
 
-| Column | Type | Notes |
-|---|---|---|
-| `id` | string (cuid) | PK |
-| `modelType` | string | owner model name, as registered in config |
-| `modelId` | string | owner PK as string — supports int/bigint/uuid/cuid owners |
-| `uuid` | string, unique | stable public identifier |
-| `collectionName` | string | |
-| `name` | string | display name (default: filename sans extension) |
-| `fileName` | string | name on disk |
-| `mimeType` | string? | sniffed, never client-trusted |
-| `disk` | string | disk of original |
-| `conversionsDisk` | string? | optional separate disk for derived files |
-| `size` | int | bytes |
-| `manipulations` | JSON | per-media conversion overrides |
-| `customProperties` | JSON | arbitrary metadata |
-| `generatedConversions` | JSON | `{ [conversionName]: boolean }` |
-| `responsiveImages` | JSON | see §9 |
-| `orderColumn` | int? | sort within (modelType, modelId, collectionName) |
-| `createdAt` / `updatedAt` | datetime | `updatedAt` powers `?v=` cache busting |
+| Column                    | Type           | Notes                                                     |
+| ------------------------- | -------------- | --------------------------------------------------------- |
+| `id`                      | string (cuid)  | PK                                                        |
+| `modelType`               | string         | owner model name, as registered in config                 |
+| `modelId`                 | string         | owner PK as string — supports int/bigint/uuid/cuid owners |
+| `uuid`                    | string, unique | stable public identifier                                  |
+| `collectionName`          | string         |                                                           |
+| `name`                    | string         | display name (default: filename sans extension)           |
+| `fileName`                | string         | name on disk                                              |
+| `mimeType`                | string?        | sniffed, never client-trusted                             |
+| `disk`                    | string         | disk of original                                          |
+| `conversionsDisk`         | string?        | optional separate disk for derived files                  |
+| `size`                    | int            | bytes                                                     |
+| `manipulations`           | JSON           | per-media conversion overrides                            |
+| `customProperties`        | JSON           | arbitrary metadata                                        |
+| `generatedConversions`    | JSON           | `{ [conversionName]: boolean }`                           |
+| `responsiveImages`        | JSON           | see §9                                                    |
+| `orderColumn`             | int?           | sort within (modelType, modelId, collectionName)          |
+| `createdAt` / `updatedAt` | datetime       | `updatedAt` powers `?v=` cache busting                    |
 
 Indexes: `(modelType, modelId)`, `uuid` unique.
 
@@ -98,10 +98,10 @@ interface MediaRepository {
   findById(id: string): Promise<MediaRecord | null>
   findByUuid(uuid: string): Promise<MediaRecord | null>
   findForModel(modelType: string, modelId: string, collection?: string): Promise<MediaRecord[]>
-  delete(id: string): Promise<void>            // row only; file deletion is core's job
+  delete(id: string): Promise<void> // row only; file deletion is core's job
   setOrder(ids: string[], startAt?: number): Promise<void>
-  iterateAll(filter?: MediaFilter): AsyncIterable<MediaRecord>  // for regenerate/clean
-  ownerExists(modelType: string, modelId: string): Promise<boolean>  // for clean --delete-orphaned
+  iterateAll(filter?: MediaFilter): AsyncIterable<MediaRecord> // for regenerate/clean
+  ownerExists(modelType: string, modelId: string): Promise<boolean> // for clean --delete-orphaned
 }
 ```
 
@@ -114,20 +114,20 @@ All business logic (collection rules, cascade, ordering semantics) lives in core
 ```ts
 const handle = media.for('User', user.id)
 const item = await handle
-  .add(source)                        // string path | Buffer | Readable | web File/Blob | { base64 } | { url }
+  .add(source) // string path | Buffer | Readable | web File/Blob | { base64 } | { url }
   .usingName('Profile photo')
   .usingFileName('profile.jpg')
   .withCustomProperties({ tag: 'x' })
   .withManipulations({ thumb: { width: 100 } })
-  .preservingOriginal()               // copy instead of move (path sources)
+  .preservingOriginal() // copy instead of move (path sources)
   .storingConversionsOnDisk('s3')
   .withResponsiveImages()
-  .toCollection('avatar')             // executes → MediaRecord
+  .toCollection('avatar') // executes → MediaRecord
 ```
 
-Pipeline order: **sniff mime** (magic bytes, `file-type`) → **validate** (global `maxFileSize`; extension blocklist checking *every* dot-segment so `x.php.jpg` is rejected — default blocklist `php/phtml/phar/htaccess/…`; optional allowlist; collection `acceptsMimeTypes`/`acceptsFile`) → **sanitize filename** (replaceable sanitizer; replacing it replaces blocking too, documented loudly) → **store** via FlyDrive at `{prefix}/{mediaId}/{fileName}` → **insert row** → **emit `media:added`** → **enqueue conversions**. `{ url }` sources document SSRF risk and accept an allowlist option. `singleFile()` / `onlyKeepLatest(n)` displacement deletion happens within the same operation.
+Pipeline order: **sniff mime** (magic bytes, `file-type`) → **validate** (global `maxFileSize`; extension blocklist checking _every_ dot-segment so `x.php.jpg` is rejected — default blocklist `php/phtml/phar/htaccess/…`; optional allowlist; collection `acceptsMimeTypes`/`acceptsFile`) → **sanitize filename** (replaceable sanitizer; replacing it replaces blocking too, documented loudly) → **store** via FlyDrive at `{prefix}/{mediaId}/{fileName}` → **insert row** → **emit `media:added`** → **enqueue conversions**. `{ url }` sources document SSRF risk and accept an allowlist option. `singleFile()` / `onlyKeepLatest(n)` displacement deletion happens within the same operation.
 
-Retrieval on the handle: `getAll(collection?, filter?)` (filter: customProperties match or predicate), `first(collection?)`, `firstUrl(collection, conversion?)`, `firstSignedUrl(collection, conversion?, opts?)`, `availableUrl(collection, [conversions])` (first *generated*, else original), `reorder([ids])`, `clear(collection?)`, `delete(mediaId)`. Fallback URL returned for empty collections when configured, else `null`.
+Retrieval on the handle: `getAll(collection?, filter?)` (filter: customProperties match or predicate), `first(collection?)`, `firstUrl(collection, conversion?)`, `firstSignedUrl(collection, conversion?, opts?)`, `availableUrl(collection, [conversions])` (first _generated_, else original), `reorder([ids])`, `clear(collection?)`, `delete(mediaId)`. Fallback URL returned for empty collections when configured, else `null`.
 
 Media-level API: `url(conversion?)`, `signedUrl(...)`, `srcset(conversion?)`, `download()/inline()`, `regenerate()`.
 
@@ -147,6 +147,7 @@ Media-level API: `url(conversion?)`, `signedUrl(...)`, `srcset(conversion?)`, `d
 **Generator interface:** `supports(mime): boolean`, `toImage(input, conversion): Promise<Buffer>` — converts a non-image into a source image; the sharp pipeline then applies the conversion. An optional `toSourceImage(input): Promise<Buffer>` member renders a plain, conversion-free raster of the source (e.g. PDF page 1, video frame at 0s) for use as the original-responsive source; absent means `input` is already sharp-readable. Core registers the image generator (raster + svg via sharp). `pdf`/`video` packages export generators the user appends via config (`imageGenerators: [sharpImageGenerator(), pdfImageGenerator(), ...]`) — no install-time magic. Custom generators can be appended. Files with no supporting generator skip conversions silently (attachment-only media is fine).
 
 **Responsive images** (opt-in per collection/conversion or per-add):
+
 - Widths from `FileSizeOptimizedWidthCalculator` (port of Spatie's: each variant targets ~70% of previous file size; stop < 10KB predicted or < 20px). Swappable via config.
 - Files: `{mediaId}/responsive/{fileNameSansExt}___{conversion}_{w}_{h}.{ext}`; original tracked under pseudo-conversion name `original`.
 - `responsiveImages` JSON: `{ [conversion]: { files: [{ fileName, width, height }], placeholder?: base64svg } }` — file names + dimensions, not URLs (disks are private-by-default and URLs may be signed/expiring; URLs are built at read time).
@@ -173,15 +174,17 @@ Typed emitter on the library instance: `media:added`, `media:deleting`, `media:d
 ## 13. CLI & maintenance
 
 `npx <pkg> --config media.config.ts <command>`:
+
 - `regenerate [--model User] [--ids a,b] [--only thumb] [--only-missing] [--with-responsive]` — rebuild derived files via `iterateAll`.
 - `clean [--dry-run] [--delete-orphaned] [--rate-limit n]` — delete files for conversions no longer defined; with `--delete-orphaned`, remove media rows whose owner row no longer exists (adapter provides an `ownerExists(type, id)` check).
-Both are also exposed programmatically (`media.regenerate(opts)`, `media.clean(opts)`).
+  Both are also exposed programmatically (`media.regenerate(opts)`, `media.clean(opts)`).
 
 ## 14. Errors & testing
 
 **Errors:** `MediaLibraryError` base; subclasses `FileTooLargeError`, `DisallowedExtensionError`, `UnacceptableFileError` (collection rules), `UnknownModelError`, `CollectionNotFoundError` (strict mode only), `ConversionFailedError`, `StorageError`, `DownloadFailedError` (url source).
 
 **Testing:**
+
 - Unit (vitest): pipeline validation, collection rules, width calculator, path/URL generators — fs disk in temp dirs, in-memory repository fake.
 - **Exported contract-test suites** for `MediaRepository` and queue drivers; every adapter (present and future) must pass them. Prisma adapter runs against SQLite.
 - Integration: full add → convert → responsive → url → delete cycle on fs; S3 path against MinIO (CI) or FlyDrive fake.

@@ -52,7 +52,9 @@ async function readConversionBytes(
   conversionName: string,
 ): Promise<Buffer> {
   const pathGen = new DefaultPathGenerator()
-  const def = library.getCollectionDefinition(media.modelType, media.collectionName).conversions[conversionName]!
+  const def = library.getCollectionDefinition(media.modelType, media.collectionName).conversions[
+    conversionName
+  ]!
   const key = conversionKey(media, pathGen, def, conversionName)
   const disk = await library.storage.disk(media.conversionsDisk ?? media.disk)
   const bytes = await disk.getBytes(key)

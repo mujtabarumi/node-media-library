@@ -21,7 +21,10 @@ export class InMemoryMediaRepository implements MediaRepository {
 
   async create(data: NewMediaRecord): Promise<MediaRecord> {
     if (this.records.has(data.id)) {
-      throw new MediaLibraryError(`Media record with id "${data.id}" already exists`, 'DUPLICATE_ID')
+      throw new MediaLibraryError(
+        `Media record with id "${data.id}" already exists`,
+        'DUPLICATE_ID',
+      )
     }
     const now = new Date()
     const record: MediaRecord = { ...data, createdAt: now, updatedAt: now }
@@ -29,12 +32,21 @@ export class InMemoryMediaRepository implements MediaRepository {
     return record
   }
 
-  async update(id: string, patch: Partial<Omit<MediaRecord, 'id' | 'createdAt'>>): Promise<MediaRecord> {
+  async update(
+    id: string,
+    patch: Partial<Omit<MediaRecord, 'id' | 'createdAt'>>,
+  ): Promise<MediaRecord> {
     const existing = this.records.get(id)
     if (!existing) {
       throw new MediaLibraryError(`Media record with id "${id}" was not found`, 'NOT_FOUND')
     }
-    const updated: MediaRecord = { ...existing, ...patch, id: existing.id, createdAt: existing.createdAt, updatedAt: new Date() }
+    const updated: MediaRecord = {
+      ...existing,
+      ...patch,
+      id: existing.id,
+      createdAt: existing.createdAt,
+      updatedAt: new Date(),
+    }
     this.records.set(id, updated)
     return updated
   }
@@ -50,7 +62,11 @@ export class InMemoryMediaRepository implements MediaRepository {
     return null
   }
 
-  async findForModel(modelType: string, modelId: string, collection?: string): Promise<MediaRecord[]> {
+  async findForModel(
+    modelType: string,
+    modelId: string,
+    collection?: string,
+  ): Promise<MediaRecord[]> {
     const matches = [...this.records.values()].filter((record) => {
       if (record.modelType !== modelType || record.modelId !== modelId) return false
       if (collection !== undefined && record.collectionName !== collection) return false
@@ -77,7 +93,8 @@ export class InMemoryMediaRepository implements MediaRepository {
     const matches = [...this.records.values()]
       .filter((record) => {
         if (filter?.modelType !== undefined && record.modelType !== filter.modelType) return false
-        if (filter?.collectionName !== undefined && record.collectionName !== filter.collectionName) return false
+        if (filter?.collectionName !== undefined && record.collectionName !== filter.collectionName)
+          return false
         return true
       })
       .sort(compareMediaOrder)
@@ -90,7 +107,11 @@ export class InMemoryMediaRepository implements MediaRepository {
     return this.ownerExistsFn(modelType, modelId)
   }
 
-  async markConversionGenerated(id: string, name: string, generated: boolean): Promise<MediaRecord> {
+  async markConversionGenerated(
+    id: string,
+    name: string,
+    generated: boolean,
+  ): Promise<MediaRecord> {
     const existing = this.records.get(id)
     if (!existing) {
       throw new MediaLibraryError(`Media record with id "${id}" was not found`, 'NOT_FOUND')
@@ -104,7 +125,11 @@ export class InMemoryMediaRepository implements MediaRepository {
     return updated
   }
 
-  async mergeResponsiveImages(id: string, conversion: string, entry: JsonObject): Promise<MediaRecord> {
+  async mergeResponsiveImages(
+    id: string,
+    conversion: string,
+    entry: JsonObject,
+  ): Promise<MediaRecord> {
     const existing = this.records.get(id)
     if (!existing) {
       throw new MediaLibraryError(`Media record with id "${id}" was not found`, 'NOT_FOUND')

@@ -53,10 +53,11 @@ describe('normalizeSource', () => {
     const fetchMock = vi.fn().mockResolvedValueOnce({
       ok: true,
       status: 200,
-      arrayBuffer: async () => PNG_BUFFER.buffer.slice(
-        PNG_BUFFER.byteOffset,
-        PNG_BUFFER.byteOffset + PNG_BUFFER.byteLength,
-      ),
+      arrayBuffer: async () =>
+        PNG_BUFFER.buffer.slice(
+          PNG_BUFFER.byteOffset,
+          PNG_BUFFER.byteOffset + PNG_BUFFER.byteLength,
+        ),
     })
     vi.stubGlobal('fetch', fetchMock)
 
@@ -77,7 +78,10 @@ describe('normalizeSource', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     await expect(
-      normalizeSource({ url: 'https://evil.example.com/pixel.png', allowedHosts: ['cdn.example.com'] }),
+      normalizeSource({
+        url: 'https://evil.example.com/pixel.png',
+        allowedHosts: ['cdn.example.com'],
+      }),
     ).rejects.toThrow(DownloadFailedError)
     expect(fetchMock).not.toHaveBeenCalled()
   })
@@ -86,10 +90,11 @@ describe('normalizeSource', () => {
     const fetchMock = vi.fn().mockResolvedValueOnce({
       ok: true,
       status: 200,
-      arrayBuffer: async () => PNG_BUFFER.buffer.slice(
-        PNG_BUFFER.byteOffset,
-        PNG_BUFFER.byteOffset + PNG_BUFFER.byteLength,
-      ),
+      arrayBuffer: async () =>
+        PNG_BUFFER.buffer.slice(
+          PNG_BUFFER.byteOffset,
+          PNG_BUFFER.byteOffset + PNG_BUFFER.byteLength,
+        ),
     })
     vi.stubGlobal('fetch', fetchMock)
 
@@ -106,10 +111,11 @@ describe('normalizeSource', () => {
       ok: true,
       status: 200,
       headers: { get: () => null },
-      arrayBuffer: async () => PNG_BUFFER.buffer.slice(
-        PNG_BUFFER.byteOffset,
-        PNG_BUFFER.byteOffset + PNG_BUFFER.byteLength,
-      ),
+      arrayBuffer: async () =>
+        PNG_BUFFER.buffer.slice(
+          PNG_BUFFER.byteOffset,
+          PNG_BUFFER.byteOffset + PNG_BUFFER.byteLength,
+        ),
     })
     vi.stubGlobal('fetch', fetchMock)
 

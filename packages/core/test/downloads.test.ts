@@ -55,14 +55,20 @@ async function readBufferFromResponse(response: Response): Promise<Buffer> {
 describe('downloads', () => {
   it('1. download(media.id) streams the original with attachment disposition and headers', async () => {
     const library = buildLibrary()
-    const media = await library.for('Post', 1).add(jpeg).usingFileName('photo.jpg').toCollection('images')
+    const media = await library
+      .for('Post', 1)
+      .add(jpeg)
+      .usingFileName('photo.jpg')
+      .toCollection('images')
 
     const response = await library.download(media.id)
 
     expect(response.status).toBe(200)
     expect(response.headers.get('Content-Type')).toBe('image/jpeg')
     expect(response.headers.get('Content-Length')).toBe(String(media.size))
-    expect(response.headers.get('Content-Disposition')).toBe(`attachment; filename="${media.fileName}"`)
+    expect(response.headers.get('Content-Disposition')).toBe(
+      `attachment; filename="${media.fileName}"`,
+    )
 
     const bytes = await readBufferFromResponse(response)
     expect(bytes.equals(jpeg)).toBe(true)
@@ -70,7 +76,11 @@ describe('downloads', () => {
 
   it('2. inline(media.id) uses an inline Content-Disposition', async () => {
     const library = buildLibrary()
-    const media = await library.for('Post', 1).add(jpeg).usingFileName('photo.jpg').toCollection('images')
+    const media = await library
+      .for('Post', 1)
+      .add(jpeg)
+      .usingFileName('photo.jpg')
+      .toCollection('images')
 
     const response = await library.inline(media.id)
 
@@ -79,7 +89,11 @@ describe('downloads', () => {
 
   it('3. download(media.id, "thumb") after generation streams the conversion file', async () => {
     const library = buildLibrary()
-    const media = await library.for('Post', 1).add(jpeg).usingFileName('photo.jpg').toCollection('images')
+    const media = await library
+      .for('Post', 1)
+      .add(jpeg)
+      .usingFileName('photo.jpg')
+      .toCollection('images')
 
     const updated = await repo.findById(media.id)
     expect(updated?.generatedConversions['thumb']).toBe(true)
@@ -88,7 +102,9 @@ describe('downloads', () => {
 
     expect(response.headers.get('Content-Type')).toBe('image/webp')
     expect(response.headers.get('Content-Length')).toBeNull()
-    expect(response.headers.get('Content-Disposition')).toBe('attachment; filename="photo-thumb.webp"')
+    expect(response.headers.get('Content-Disposition')).toBe(
+      'attachment; filename="photo-thumb.webp"',
+    )
 
     const bytes = await readBufferFromResponse(response)
     const onDisk = await readFile(join(root, String(media.id), 'conversions', 'photo-thumb.webp'))
@@ -97,7 +113,11 @@ describe('downloads', () => {
 
   it('4. download(media.id, "thumb") before generation falls back to the original', async () => {
     const library = buildLibrary()
-    const media = await library.for('Post', 1).add(jpeg).usingFileName('photo.jpg').toCollection('images')
+    const media = await library
+      .for('Post', 1)
+      .add(jpeg)
+      .usingFileName('photo.jpg')
+      .toCollection('images')
 
     await repo.update(media.id, { generatedConversions: {} })
 
@@ -105,7 +125,9 @@ describe('downloads', () => {
 
     expect(response.headers.get('Content-Type')).toBe('image/jpeg')
     expect(response.headers.get('Content-Length')).toBe(String(media.size))
-    expect(response.headers.get('Content-Disposition')).toBe(`attachment; filename="${media.fileName}"`)
+    expect(response.headers.get('Content-Disposition')).toBe(
+      `attachment; filename="${media.fileName}"`,
+    )
 
     const bytes = await readBufferFromResponse(response)
     expect(bytes.equals(jpeg)).toBe(true)
@@ -118,7 +140,11 @@ describe('downloads', () => {
 
   it('6. toNodeStream collects to the original bytes; throws on a null-body Response', async () => {
     const library = buildLibrary()
-    const media = await library.for('Post', 1).add(jpeg).usingFileName('photo.jpg').toCollection('images')
+    const media = await library
+      .for('Post', 1)
+      .add(jpeg)
+      .usingFileName('photo.jpg')
+      .toCollection('images')
 
     const response = await library.download(media.id)
     const nodeStream = toNodeStream(response)

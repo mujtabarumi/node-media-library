@@ -84,7 +84,11 @@ function basenameFromUrl(url: URL): string | null {
   return name.length > 0 ? name : null
 }
 
-async function downloadUrl(url: string, allowedHosts?: string[], maxBytes?: number): Promise<Buffer> {
+async function downloadUrl(
+  url: string,
+  allowedHosts?: string[],
+  maxBytes?: number,
+): Promise<Buffer> {
   let parsed: URL
   try {
     parsed = new URL(url)
@@ -99,7 +103,10 @@ async function downloadUrl(url: string, allowedHosts?: string[], maxBytes?: numb
   // Compare against `.host` (not `.hostname`) intentionally: this includes the port, so
   // `cdn.example.com` in allowedHosts does not match `cdn.example.com:8443` — fails closed.
   // WHATWG URL already lowercases the hostname portion, so only the allowlist needs lowercasing.
-  if (allowedHosts && !allowedHosts.map((h) => h.toLowerCase()).includes(parsed.host.toLowerCase())) {
+  if (
+    allowedHosts &&
+    !allowedHosts.map((h) => h.toLowerCase()).includes(parsed.host.toLowerCase())
+  ) {
     throw new DownloadFailedError(`Host "${parsed.host}" is not in allowedHosts`)
   }
 
@@ -123,7 +130,10 @@ async function downloadUrl(url: string, allowedHosts?: string[], maxBytes?: numb
     }
 
     const body = response.body as unknown
-    if (body != null && typeof (body as AsyncIterable<Uint8Array>)[Symbol.asyncIterator] === 'function') {
+    if (
+      body != null &&
+      typeof (body as AsyncIterable<Uint8Array>)[Symbol.asyncIterator] === 'function'
+    ) {
       return collectCapped(body as AsyncIterable<Uint8Array>, maxBytes, `Download of "${url}"`)
     }
   }
@@ -156,7 +166,12 @@ export async function normalizeSource(
 
   if (Buffer.isBuffer(source)) {
     const sniffed = await fileTypeFromBuffer(source)
-    return { buffer: source, originalFileName: null, sniffedMime: sniffed?.mime ?? null, sourcePath: null }
+    return {
+      buffer: source,
+      originalFileName: null,
+      sniffedMime: sniffed?.mime ?? null,
+      sourcePath: null,
+    }
   }
 
   if (isFileLike(source)) {

@@ -19,7 +19,9 @@ export function videoImageGenerator(opts: VideoGeneratorOptions = {}): ImageGene
   const sharpGen = sharpImageGenerator()
 
   const extractFrame = (input: Buffer, atSecond: number): Promise<Buffer> =>
-    extractViaTempFiles(binary, input, (videoPath, outPath) => buildFfmpegFrameArgs(atSecond, videoPath, outPath))
+    extractViaTempFiles(binary, input, (videoPath, outPath) =>
+      buildFfmpegFrameArgs(atSecond, videoPath, outPath),
+    )
 
   return {
     supports(mimeType) {

@@ -43,8 +43,11 @@ afterEach(async () => {
 
 describe('MediaLibrary copyMedia/moveMedia', () => {
   it('copyMedia creates an independent record for the target model', async () => {
-    const src = await library.for('post', '1').add(pngBuffer)
-      .withCustomProperties({ alt: 'a cat' }).toCollection('default')
+    const src = await library
+      .for('post', '1')
+      .add(pngBuffer)
+      .withCustomProperties({ alt: 'a cat' })
+      .toCollection('default')
     const copy = await library.copyMedia(src.id, 'page', '9')
     expect(copy.id).not.toBe(src.id)
     expect(copy.modelType).toBe('page')
@@ -99,8 +102,11 @@ describe('MediaLibrary copyMedia/moveMedia', () => {
   })
 
   it('copyMedia preserves the responsive-images request flag', async () => {
-    const src = await library.for('post', '1').add(pngBuffer)
-      .withResponsiveImages().toCollection('default')
+    const src = await library
+      .for('post', '1')
+      .add(pngBuffer)
+      .withResponsiveImages()
+      .toCollection('default')
     const copy = await library.copyMedia(src, 'page', '9')
     // The record returned by toCollection()/copyMedia() is a snapshot taken before
     // dispatchConversions() runs; with the sync queue driver, responsive generation

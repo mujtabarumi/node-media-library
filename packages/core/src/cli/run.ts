@@ -163,7 +163,9 @@ export async function runCli(argv: string[], deps: CliDeps): Promise<number> {
     deps.log(`${prefix}Stale files deleted: ${result.staleFilesDeleted}`)
     deps.log(`${prefix}Stale entries removed: ${result.staleEntriesRemoved}`)
     if (result.skippedUnregistered > 0) {
-      deps.log(`${prefix}Skipped (unregistered model/collection/generator): ${result.skippedUnregistered}`)
+      deps.log(
+        `${prefix}Skipped (unregistered model/collection/generator): ${result.skippedUnregistered}`,
+      )
       deps.log(`${prefix}  - unregistered model/collection: ${result.skippedUnregisteredTargets}`)
       deps.log(`${prefix}  - no generator for mime: ${result.skippedWithoutGenerator}`)
     }
@@ -187,12 +189,16 @@ export async function defaultLoadLibrary(configPath: string): Promise<CliLibrary
   const mod = (await import(url)) as { default?: unknown }
   const candidate = mod?.default as Partial<CliLibrary> | undefined
 
-  if (!candidate || typeof candidate.regenerate !== 'function' || typeof candidate.clean !== 'function') {
+  if (
+    !candidate ||
+    typeof candidate.regenerate !== 'function' ||
+    typeof candidate.clean !== 'function'
+  ) {
     const tsHint = configPath.endsWith('.ts')
       ? ' `.ts` configs must be executed with a TypeScript loader such as `tsx` (e.g. `tsx ./dist/cli.js ...` or `node --import tsx ...`).'
       : ''
     throw new MediaLibraryError(
-      `Config at "${configPath}" must default-export a MediaLibrary instance (an object with regenerate() and clean() methods).${tsHint}`
+      `Config at "${configPath}" must default-export a MediaLibrary instance (an object with regenerate() and clean() methods).${tsHint}`,
     )
   }
 

@@ -1,5 +1,11 @@
 import { MediaLibraryError } from '@node-media-library/core'
-import type { JsonObject, MediaFilter, MediaRecord, MediaRepository, NewMediaRecord } from '@node-media-library/core'
+import type {
+  JsonObject,
+  MediaFilter,
+  MediaRecord,
+  MediaRepository,
+  NewMediaRecord,
+} from '@node-media-library/core'
 import type { MediaDelegate, PrismaLikeClient } from './client.js'
 import { toCreateData, toMediaRecord } from './mapping.js'
 
@@ -9,7 +15,9 @@ export interface PrismaAdapterOptions {
 }
 
 function prismaErrorCode(e: unknown): string | undefined {
-  return typeof e === 'object' && e !== null && 'code' in e ? String((e as { code: unknown }).code) : undefined
+  return typeof e === 'object' && e !== null && 'code' in e
+    ? String((e as { code: unknown }).code)
+    : undefined
 }
 
 function prismaErrorTargetFields(e: unknown): string[] | undefined {
@@ -24,13 +32,18 @@ function prismaErrorTargetFields(e: unknown): string[] | undefined {
 function duplicateIdMessage(data: NewMediaRecord, e: unknown): string {
   const fields = prismaErrorTargetFields(e)
   if (fields && fields.length > 0) {
-    const values = fields.map((f) => `${f} "${String((data as Record<string, unknown>)[f] ?? '')}"`).join(', ')
+    const values = fields
+      .map((f) => `${f} "${String((data as Record<string, unknown>)[f] ?? '')}"`)
+      .join(', ')
     return `Media record with ${values} already exists`
   }
   return `Media record violates a unique constraint (id "${data.id}", uuid "${data.uuid}")`
 }
 
-const FIND_FOR_MODEL_ORDER = [{ orderColumn: { sort: 'asc' as const, nulls: 'last' as const } }, { createdAt: 'asc' as const }]
+const FIND_FOR_MODEL_ORDER = [
+  { orderColumn: { sort: 'asc' as const, nulls: 'last' as const } },
+  { createdAt: 'asc' as const },
+]
 
 class PrismaMediaRepository implements MediaRepository {
   private readonly batchSize: number
@@ -54,7 +67,10 @@ class PrismaMediaRepository implements MediaRepository {
     }
   }
 
-  async update(id: string, patch: Partial<Omit<MediaRecord, 'id' | 'createdAt'>>): Promise<MediaRecord> {
+  async update(
+    id: string,
+    patch: Partial<Omit<MediaRecord, 'id' | 'createdAt'>>,
+  ): Promise<MediaRecord> {
     try {
       const row = await this.client.media.update({ where: { id }, data: { ...patch } })
       return toMediaRecord(row)
@@ -76,7 +92,11 @@ class PrismaMediaRepository implements MediaRepository {
     return row ? toMediaRecord(row) : null
   }
 
-  async findForModel(modelType: string, modelId: string, collection?: string): Promise<MediaRecord[]> {
+  async findForModel(
+    modelType: string,
+    modelId: string,
+    collection?: string,
+  ): Promise<MediaRecord[]> {
     const where: Record<string, unknown> = { modelType, modelId }
     if (collection !== undefined) where.collectionName = collection
     const rows = await this.client.media.findMany({ where, orderBy: FIND_FOR_MODEL_ORDER })
@@ -156,15 +176,25 @@ class PrismaMediaRepository implements MediaRepository {
       const current = (row[column] ?? {}) as Record<string, unknown>
       return tx.media.update({ where: { id }, data: { [column]: { ...current, [key]: value } } })
     }
-    const row = this.client.$transaction ? await this.client.$transaction(run) : await run(this.client)
+    const row = this.client.$transaction
+      ? await this.client.$transaction(run)
+      : await run(this.client)
     return toMediaRecord(row)
   }
 
-  async markConversionGenerated(id: string, name: string, generated: boolean): Promise<MediaRecord> {
+  async markConversionGenerated(
+    id: string,
+    name: string,
+    generated: boolean,
+  ): Promise<MediaRecord> {
     return this.mergeJsonColumn(id, 'generatedConversions', name, generated)
   }
 
-  async mergeResponsiveImages(id: string, conversion: string, entry: JsonObject): Promise<MediaRecord> {
+  async mergeResponsiveImages(
+    id: string,
+    conversion: string,
+    entry: JsonObject,
+  ): Promise<MediaRecord> {
     return this.mergeJsonColumn(id, 'responsiveImages', conversion, entry)
   }
 
@@ -187,11 +217,16 @@ class PrismaMediaRepository implements MediaRepository {
       delete current[key]
       return tx.media.update({ where: { id }, data: { customProperties: current } })
     }
-    const row = this.client.$transaction ? await this.client.$transaction(run) : await run(this.client)
+    const row = this.client.$transaction
+      ? await this.client.$transaction(run)
+      : await run(this.client)
     return toMediaRecord(row)
   }
 }
 
-export function prismaAdapter(client: PrismaLikeClient, opts?: PrismaAdapterOptions): MediaRepository {
+export function prismaAdapter(
+  client: PrismaLikeClient,
+  opts?: PrismaAdapterOptions,
+): MediaRepository {
   return new PrismaMediaRepository(client, opts)
 }

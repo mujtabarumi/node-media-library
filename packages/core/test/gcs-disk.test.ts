@@ -3,7 +3,10 @@ import { resolveStorage } from '../src/storage/resolve.js'
 
 describe('gcs disk driver', () => {
   it('resolves a gcs disk to a flydrive Disk backed by GCSDriver', async () => {
-    const storage = resolveStorage({ disks: { media: { driver: 'gcs', bucket: 'test-bucket' } }, default: 'media' })
+    const storage = resolveStorage({
+      disks: { media: { driver: 'gcs', bucket: 'test-bucket' } },
+      default: 'media',
+    })
     const disk = await storage.disk('media')
     expect(disk).toBeDefined()
     // driver identity: getUrl is the observable contract. GCSDriver.getUrl
@@ -18,7 +21,11 @@ describe('gcs disk driver', () => {
 
   it('MEDIA_GCS_BUCKET synthesizes a private gcs default disk', () => {
     const storage = resolveStorage(undefined, { MEDIA_GCS_BUCKET: 'env-bucket' })
-    expect(storage.diskConfig()).toMatchObject({ driver: 'gcs', bucket: 'env-bucket', visibility: 'private' })
+    expect(storage.diskConfig()).toMatchObject({
+      driver: 'gcs',
+      bucket: 'env-bucket',
+      visibility: 'private',
+    })
   })
 
   it('MEDIA_S3_BUCKET wins over MEDIA_GCS_BUCKET', () => {

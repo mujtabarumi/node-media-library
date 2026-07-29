@@ -26,7 +26,11 @@ export interface UrlGenerator {
    * `MediaLibrary.responsiveUrls`/`srcset` (when called with `{ signed: true }`)
    * degrade gracefully to `[]`/`null` when it's absent.
    */
-  responsiveSignedUrl?(media: MediaRecord, fileName: string, opts?: SignedUrlOptions): Promise<string>
+  responsiveSignedUrl?(
+    media: MediaRecord,
+    fileName: string,
+    opts?: SignedUrlOptions,
+  ): Promise<string>
 }
 
 export interface UrlGeneratorOptions {
@@ -61,8 +65,15 @@ export class DefaultUrlGenerator implements UrlGenerator {
    * conversion names, and the unchanged default when `conversionFileNameFor`
    * isn't supplied at all.
    */
-  private resolveTarget(media: MediaRecord, conversionName?: string): { path: string; disk: string } {
-    if (conversionName && this.opts.conversionFileNameFor && media.generatedConversions[conversionName] === true) {
+  private resolveTarget(
+    media: MediaRecord,
+    conversionName?: string,
+  ): { path: string; disk: string } {
+    if (
+      conversionName &&
+      this.opts.conversionFileNameFor &&
+      media.generatedConversions[conversionName] === true
+    ) {
       const fileName = this.opts.conversionFileNameFor(media, conversionName)
       if (fileName) {
         return {

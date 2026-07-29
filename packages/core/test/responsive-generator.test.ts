@@ -30,7 +30,9 @@ describe('tinyPlaceholder', () => {
   it('returns a base64 SVG data URI embedding a blurred jpeg', async () => {
     const uri = await tinyPlaceholder(await fixture())
     expect(uri.startsWith('data:image/svg+xml;base64,')).toBe(true)
-    const svg = Buffer.from(uri.slice('data:image/svg+xml;base64,'.length), 'base64').toString('utf8')
+    const svg = Buffer.from(uri.slice('data:image/svg+xml;base64,'.length), 'base64').toString(
+      'utf8',
+    )
     expect(svg).toContain('<svg')
     expect(svg).toContain('data:image/jpeg;base64,')
     expect(svg).toContain('viewBox="0 0 1200 900"')
@@ -48,7 +50,9 @@ describe('tinyPlaceholder', () => {
       .toBuffer()
 
     const uri = await tinyPlaceholder(rotated)
-    const svg = Buffer.from(uri.slice('data:image/svg+xml;base64,'.length), 'base64').toString('utf8')
+    const svg = Buffer.from(uri.slice('data:image/svg+xml;base64,'.length), 'base64').toString(
+      'utf8',
+    )
     expect(svg).toContain('viewBox="0 0 200 300"')
   })
 })

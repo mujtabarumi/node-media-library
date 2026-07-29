@@ -31,12 +31,12 @@ export function runQueueDriverContract(
     it.skipIf(skipNoProcessorRule)(
       'enqueuing without a registered processor rejects with MediaLibraryError',
       async () => {
-        await expect(
-          driver.enqueue({ mediaId: 'm1', conversionNames: ['thumb'] }),
-        ).rejects.toThrow(MediaLibraryError)
-        await expect(
-          driver.enqueue({ mediaId: 'm1', conversionNames: ['thumb'] }),
-        ).rejects.toThrow('no processor registered')
+        await expect(driver.enqueue({ mediaId: 'm1', conversionNames: ['thumb'] })).rejects.toThrow(
+          MediaLibraryError,
+        )
+        await expect(driver.enqueue({ mediaId: 'm1', conversionNames: ['thumb'] })).rejects.toThrow(
+          'no processor registered',
+        )
       },
     )
 
@@ -99,9 +99,7 @@ export function runQueueDriverContract(
     it('enqueue rejects after close()', async () => {
       driver.registerProcessor(async () => {})
       await driver.close()
-      await expect(
-        driver.enqueue({ mediaId: 'm1', conversionNames: ['thumb'] }),
-      ).rejects.toThrow()
+      await expect(driver.enqueue({ mediaId: 'm1', conversionNames: ['thumb'] })).rejects.toThrow()
     })
   })
 }
