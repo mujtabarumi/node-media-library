@@ -1,0 +1,161 @@
+---
+title: Background conversions
+description: Move image processing off the request path with BullMQ, and run a worker that shares the library's configuration.
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components'
+import Requires from '../../../components/Requires.astro'
+
+<Requires items={['Redis', '@node-media-library/bullmq', 'bullmq ^5']} />
+
+Resizing a 4000×3000 photo into four formats inside the request is how upload endpoints get slow. The
+fix is a queue driver and a second process.
+
+:::note
+The samples here need a live Redis, so unlike the other guides they are not executed in CI. The BullMQ
+driver's own contract suite runs against a real broker when `REDIS_URL` is set.
+:::
+
+## What the default does
+
+Out of the box `queue` is `syncDriver()`: conversions run inline, in-process, and `add()` doesn't
+resolve until they're done. That's right for tests and small images, and it's why the getting-started
+example needs no infrastructure.
+
+Swapping the driver changes _where_ the work happens. It does not change your conversion definitions.
+
+## Sharing one config between two processes
+
+This is the part people get wrong. Conversion definitions live in the library config, so a worker
+built from a different config **cannot generate conversions it doesn't know about** — it will process
+the job and produce nothing.
+
+Put the config in one module and import it from both.
+
+<Tabs syncKey="process">
+<TabItem label="Shared config">
+
+```ts title="media.config.ts"
+import { prismaAdapter } from '@node-media-library/prisma'
+import { bullmqDriver } from '@node-media-library/bullmq'
+import { collection, conversion } from '@node-media-library/core'
+
+export const connection = { url: process.env.REDIS_URL! }
+
+export const config = {
+  repository: prismaAdapter(prisma),
+  storage: {
+    disks: { default: { driver: 's3', bucket: 'assets', region: 'us-east-1' } },
+  },
+  models: {
+    Product: {
+      collections: {
+        gallery: collection().conversions({
+          thumb: conversion().width(96).height(96).fit('cover').format('webp').nonQueued(),
+          hero: conversion().width(1600).format('webp'),
+        }),
+      },
+    },
+  },
+  queue: bullmqDriver({ connection }),
+}
+```
+
+</TabItem>
+<TabItem label="Web process">
+
+```ts title="web.ts"
+import { createMediaLibrary } from '@node-media-library/core'
+import { config } from './media.config.js'
+
+export const library = createMediaLibrary(config)
+```
+
+`add()` returns as soon as the original is stored and the `thumb` conversion (marked `.nonQueued()`)
+has run. `hero` becomes a background job.
+
+</TabItem>
+<TabItem label="Worker process">
+
+```ts title="worker.ts"
+import { createMediaLibrary } from '@node-media-library/core'
+import { bullmqDriver } from '@node-media-library/bullmq'
+import { config, connection } from './media.config.js'
+
+createMediaLibrary({
+  ...config,
+  queue: bullmqDriver({ connection, workerConcurrency: 4 }),
+})
+
+// Keep the process alive. The Worker created above processes jobs.
+```
+
+Registering the processor happens inside the `MediaLibrary` constructor, so simply constructing it is
+what starts consuming. There is no `.start()` to call.
+
+</TabItem>
+</Tabs>
+
+`Queue` and `Worker` instances are created lazily on first use, so constructing the driver never
+touches Redis — importing the config in a script that only reads URLs won't open a connection.
+
+## Choosing what stays inline
+
+`.nonQueued()` marks a conversion to run during `add()`. Use it for the one image your UI needs on the
+very next render — a small avatar thumbnail — and leave everything else queued.
+
+The split costs nothing while you're on the sync driver, so declaring it early means adopting BullMQ
+later is a config change rather than a rewrite.
+
+## Driver options
+
+```ts
+bullmqDriver({
+  connection, // ioredis options, an { url } object, or an ioredis instance
+  queueName: 'media-conversions', // default
+  workerConcurrency: 2, // default
+})
+```
+
+`connection` is passed straight through to BullMQ, so anything ioredis accepts works.
+
+## Watching what happens
+
+A queued conversion can't reject the `add()` call that dispatched it — by then the media record
+already exists. Failures surface as events and through BullMQ's own retry and failure handling.
+
+```ts
+library.events.on('conversion:completed', ({ media, conversion }) => {
+  logger.info({ mediaId: media.id, conversion }, 'conversion ready')
+})
+library.events.on('conversion:failed', ({ media, conversion, error }) => {
+  logger.error({ mediaId: media.id, conversion, error }, 'conversion failed')
+})
+```
+
+The full map: `media:added`, `media:deleting`, `media:deleted`, `media:copied`, `media:moved`,
+`collection:cleared`, `conversion:started|completed|failed`, `responsive:generated|failed`.
+`events.on()` returns an unsubscribe function.
+
+Register listeners in the process that does the work. A listener in the web process won't see a
+worker's conversion events — they're in-process emitters, not a distributed bus.
+
+<Aside type="tip" title="Recovering failed conversions">
+  A stored file with a missing conversion is a recoverable state, by design.
+  `regenerate({ onlyMissing: true })` re-dispatches only what's absent — see [the CLI
+  reference](/reference/cli/).
+</Aside>
+
+## Deployment notes
+
+- The worker needs the **same storage credentials and the same repository** as the web process. It
+  reads originals and writes derived files directly.
+- Scale workers by process count or `workerConcurrency`. Each concurrent job is a sharp re-encode, so
+  memory scales with it — be conservative with large sources.
+- Deploy both processes from the same commit. A worker running an older config generates the older
+  conversion set.
+
+## Next
+
+- [Galleries & responsive images](/guides/galleries/) — the heaviest thing you'll queue.
+- [The CLI](/reference/cli/) — backfilling conversions after a config change.

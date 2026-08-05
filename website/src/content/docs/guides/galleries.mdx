@@ -1,0 +1,117 @@
+---
+title: Galleries & responsive images
+description: Many files per model, drag-to-reorder, and a ready-made srcset with a low-quality placeholder.
+---
+
+import { Aside, Code } from '@astrojs/starlight/components'
+import source from '@examples/galleries.ts?raw'
+import { snippet } from '../../../lib/snippet'
+
+Many files per record, ordered how the admin arranged them, and served at the size the viewport
+actually needs.
+
+<p class="nml-verified">
+  Every sample on this page is imported from{' '}
+  <a href="https://github.com/mujtabarumi/node-media-library/blob/main/examples/src/galleries.ts">
+    examples/src/galleries.ts
+  </a>
+  , which runs against the library in CI.
+</p>
+
+## The collection
+
+<Code code={snippet(source, 'collection')} lang="ts" title="media.config.ts" />
+
+`onlyKeepLatest(20)` prunes the oldest beyond twenty on every add — records and stored files both. It
+is mutually exclusive with `singleFile()`; the builder throws if you set both.
+
+Note that `.withResponsiveImages()` appears twice, and they mean different things. On the
+**collection** it generates a variant set for every uploaded original. On a **conversion** it
+generates a variant set for that derived file too. A conversion without it — `card`, here — gets no
+variants at all.
+
+## Adding and ordering
+
+<Code code={snippet(source, 'add')} lang="ts" title="gallery.ts" />
+
+<Code code={snippet(source, 'reorder')} lang="ts" title="gallery.ts" />
+
+`reorder()` filters the list down to media actually owned by that model before writing, preserving
+your relative order. A foreign id posted by a tampered client is dropped rather than renumbering
+someone else's gallery — there's a test for exactly that.
+
+## Reading the responsive data
+
+<Code code={snippet(source, 'srcset')} lang="ts" title="gallery.ts" />
+
+All four return `null` or `[]` when there's no responsive entry for that conversion, so a collection
+that never opted in degrades quietly rather than throwing.
+
+```html
+<img
+  src="{cardUrl}"
+  srcset="{srcset}"
+  sizes="(max-width: 700px) 100vw, 700px"
+  style="background-image: url('{placeholder}'); background-size: cover"
+  alt="{media.name}"
+/>
+```
+
+The placeholder is a base64 SVG data URI — small enough to inline, and it renders instantly as a
+blurred backdrop while the real image loads.
+
+## How the widths are chosen
+
+The default `FileSizeOptimizedWidthCalculator` is a port of Spatie's. It targets roughly **70% of the
+previous predicted file size** for each successive variant. Because file size scales with pixel area
+at a constant bytes-per-pixel, width shrinks by `√0.7` per step — about 84% each time.
+
+It stops when the predicted size drops below 10 KB or the width below 20 px. A 1600 px source
+typically yields five or six variants; a small image may yield one.
+
+Swap the strategy if that doesn't suit you:
+
+```ts
+createMediaLibrary({
+  responsiveWidthCalculator: new FileSizeOptimizedWidthCalculator(), // the default
+  responsivePlaceholders: true, // set false to skip LQIP generation
+})
+```
+
+A custom calculator implements one method:
+
+```ts
+interface WidthCalculator {
+  calculateWidths(fileSizeBytes: number, width: number, height: number): number[]
+}
+```
+
+## Where the variants live
+
+On the media's own disk, beside the original:
+
+```
+{mediaId}/responsive/{base}___{conversion}_{width}_{height}.{ext}
+```
+
+So `photo___original_1600_1200.png` for the source's own variants, and `photo___hero_1600_1200.webp`
+for a conversion's. The `original` pseudo-conversion name is why `original` and `requested` are
+reserved and can't be used as conversion names — the builder throws if you try.
+
+<Aside type="caution" title="Turning this on doesn't backfill">
+  Adding `.withResponsiveImages()` to a collection that already holds media generates nothing
+  retroactively. Run `regenerate({ withResponsive: true, onlyMissing: true })`, or the equivalent
+  `node-media-library regenerate --with-responsive --only-missing`. See [the CLI
+  reference](/reference/cli/).
+</Aside>
+
+## Cost
+
+Responsive generation is real work: each variant is a full sharp re-encode of the source. For a
+gallery accepting large uploads, leave conversions queued (the default) so it happens on a worker
+rather than in the request — see [background conversions](/guides/background-conversions/).
+
+## Next
+
+- [Metadata, copy & move](/guides/metadata/) — alt text, captions, and moving images between posts.
+- [Background conversions](/guides/background-conversions/) — getting this work off the request path.

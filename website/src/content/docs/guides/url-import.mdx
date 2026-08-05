@@ -1,0 +1,80 @@
+---
+title: Importing from a URL
+description: Pull a file from a remote host into a collection, with an allowlist — and an honest account of what that allowlist does not protect against.
+---
+
+import { Aside, Code } from '@astrojs/starlight/components'
+import SharpEdge from '../../../components/SharpEdge.astro'
+import source from '@examples/url-import.ts?raw'
+import { snippet } from '../../../lib/snippet'
+
+Migrating from another system, or importing a user-supplied avatar URL. The library downloads the
+bytes server-side and runs them through the same pipeline as any other source.
+
+<p class="nml-verified">
+  The rejection paths on this page are covered by{' '}
+  <a href="https://github.com/mujtabarumi/node-media-library/blob/main/examples/test/url-import.test.ts">
+    examples/test/url-import.test.ts
+  </a>{' '}
+  in CI. The successful-download path is not — a test that fetches from the public internet would be
+  flaky and would prove nothing about the allowlist.
+</p>
+
+## Importing
+
+<Code code={snippet(source, 'import')} lang="ts" title="import.ts" />
+
+Everything downstream is identical to any other upload: the MIME type is sniffed from the downloaded
+bytes, the filename is derived from the URL path and sanitized, and the collection's rules apply. A
+URL serving a PHP script with an `image/png` header is rejected exactly as a direct upload would be.
+
+## What the allowlist does
+
+`allowedHosts` is an exact, case-insensitive match on the URL's **host**, which includes the port. So
+`cdn.partner.com` does **not** match `cdn.partner.com:8443` — it fails closed rather than open.
+
+Redirects are rejected outright rather than followed (`redirect: 'error'` internally). That is
+load-bearing: without it, a `302` from an allowlisted host to an internal address would defeat the
+check entirely. A redirect surfaces as a failed download, not as a silently-followed hop.
+
+Size limits apply during the download, not after it. `maxFileSize` is enforced as bytes arrive, and a
+`Content-Length` header that already exceeds the cap is rejected before any body is read.
+
+Omitting `allowedHosts` permits any host. Only do that for URLs you construct yourself.
+
+<SharpEdge title="An allowlist is not a complete SSRF defence">
+  It validates the hostname you were given. It cannot stop DNS rebinding, and it cannot help if a
+  host you deliberately allowlisted resolves to a private or internal address. If the URLs come from
+  untrusted users, put a network-level egress proxy or policy in front of this rather than relying
+  on `allowedHosts` alone. [Full detail
+  →](/production/security/#url-ingestion-has-an-allowlist-with-a-caveat)
+</SharpEdge>
+
+## Failure modes
+
+Every rejection is a `DownloadFailedError` carrying the `DOWNLOAD_FAILED` code, with a message naming
+the cause:
+
+| Cause                      | Message contains                     |
+| -------------------------- | ------------------------------------ |
+| Host not in `allowedHosts` | `not in allowedHosts`                |
+| Not `http:` or `https:`    | `Unsupported protocol`               |
+| Unparseable URL            | `Invalid URL`                        |
+| Non-2xx response           | `Download failed with status`        |
+| Declared size over the cap | `exceeding the maximum allowed size` |
+
+A redirect surfaces as a fetch failure rather than a distinct code, since the runtime raises it before
+a response is available.
+
+Map it to a `400` — see the [errors reference](/reference/errors/).
+
+<Aside type="tip" title="Bulk imports">
+  Each `add()` downloads serially. Migrating thousands of files means running your own concurrency
+  control, and remembering that `add()` is not safe to run concurrently against the same (model,
+  collection) — see [known limitations](/production/limitations/#concurrent-add-calls-race).
+</Aside>
+
+## Next
+
+- [Security model](/production/security/) — every check that runs on ingestion.
+- [Handling uploads](/guides/uploads/) — the other five source kinds `add()` accepts.

@@ -1,0 +1,140 @@
+---
+title: PDF & video thumbnails
+description: Rasterise a PDF page or extract a video frame, using generators you register explicitly.
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components'
+import Requires from '../../../components/Requires.astro'
+
+<Requires items={['pdftoppm (poppler) for PDFs', 'ffmpeg for video']} />
+
+Core only knows how to read images. Everything else is an `ImageGenerator` you add yourself.
+
+:::note
+These samples shell out to system binaries, so they are not executed in CI on this site. The `pdf` and
+`video` packages' own suites run against the real binaries in the project's CI, and skip locally when
+a binary is absent.
+:::
+
+## Registering the generators
+
+There is no auto-detection. Installing `@node-media-library/pdf` changes nothing until you append its
+generator:
+
+```ts title="media.config.ts"
+import {
+  createMediaLibrary,
+  sharpImageGenerator,
+  collection,
+  conversion,
+} from '@node-media-library/core'
+import { pdfImageGenerator } from '@node-media-library/pdf'
+import { videoImageGenerator } from '@node-media-library/video'
+
+createMediaLibrary({
+  // …
+  imageGenerators: [sharpImageGenerator(), pdfImageGenerator(), videoImageGenerator()],
+  models: {
+    Lesson: {
+      collections: {
+        material: collection().conversions({
+          cover: conversion().width(600).pdfPageNumber(1).videoFrameAtSecond(3),
+        }),
+      },
+    },
+  },
+})
+```
+
+Order matters only in that the first generator claiming a MIME type wins. `sharpImageGenerator()` is
+the default when `imageGenerators` is omitted entirely — listing it explicitly is required once you
+add others, or you lose image support.
+
+## One conversion, several source types
+
+`cover` above serves all three. `pdfPageNumber` is read when the source is a PDF, `videoFrameAtSecond`
+when it's a video, and neither applies to a plain image. The width, format, and every other
+manipulation apply to the rasterised frame just as they would to an uploaded image.
+
+Defaults are page `1` and second `0`.
+
+## What each generator does
+
+<Tabs syncKey="generator">
+<TabItem label="PDF">
+
+Renders the requested page with poppler's `pdftoppm`, then pipes the result through the normal sharp
+pipeline.
+
+```ts
+pdfImageGenerator({
+  pdftoppmPath: '/usr/local/bin/pdftoppm', // default: 'pdftoppm' on PATH
+  dpi: 150, // render resolution, default 150
+})
+```
+
+Higher `dpi` gives a sharper thumbnail from a text-heavy page at the cost of render time. Install with
+`brew install poppler` or `apt install poppler-utils`.
+
+</TabItem>
+<TabItem label="Video">
+
+Extracts a still frame at the requested timestamp with `ffmpeg`, then pipes it through sharp.
+
+```ts
+videoImageGenerator({
+  ffmpegPath: '/usr/local/bin/ffmpeg', // default: 'ffmpeg' on PATH
+})
+```
+
+Pick a timestamp a few seconds in — many videos open on black. Install with `brew install ffmpeg` or
+`apt install ffmpeg`.
+
+</TabItem>
+</Tabs>
+
+Both export an availability probe, useful for a startup check or a health endpoint:
+
+```ts
+import { pdftoppmAvailable } from '@node-media-library/pdf'
+import { ffmpegAvailable } from '@node-media-library/video'
+
+if (!(await pdftoppmAvailable())) logger.warn('pdftoppm missing — PDF thumbnails disabled')
+```
+
+## Responsive images work too
+
+Both generators implement `toSourceImage`, so `.withResponsiveImages()` behaves as it does for images:
+the source is rasterised **once**, and the whole variant set derives from that raster rather than
+re-running the binary per width.
+
+## When nothing supports the file
+
+If no configured generator claims a file's MIME type, its conversions and responsive images are
+skipped **silently** and the upload still succeeds. A `.zip` in an attachments collection is stored,
+downloadable, and simply has no thumbnail.
+
+That's deliberate — an attachment collection shouldn't reject files just because it can't preview
+them. It does mean a missing binary looks like "no thumbnails" rather than an error, which is why the
+availability probes above are worth wiring into startup.
+
+<Aside type="caution" title="Format follows the raster">
+  A conversion left at the keep-original-format default resolves to `png` for PDF and video sources,
+  because that's what the rasteriser produces. That in turn affects the image optimizers, which key
+  off the resolved format — see the [packages reference](/reference/packages/).
+</Aside>
+
+## Video is not tuned for large files
+
+<Aside type="caution" title="Memory and process count">
+  `@node-media-library/video` reads the entire source video into memory before invoking ffmpeg, and
+  spawns one ffmpeg process per frame extraction. For typical clips that's fine; for large files or
+  several video conversions per item it is not. Keep video conversions few, queue them, and cap
+  worker concurrency. [Full detail
+  →](/production/limitations/#video-frames-are-extracted-one-process-at-a-time-from-memory)
+</Aside>
+
+## Next
+
+- [Background conversions](/guides/background-conversions/) — where rasterisation belongs.
+- [Packages reference](/reference/packages/) — every option for both packages.

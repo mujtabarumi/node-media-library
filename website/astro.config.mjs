@@ -45,24 +45,39 @@ export default defineConfig({
           ],
         },
         {
+          // Ordered by when a reader hits them, not by topic size. Framework
+          // wiring is realistically the second thing everyone does, so it leads.
           label: 'Guides',
           items: [
             { label: 'Handling uploads', slug: 'guides/uploads' },
             { label: 'Avatars & single-file collections', slug: 'guides/avatars' },
+            { label: 'Galleries & responsive images', slug: 'guides/galleries' },
             { label: 'Private files & downloads', slug: 'guides/private-files' },
+            { label: 'Background conversions', slug: 'guides/background-conversions' },
+            { label: 'PDF & video thumbnails', slug: 'guides/pdf-video' },
+            { label: 'Importing from a URL', slug: 'guides/url-import' },
+            { label: 'Metadata, copy & move', slug: 'guides/metadata' },
           ],
         },
         {
           label: 'Reference',
-          items: [{ label: 'Errors', slug: 'reference/errors' }],
+          items: [
+            { label: 'Errors', slug: 'reference/errors' },
+            { label: 'CLI', slug: 'reference/cli' },
+            { label: 'Packages', slug: 'reference/packages' },
+          ],
         },
         {
           label: 'Production',
           items: [
+            { label: 'Persistence with Prisma', slug: 'production/prisma' },
             { label: 'Security model', slug: 'production/security' },
             { label: 'Known limitations', slug: 'production/limitations' },
           ],
         },
+        // Last on purpose: a landing page for a specific inbound audience,
+        // not a step in the main learning path.
+        { label: 'Coming from Laravel MediaLibrary', slug: 'coming-from-laravel' },
       ],
     }),
   ],

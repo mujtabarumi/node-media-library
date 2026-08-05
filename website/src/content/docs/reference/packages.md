@@ -1,0 +1,145 @@
+---
+title: Packages
+description: The six packages, what each needs, and every option they take.
+---
+
+Each package is independently publishable and depends only on `@node-media-library/core` — never on a
+sibling. Install what you use.
+
+| Package                          | What it's for                                            |
+| -------------------------------- | -------------------------------------------------------- |
+| `@node-media-library/core`       | The engine. Storage, collections, conversions, CLI.      |
+| `@node-media-library/prisma`     | `MediaRepository` backed by Prisma, plus cascade delete. |
+| `@node-media-library/bullmq`     | `QueueDriver` dispatching conversions to BullMQ workers. |
+| `@node-media-library/pdf`        | `ImageGenerator` rasterising PDF pages.                  |
+| `@node-media-library/video`      | `ImageGenerator` extracting video frames.                |
+| `@node-media-library/optimizers` | `jpegoptim`/`pngquant` optimizers for derived files.     |
+
+## Nothing auto-registers
+
+Installing a package enables nothing. Each has to be wired into `createMediaLibrary()`:
+
+| Package      | Wired in via                                    |
+| ------------ | ----------------------------------------------- |
+| `prisma`     | `repository: prismaAdapter(prisma)`             |
+| `bullmq`     | `queue: bullmqDriver({ connection })`           |
+| `pdf`        | `imageGenerators: [..., pdfImageGenerator()]`   |
+| `video`      | `imageGenerators: [..., videoImageGenerator()]` |
+| `optimizers` | `optimizers: [jpegoptimOptimizer()]`            |
+
+The upside is that a config file tells you exactly what will happen to an upload, with no hidden
+discovery step. The downside is that "I installed it and nothing changed" is a real experience — this
+is the reason.
+
+## Peer dependencies
+
+| Package  | Peer                    | Required?                                     |
+| -------- | ----------------------- | --------------------------------------------- |
+| `core`   | `@google-cloud/storage` | Optional — only for the `gcs` storage driver. |
+| `prisma` | `@prisma/client`        | Optional — bring your own (`>=6.2 <8`).       |
+| `bullmq` | `bullmq`                | Required (`^5`).                              |
+
+## System binaries
+
+Not bundled. Each package degrades rather than crashing when its binary is absent: the optimizers
+become no-ops, and the generators simply don't claim their MIME types, so uploads still succeed without
+thumbnails.
+
+| Package      | Binary                  | macOS                             | Debian/Ubuntu                    |
+| ------------ | ----------------------- | --------------------------------- | -------------------------------- |
+| `pdf`        | `pdftoppm` (poppler)    | `brew install poppler`            | `apt install poppler-utils`      |
+| `video`      | `ffmpeg`                | `brew install ffmpeg`             | `apt install ffmpeg`             |
+| `optimizers` | `jpegoptim`, `pngquant` | `brew install jpegoptim pngquant` | `apt install jpegoptim pngquant` |
+
+## Options
+
+### `prismaAdapter(client, options?)`
+
+| Option             | Default | Meaning                                                                     |
+| ------------------ | ------- | --------------------------------------------------------------------------- |
+| `owners`           | —       | `modelType → (modelId) => boolean`. Only used by `clean --delete-orphaned`. |
+| `iterateBatchSize` | `100`   | Page size for `iterateAll()`, used by `regenerate` and `clean`.             |
+
+Also exports `withMediaCascade(client, library, { models? })` and `MEDIA_MODEL_SNIPPET`. See
+[persistence with Prisma](/production/prisma/).
+
+### `bullmqDriver(options)`
+
+| Option              | Default               | Meaning                                               |
+| ------------------- | --------------------- | ----------------------------------------------------- |
+| `connection`        | — (required)          | ioredis options, an `{ url }` object, or an instance. |
+| `queueName`         | `'media-conversions'` | BullMQ queue name.                                    |
+| `workerConcurrency` | `2`                   | Jobs processed in parallel per worker process.        |
+
+See [background conversions](/guides/background-conversions/).
+
+### `pdfImageGenerator(options?)`
+
+| Option         | Default      | Meaning             |
+| -------------- | ------------ | ------------------- |
+| `pdftoppmPath` | `'pdftoppm'` | Path to the binary. |
+| `dpi`          | `150`        | Render resolution.  |
+
+Also exports `pdftoppmAvailable()`.
+
+### `videoImageGenerator(options?)`
+
+| Option       | Default    | Meaning             |
+| ------------ | ---------- | ------------------- |
+| `ffmpegPath` | `'ffmpeg'` | Path to the binary. |
+
+Also exports `ffmpegAvailable()`. Both generators: see [PDF & video thumbnails](/guides/pdf-video/).
+
+### `jpegoptimOptimizer(options?)` / `pngquantOptimizer(options?)`
+
+| Option          | Default        | Meaning                |
+| --------------- | -------------- | ---------------------- |
+| `jpegoptimPath` | `'jpegoptim'`  | Path to the binary.    |
+| `max`           | `85`           | Quality cap, 0–100.    |
+| `pngquantPath`  | `'pngquant'`   | Path to the binary.    |
+| `quality`       | pngquant's own | Range, e.g. `'65-90'`. |
+
+## How optimizers actually behave
+
+Worth knowing before you rely on them, because the conditions are narrow.
+
+An optimizer's output is accepted **only if it is strictly smaller** than the buffer it was given.
+Larger-or-equal results are discarded. An optimizer that throws is logged with `console.warn` and
+skipped — optimization is best-effort and never fails a conversion.
+
+Originals and LQIP placeholders are never passed through an optimizer.
+
+The shipped optimizers key off the resolved format, which is set **only** for conversions declaring an
+explicit `.format('jpeg')` or `.format('png')` — plus PDF and video rasterisations, which resolve to
+`png`. A conversion left at the keep-original-format default, and responsive variants derived from the
+original file, carry no resolved format and pass through **unoptimized**.
+
+So if you add the optimizers and see no size change, check whether your conversions declare a format.
+
+Write your own by implementing `ImageOptimizer`:
+
+```ts
+interface ImageOptimizer {
+  name: string
+  optimize(buffer: Buffer, ctx: OptimizeContext): Promise<Buffer | null>
+}
+```
+
+Return `null` to pass — the un-optimized buffer is kept.
+
+## Version pinning
+
+Two dependencies are deliberately held back, and dependabot is configured to ignore their majors:
+
+- **`flydrive` stays on `^1`.** 2.x requires Node ≥ 24; this project supports ≥ 20.
+- **`@types/node` stays on `^20`.** Types should track the _minimum_ supported runtime, so you don't
+  compile against APIs the floor lacks.
+
+## Publishing
+
+Publishing goes through pnpm. Each package's `prepack` deliberately fails under bare `npm publish` or
+`npm pack`, because npm ignores `publishConfig.exports` and would ship a tarball whose entry points
+reference unbuilt TypeScript source.
+
+Every package ships `files: ["dist", "README.md", "LICENSE"]` — tests, examples, and this site are
+never in a tarball.

@@ -1,0 +1,89 @@
+---
+title: Metadata, copy & move
+description: Attach your own data to a media record, query by it, and move media between owners.
+---
+
+import { Aside, Code } from '@astrojs/starlight/components'
+import source from '@examples/metadata.ts?raw'
+import { snippet } from '../../../lib/snippet'
+
+Alt text, captions, credits, sort hints — anything your application needs to know about a file that
+the file itself doesn't say.
+
+<p class="nml-verified">
+  Every sample on this page is imported from{' '}
+  <a href="https://github.com/mujtabarumi/node-media-library/blob/main/examples/src/metadata.ts">
+    examples/src/metadata.ts
+  </a>
+  , which runs against the library in CI.
+</p>
+
+## Attaching properties at upload
+
+<Code code={snippet(source, 'attach')} lang="ts" title="images.ts" />
+
+`customProperties` is a JSON object — any shape your storage backend can serialize. It's stored on the
+media record, not on the file, so reading it never touches the disk.
+
+## Updating one key at a time
+
+<Code code={snippet(source, 'update')} lang="ts" title="images.ts" />
+
+These are **atomic single-key operations**, not a read-modify-write of the whole blob at the library
+layer. `setCustomProperty` and `removeCustomProperty` are dedicated repository primitives, so a
+concurrent write to a different key doesn't clobber yours.
+
+<Aside type="caution" title="Atomic, with one asterisk">
+  The guarantee is only as strong as the backend. `InMemoryMediaRepository` and SQLite serialize it
+  fully. On Postgres or MySQL under the default read-committed isolation, two concurrent merges on
+  the _same record_ can still lose one — see [known
+  limitations](/production/limitations/#prisma-json-column-merges-arent-lock-safe).
+</Aside>
+
+If you need to replace the whole object, `withCustomProperties()` at upload time sets it wholesale;
+after that, go key by key.
+
+## Querying by property
+
+<Code code={snippet(source, 'query')} lang="ts" title="images.ts" />
+
+An object filter requires **every** key to deep-equal the stored value. A function filter is an
+arbitrary predicate over the full `MediaRecord`, so you can reach `size`, `mimeType`, `createdAt`, or
+anything else.
+
+Both filter in memory after fetching the model's media — fine for a model's own collections, which are
+bounded by design. This is not a substitute for a database query across all media; for that, hit your
+own table.
+
+## Copying and moving between owners
+
+Reassigning a draft's uploads to the published post, or transferring an asset between accounts:
+
+<Code code={snippet(source, 'copy-move')} lang="ts" title="images.ts" />
+
+Both re-run the **full add pipeline** against the target. That has consequences worth being explicit
+about:
+
+- The **target** collection's validation applies. Copying a GIF into a PNG-only collection fails.
+- The **target** collection's rules apply. Copy twice into a `singleFile()` collection and you end up
+  with one record, not two.
+- The target's disk configuration applies, so media can move between disks.
+- Derived files are **regenerated**, never byte-copied from the source's conversions.
+- The copy gets a new `id` and `uuid`; custom properties and manipulations carry over.
+
+`moveMedia` is copy-then-delete-source. If the copy fails, the source is left completely untouched —
+there's no window where both are gone.
+
+Both emit typed events: `media:copied` with `{ media, copy }`, and `media:moved` with
+`{ media, moved }`.
+
+## Reserved property names
+
+One custom property is read by the library itself: `zipFilenamePrefix` places an entry into a folder
+inside a generated archive. See
+[private files & downloads](/guides/private-files/#bulk-export-as-a-streamed-zip).
+
+## Next
+
+- [Galleries & responsive images](/guides/galleries/) — ordering and `srcset`.
+- [The CLI](/reference/cli/) — bulk operations across existing media.
