@@ -3,25 +3,31 @@ title: Private files & downloads
 description: Signed URLs, streamed downloads behind your own authorization, and multi-file ZIP exports.
 ---
 
-import { Aside } from '@astrojs/starlight/components'
+import { Aside, Code } from '@astrojs/starlight/components'
 import SharpEdge from '../../../components/SharpEdge.astro'
 import Requires from '../../../components/Requires.astro'
+import source from '@examples/private-files.ts?raw'
+import { snippet } from '../../../lib/snippet'
 
 <Requires items={['S3 or GCS for real signed URLs']} />
 
 Invoices, contracts, anything that must not be publicly addressable. Storage is private by default,
 so this is the path of least resistance rather than an opt-in hardening step.
 
-<p class="nml-verified">Every sample on this page runs against the library in CI.</p>
+<p class="nml-verified">
+  Every sample on this page is imported from{' '}
+  <a href="https://github.com/mujtabarumi/node-media-library/blob/main/examples/src/private-files.ts">
+    examples/src/private-files.ts
+  </a>
+  , which runs against the library in CI — including a test asserting the `fs`-driver caveat below.
+</p>
 
 ## The collection
 
-```ts title="media.config.ts"
-invoices: collection()
-  .acceptsMimeTypes(['application/pdf'])
-  .useDisk('documents') // a private S3 disk
-  .storeConversionsOnDisk('documents')
-```
+<Code code={snippet(source, 'collection')} lang="ts" title="media.config.ts" />
+
+The docs describe `documents` as a private S3 disk; the executable version points it at a local
+directory so it runs without credentials. The collection wiring is identical either way.
 
 Disks default to `visibility: 'private'`. You have to opt _in_ to public with `.public()`, which is
 the right way round — a collection you forgot to think about is private, not exposed.
@@ -30,11 +36,7 @@ the right way round — a collection you forgot to think about is private, not e
 
 The browser fetches the file directly from S3 or GCS, and the URL stops working after the expiry:
 
-```ts
-const url = await library.for('Invoice', invoice.id).firstSignedUrl('invoices', undefined, {
-  expiresIn: '15 mins',
-})
-```
+<Code code={snippet(source, 'signed-url')} lang="ts" title="invoices.ts" />
 
 The second argument is a conversion name, so `firstSignedUrl('invoices', 'preview')` signs a derived
 file instead of the original.
@@ -51,12 +53,10 @@ file instead of the original.
 
 Keeps authorization in your application, where your permission model already lives:
 
-```ts
-// Web-standard Response — return it directly from Hono, Next.js, Bun, or Deno
-const res = await library.download(media.id) // Content-Disposition: attachment
-const preview = await library.inline(media.id) // …; inline
-const thumb = await library.download(media.id, 'thumb') // a specific conversion
-```
+<Code code={snippet(source, 'download')} lang="ts" title="invoices.ts" />
+
+`inline()` is the same call with `Content-Disposition: inline`, and both take an optional conversion
+name — `library.download(media.id, 'thumb')` streams the derived file instead of the original.
 
 ```ts title="Express"
 import { toNodeStream } from '@node-media-library/core'
@@ -83,10 +83,7 @@ encoding.
 No temp file, nothing buffered — entries stream out of storage as the archive streams to the client,
 even across mixed disks:
 
-```ts
-const docs = await library.for('Invoice', invoice.id).getAll('invoices')
-return library.zip(`invoice-${invoice.number}.zip`, docs)
-```
+<Code code={snippet(source, 'zip')} lang="ts" title="invoices.ts" />
 
 Set `customProperties.zipFilenamePrefix` on a record to file it into a folder inside the archive:
 

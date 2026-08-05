@@ -3,13 +3,21 @@ title: Your first upload
 description: A complete, runnable example — an in-memory repository and a local disk, so there is nothing to provision.
 ---
 
-import { Aside, Steps } from '@astrojs/starlight/components'
+import { Aside, Code, Steps } from '@astrojs/starlight/components'
+import source from '@examples/first-upload.ts?raw'
+import { snippet } from '../../../lib/snippet'
 
 Nothing to provision: an in-memory repository and a local directory. Both are real implementations,
 not stubs, so everything on this page behaves exactly as it will in production — only the storage and
 persistence targets change.
 
-<p class="nml-verified">Every sample on this page runs against the library in CI.</p>
+<p class="nml-verified">
+  Every sample on this page is imported from{' '}
+  <a href="https://github.com/mujtabarumi/node-media-library/blob/main/examples/src/first-upload.ts">
+    examples/src/first-upload.ts
+  </a>
+  , which runs against the library in CI.
+</p>
 
 <Steps>
 
@@ -18,60 +26,18 @@ persistence targets change.
    The configuration is the interesting part. You are not writing upload code here — you are
    declaring a policy that upload code will obey.
 
-   ```ts title="media.ts"
-   import {
-     createMediaLibrary,
-     InMemoryMediaRepository,
-     collection,
-     conversion,
-   } from '@node-media-library/core'
+   <Code code={snippet(source, 'config')} lang="ts" title="media.ts" />
 
-   export const library = createMediaLibrary({
-     repository: new InMemoryMediaRepository(),
-     storage: {
-       disks: {
-         default: {
-           driver: 'fs',
-           root: './storage/media',
-           // Required. The fs driver cannot know your public URL, so url() throws
-           // without this. Point it at the path your server serves `root` from.
-           baseUrl: 'http://localhost:3000/media',
-         },
-       },
-     },
-     models: {
-       User: {
-         collections: {
-           avatar: collection()
-             .singleFile()
-             .acceptsMimeTypes(['image/*'])
-             .conversions({
-               // nonQueued() runs it inline, so the URL is valid the moment add() resolves
-               thumb: conversion().width(96).height(96).fit('cover').format('webp').nonQueued(),
-             }),
-         },
-       },
-     },
-   })
-   ```
+   `storageRoot` is a defaulted parameter purely so the test suite can point this
+   at a temp directory. Call `createLibrary()` and you get `./storage/media`.
 
 2. **Store a file.**
 
-   ```ts
-   import { library } from './media.js'
-
-   const media = await library.for('User', 'user-1').add('/tmp/upload.png').toCollection('avatar')
-
-   media.id //  '0e5f…'    — the media record id
-   media.mimeType //  'image/png' — sniffed from the bytes, not the filename
-   ```
+   <Code code={snippet(source, 'usage')} lang="ts" title="upload.ts" />
 
 3. **Read it back.**
 
-   ```ts
-   await library.for('User', 'user-1').firstUrl('avatar') //  the original
-   await library.for('User', 'user-1').firstUrl('avatar', 'thumb') //  96×96 webp
-   ```
+   <Code code={snippet(source, 'read-back')} lang="ts" title="upload.ts" />
 
 </Steps>
 

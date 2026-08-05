@@ -1,11 +1,23 @@
 // @ts-check
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'astro/config'
 import starlight from '@astrojs/starlight'
 
 const REPO = 'https://github.com/mujtabarumi/node-media-library'
 
+// Guide code is imported as raw text from `examples/src/*.ts` — the same files
+// `pnpm --filter @node-media-library/examples test` executes in CI. Those live
+// above this project's root (the site is intentionally outside the pnpm
+// workspace), so Vite needs both the alias and an explicit fs.allow entry.
+const examplesDir = fileURLToPath(new URL('../examples/src', import.meta.url))
+const repoRoot = fileURLToPath(new URL('..', import.meta.url))
+
 export default defineConfig({
   site: 'https://node-media-library.pages.dev',
+  vite: {
+    resolve: { alias: { '@examples': examplesDir } },
+    server: { fs: { allow: [repoRoot] } },
+  },
   integrations: [
     starlight({
       title: 'node-media-library',

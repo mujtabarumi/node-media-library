@@ -1,5 +1,10 @@
 packages:
   - 'packages/*'
+  # The documentation site's code samples, kept executable so a guide cannot
+  # drift from shipped behavior. Private — never published.
+  # `website/` is deliberately absent: Astro needs Node >=22.12 and this
+  # workspace supports >=20. See website/README.md.
+  - 'examples'
 
 onlyBuiltDependencies:
   - '@prisma/engines'

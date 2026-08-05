@@ -3,33 +3,27 @@ title: Avatars & single-file collections
 description: One file per model, replaced on upload, with a default image for anyone who never set one.
 ---
 
-import { Aside } from '@astrojs/starlight/components'
+import { Aside, Code } from '@astrojs/starlight/components'
 import SharpEdge from '../../../components/SharpEdge.astro'
+import source from '@examples/avatars.ts?raw'
+import { snippet } from '../../../lib/snippet'
 
 The most common shape there is: one avatar per user, replaced rather than accumulated, with a
 sensible default. It takes one collection definition and no cleanup code.
 
-<p class="nml-verified">Every sample on this page runs against the library in CI.</p>
+<p class="nml-verified">
+  Every sample on this page is imported from{' '}
+  <a href="https://github.com/mujtabarumi/node-media-library/blob/main/examples/src/avatars.ts">
+    examples/src/avatars.ts
+  </a>
+  , which runs against the library in CI.
+</p>
 
 ## The collection
 
-```ts title="media.config.ts"
-avatar: collection()
-  .singleFile()
-  .acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp'])
-  .fallbackUrl('https://cdn.example.com/defaults/avatar.png')
-  .conversions({
-    thumb: conversion().width(96).height(96).fit('cover').format('webp').nonQueued(),
-    large: conversion().width(512).height(512).fit('cover').format('webp'),
-  })
-```
+<Code code={snippet(source, 'collection')} lang="ts" title="media.config.ts" />
 
-```ts
-await library.for('User', user.id).add(file).toCollection('avatar')
-
-// Empty collection? You get the fallback, not null — templates need no branching.
-const url = await library.for('User', user.id).firstUrl('avatar', 'thumb')
-```
+<Code code={snippet(source, 'usage')} lang="ts" title="avatar.ts" />
 
 ## Replacement is the point
 
@@ -62,11 +56,7 @@ await user.firstUrl('avatar', 'thumb') // → the default, as well
 
 Register a per-conversion fallback when you want a correctly-sized default image:
 
-```ts
-collection()
-  .fallbackUrl('https://cdn.example.com/defaults/avatar.png')
-  .fallbackUrl('https://cdn.example.com/defaults/avatar-96.png', 'thumb')
-```
+<Code code={snippet(source, 'sized-fallbacks')} lang="ts" title="media.config.ts" />
 
 A specific conversion's own fallback wins; otherwise the default is used; otherwise you get `null`.
 
