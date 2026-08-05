@@ -1,0 +1,21 @@
+---
+/**
+ * External prerequisites for a page, stated before the reader hits
+ * "why doesn't this work".
+ *
+ * Nothing in this library auto-registers: installing @node-media-library/pdf
+ * enables nothing until you add pdfImageGenerator() to `imageGenerators`, and
+ * it still needs the pdftoppm binary on PATH. These pills make that visible
+ * at a glance rather than three paragraphs in.
+ */
+interface Props {
+  /** Bare requirement names, e.g. ['ffmpeg', 'Redis']. The word "needs" is added by CSS. */
+  items: string[]
+}
+
+const { items } = Astro.props
+---
+
+<ul class="nml-requires">
+  {items.map((item) => <li class="nml-requires__item">{item}</li>)}
+</ul>

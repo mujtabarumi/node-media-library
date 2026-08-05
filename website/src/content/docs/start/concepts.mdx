@@ -1,0 +1,215 @@
+---
+title: Core concepts
+description: Models, collections, and conversions — and what actually happens between add() and a stored file.
+---
+
+import { Aside } from '@astrojs/starlight/components'
+
+Three nouns, and one pipeline. Once these are clear, the rest of the API is mostly discoverable.
+
+## Models are names, not classes
+
+Nothing here knows about your ORM. You register a **model type** as a string, and every media record
+stores that string alongside an id:
+
+```ts
+models: {
+  User:    { collections: { avatar: collection().singleFile() } },
+  Product: { collections: { gallery: collection().onlyKeepLatest(20) } },
+}
+```
+
+```ts
+library.for('User', user.id) // a handle scoped to one model instance
+```
+
+That's the whole coupling. Media rows are not foreign-keyed to your tables, which is exactly what
+lets one media table serve a Prisma model, a Drizzle model, and a row you fetched with raw SQL. The
+tradeoff is that deleting an owner doesn't automatically delete its media — the Prisma adapter ships
+an opt-in cascade extension, and `clean({ deleteOrphaned: true })` sweeps up what slips through.
+
+Calling `for()` with an unregistered model type throws `UnknownModelError` rather than silently
+accepting it, so a typo surfaces immediately.
+
+## Collections own the policy
+
+A **collection** is a named bucket on a model — `avatar`, `gallery`, `attachments` — and it carries
+every rule that applies to files in it:
+
+| Builder                    | What it decides                                             |
+| -------------------------- | ----------------------------------------------------------- |
+| `.singleFile()`            | Adding a new file deletes the previous one, files included. |
+| `.onlyKeepLatest(n)`       | Keep the newest `n`; prune the rest on every add.           |
+| `.acceptsMimeTypes([...])` | Reject anything whose _sniffed_ type doesn't match.         |
+| `.acceptsFile(fn)`         | Arbitrary predicate over `{ fileName, mimeType, size }`.    |
+| `.useDisk(name)`           | Store originals on a specific disk.                         |
+| `.public()`                | Write with public ACLs. Storage is private by default.      |
+| `.fallbackUrl(url)`        | What `firstUrl()` returns when the collection is empty.     |
+| `.withResponsiveImages()`  | Generate a responsive variant set for every original.       |
+| `.conversions({ ... })`    | The derived files to produce.                               |
+
+`singleFile()` and `onlyKeepLatest(n)` are mutually exclusive — the builder throws if you set both.
+
+Because the policy lives here, call sites stay uniform: every upload to `avatar` gets the same
+treatment whether it came from a web form, a CLI import, or a test.
+
+## Conversions are declarations
+
+A **conversion** is a named derived file: `thumb`, `card`, `hero`. You describe the result, not the
+steps.
+
+```ts
+conversions: {
+  thumb: conversion().width(96).height(96).fit('cover').format('webp').nonQueued(),
+  hero:  conversion().width(1600).format('webp').quality(82),
+}
+```
+
+The one distinction worth learning early is **queued versus non-queued**:
+
+- `.nonQueued()` runs inline. `add()` doesn't resolve until the file exists, so the URL is
+  immediately valid. Right for the small image your UI needs on the next render.
+- The default is queued. It goes through the configured `QueueDriver` — which, out of the box, is
+  `syncDriver()` and still runs inline. Swapping in BullMQ is what turns those into real background
+  jobs, with no change to the conversion definitions.
+
+Conversion files live beside the original and are deleted with it.
+
+## What `add()` actually does
+
+<svg
+  viewBox="0 0 860 200"
+  role="img"
+  aria-label="The add() pipeline: a source is normalized, its MIME type sniffed from bytes, its filename sanitized and validated against the collection, written to storage and the repository, and then conversions are dispatched either inline or to the queue."
+  style="width:100%;height:auto;margin:1.5rem 0;"
+>
+  <defs>
+    <marker
+      id="nml-arrow"
+      viewBox="0 0 10 10"
+      refX="9"
+      refY="5"
+      markerWidth="6"
+      markerHeight="6"
+      orient="auto-start-reverse"
+    >
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--sl-color-gray-4)" />
+    </marker>
+    <style>{`
+      .nml-d-box { fill: var(--sl-color-gray-6); stroke: var(--sl-color-gray-5); }
+      .nml-d-box--accent { fill: var(--nml-amber-900); stroke: var(--nml-amber-500); }
+      .nml-d-label { fill: var(--sl-color-gray-1); font-size: 13px; font-family: var(--sl-font); }
+      .nml-d-sub { fill: var(--sl-color-gray-3); font-size: 11px; font-family: var(--sl-font-mono); }
+      .nml-d-line { stroke: var(--sl-color-gray-4); stroke-width: 1.5; marker-end: url(#nml-arrow); }
+      :root[data-theme='light'] .nml-d-box--accent { fill: var(--nml-amber-100); }
+    `}</style>
+  </defs>
+
+<rect class="nml-d-box" x="4" y="60" width="112" height="46" rx="6" />
+<text class="nml-d-label" x="60" y="82" text-anchor="middle">
+  source
+</text>
+<text class="nml-d-sub" x="60" y="98" text-anchor="middle">
+  path · buffer · URL
+</text>
+
+<line class="nml-d-line" x1="120" y1="83" x2="152" y2="83" />
+
+<rect class="nml-d-box" x="156" y="60" width="104" height="46" rx="6" />
+<text class="nml-d-label" x="208" y="82" text-anchor="middle">
+  sniff type
+</text>
+<text class="nml-d-sub" x="208" y="98" text-anchor="middle">
+  from bytes
+</text>
+
+<line class="nml-d-line" x1="264" y1="83" x2="296" y2="83" />
+
+<rect class="nml-d-box" x="300" y="60" width="112" height="46" rx="6" />
+<text class="nml-d-label" x="356" y="82" text-anchor="middle">
+  sanitize +
+</text>
+<text class="nml-d-label" x="356" y="98" text-anchor="middle">
+  validate
+</text>
+
+<line class="nml-d-line" x1="416" y1="83" x2="448" y2="83" />
+
+<rect class="nml-d-box nml-d-box--accent" x="452" y="60" width="104" height="46" rx="6" />
+<text class="nml-d-label" x="504" y="82" text-anchor="middle">
+  store
+</text>
+<text class="nml-d-sub" x="504" y="98" text-anchor="middle">
+  disk + record
+</text>
+
+<path class="nml-d-line" d="M 560 76 L 578 76 L 578 40 L 592 40" fill="none" />
+<path class="nml-d-line" d="M 560 90 L 578 90 L 578 126 L 592 126" fill="none" />
+
+<rect class="nml-d-box" x="596" y="18" width="160" height="44" rx="6" />
+<text class="nml-d-label" x="676" y="38" text-anchor="middle">
+  inline conversions
+</text>
+<text class="nml-d-sub" x="676" y="53" text-anchor="middle">
+  nonQueued()
+</text>
+
+<rect class="nml-d-box" x="596" y="104" width="160" height="44" rx="6" />
+<text class="nml-d-label" x="676" y="124" text-anchor="middle">
+  queued conversions
+</text>
+<text class="nml-d-sub" x="676" y="139" text-anchor="middle">
+  QueueDriver
+</text>
+
+  <text class="nml-d-sub" x="430" y="180" text-anchor="middle">
+    media:added is emitted at "store" — the record exists from that point on
+  </text>
+</svg>
+
+Reading that left to right:
+
+1. **Normalize.** Whatever you passed — a path, a `Buffer`, a `Readable`, a web `File`, base64, or a
+   remote URL — becomes bytes. Size limits are enforced _while_ streaming, so an oversized source
+   fails before it can exhaust memory.
+2. **Sniff.** The MIME type is read from the file's magic bytes. A client-supplied `Content-Type` and
+   the filename extension are never trusted.
+3. **Sanitize and validate.** The filename is stripped of path separators, control characters, and
+   leading dots; the extension blocklist is checked against every dot-separated segment; then the
+   collection's own rules run.
+4. **Store.** The file is written to the disk, then the record is created. If the record write fails,
+   the stored file is rolled back rather than left orphaned.
+5. **Dispatch.** Queued conversions are enqueued first, then inline ones run. The record already
+   exists by this point, so a failing inline conversion can't undo the upload — you get a stored file
+   and a failed conversion, which is the recoverable state.
+
+<Aside type="tip" title="One media item is one directory">
+  Files land at `{mediaId}/{fileName}`, with `conversions/` and `responsive/` beside them. That's
+  why deleting a media item is a single recursive delete, and why nothing can be left behind.
+</Aside>
+
+## Reading it back
+
+Two levels. The **handle** answers questions about a model's collections:
+
+```ts
+const user = library.for('User', user.id)
+await user.getAll('gallery') // ordered records
+await user.first('avatar')
+await user.firstUrl('avatar', 'thumb') // or the collection's fallback URL
+await user.firstSignedUrl('invoices')
+```
+
+The **library** answers questions about a specific media record:
+
+```ts
+await library.srcset(media.id) // responsive srcset string
+await library.placeholder(media.id) // LQIP data URI
+await library.download(media.id) // a web-standard Response
+await library.zip('export.zip', records)
+```
+
+Everything that touches storage is async, because building a URL can mean asking a driver to sign
+one.
+
+Next: [handling uploads in your framework →](/guides/uploads/)

@@ -1,0 +1,94 @@
+---
+title: Avatars & single-file collections
+description: One file per model, replaced on upload, with a default image for anyone who never set one.
+---
+
+import { Aside, Code } from '@astrojs/starlight/components'
+import SharpEdge from '../../../components/SharpEdge.astro'
+import source from '@examples/avatars.ts?raw'
+import { snippet } from '../../../lib/snippet'
+
+The most common shape there is: one avatar per user, replaced rather than accumulated, with a
+sensible default. It takes one collection definition and no cleanup code.
+
+<p class="nml-verified">
+  Every sample on this page is imported from{' '}
+  <a href="https://github.com/mujtabarumi/node-media-library/blob/main/examples/src/avatars.ts">
+    examples/src/avatars.ts
+  </a>
+  , which runs against the library in CI.
+</p>
+
+## The collection
+
+<Code code={snippet(source, 'collection')} lang="ts" title="media.config.ts" />
+
+<Code code={snippet(source, 'usage')} lang="ts" title="avatar.ts" />
+
+## Replacement is the point
+
+`singleFile()` means adding a second file deletes the first — the record, the original, and every
+conversion and responsive variant derived from it. There is no "delete the old avatar" step to
+remember, and no window where a user has two.
+
+That deletion happens _after_ the new file is stored, so a failed upload leaves the existing avatar
+intact.
+
+<SharpEdge title="Two simultaneous uploads can both briefly persist">
+  Sibling records are read without a lock, so two concurrent `add()` calls to the same
+  `singleFile()` collection can each see the same "before" snapshot. Serialize per (model,
+  collection) if you need a hard guarantee — for a user uploading their own avatar this is not a
+  realistic race, but for machine-driven imports it can be. [Full detail
+  →](/production/limitations/#concurrent-add-calls-race)
+</SharpEdge>
+
+## Fallback URLs resolve upward
+
+This trips people up, so it's worth stating precisely. `.fallbackUrl(url)` with no conversion name
+registers the collection's **default** fallback, and it backs every conversion-scoped lookup too:
+
+```ts
+collection().fallbackUrl('https://cdn.example.com/defaults/avatar.png')
+
+await user.firstUrl('avatar') // → the default
+await user.firstUrl('avatar', 'thumb') // → the default, as well
+```
+
+Register a per-conversion fallback when you want a correctly-sized default image:
+
+<Code code={snippet(source, 'sized-fallbacks')} lang="ts" title="media.config.ts" />
+
+A specific conversion's own fallback wins; otherwise the default is used; otherwise you get `null`.
+
+## Choosing what runs inline
+
+`thumb` above is `.nonQueued()` and `large` isn't. That split matters as soon as you move conversions
+onto a real queue: the small image your UI needs on the very next render is generated before `add()`
+resolves, while the large one becomes a background job.
+
+With the default sync driver both run inline, so you can defer this decision — but declaring it now
+means adopting BullMQ later is a config change rather than a rewrite.
+
+<Aside type="tip" title="Cropping">
+  `.fit('cover')` fills the box and crops the overflow, which is almost always what you want for a
+  square avatar. `.position('top')` biases the crop — useful for portraits, where centre-cropping
+  cuts off faces.
+</Aside>
+
+## Serving it
+
+```tsx
+const url = await library.for('User', user.id).firstUrl('avatar', 'thumb')
+
+<img src={url} width={48} height={48} alt={`${user.name}'s avatar`} />
+```
+
+Because the fallback is guaranteed, there's no conditional and no placeholder component. If you'd
+rather cache-bust when an avatar changes, set `versionUrls: true` on `createMediaLibrary()` and every
+URL gains a `?v=` suffix derived from the record's `updatedAt`.
+
+## Next
+
+- [Private files & downloads](/guides/private-files/) — when the file shouldn't be publicly
+  addressable.
+- [Core concepts](/start/concepts/) — what else a collection can decide.

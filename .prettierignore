@@ -9,3 +9,6 @@ packages/prisma/test/prisma/generated
 
 # Archived planning documents — kept verbatim as a historical record.
 docs/superpowers/plans
+
+# Astro's generated type/content cache for the docs site.
+website/.astro

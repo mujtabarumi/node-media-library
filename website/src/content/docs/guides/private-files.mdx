@@ -1,0 +1,111 @@
+---
+title: Private files & downloads
+description: Signed URLs, streamed downloads behind your own authorization, and multi-file ZIP exports.
+---
+
+import { Aside, Code } from '@astrojs/starlight/components'
+import SharpEdge from '../../../components/SharpEdge.astro'
+import Requires from '../../../components/Requires.astro'
+import source from '@examples/private-files.ts?raw'
+import { snippet } from '../../../lib/snippet'
+
+<Requires items={['S3 or GCS for real signed URLs']} />
+
+Invoices, contracts, anything that must not be publicly addressable. Storage is private by default,
+so this is the path of least resistance rather than an opt-in hardening step.
+
+<p class="nml-verified">
+  Every sample on this page is imported from{' '}
+  <a href="https://github.com/mujtabarumi/node-media-library/blob/main/examples/src/private-files.ts">
+    examples/src/private-files.ts
+  </a>
+  , which runs against the library in CI — including a test asserting the `fs`-driver caveat below.
+</p>
+
+## The collection
+
+<Code code={snippet(source, 'collection')} lang="ts" title="media.config.ts" />
+
+The docs describe `documents` as a private S3 disk; the executable version points it at a local
+directory so it runs without credentials. The collection wiring is identical either way.
+
+Disks default to `visibility: 'private'`. You have to opt _in_ to public with `.public()`, which is
+the right way round — a collection you forgot to think about is private, not exposed.
+
+## Option 1: hand out a signed URL
+
+The browser fetches the file directly from S3 or GCS, and the URL stops working after the expiry:
+
+<Code code={snippet(source, 'signed-url')} lang="ts" title="invoices.ts" />
+
+The second argument is a conversion name, so `firstSignedUrl('invoices', 'preview')` signs a derived
+file instead of the original.
+
+<SharpEdge title="signedUrl() does not sign anything on the fs driver">
+  On a local `fs` disk there is no signing mechanism, so `signedUrl()` returns the plain public URL
+  and **ignores `expiresIn` entirely** — the link never expires. That's fine in development, but do
+  not ship private media on an `fs` disk assuming the URL is time-limited. Use S3 or GCS, or serve
+  the bytes yourself with the approach below. [Full detail
+  →](/production/limitations/#signedurl-does-not-sign-on-the-fs-driver)
+</SharpEdge>
+
+## Option 2: stream the bytes behind your own check
+
+Keeps authorization in your application, where your permission model already lives:
+
+<Code code={snippet(source, 'download')} lang="ts" title="invoices.ts" />
+
+`inline()` is the same call with `Content-Disposition: inline`, and both take an optional conversion
+name — `library.download(media.id, 'thumb')` streams the derived file instead of the original.
+
+```ts title="Express"
+import { toNodeStream } from '@node-media-library/core'
+
+app.get('/invoices/:id', requireOwnership, async (req, res) => {
+  const response = await library.download(req.params.id)
+  response.headers.forEach((value, key) => res.setHeader(key, value))
+  toNodeStream(response).pipe(res)
+})
+```
+
+The filename in `Content-Disposition` is ASCII-sanitized, so it never needs escaping or RFC 5987
+encoding.
+
+<Aside type="caution" title="A 200 is committed before the body is read">
+  `download()` builds its `Response` as soon as the read is opened — which doesn't prove the whole
+  file is readable. If a conversion is marked as generated but its file has since vanished from
+  storage, the error surfaces when the caller reads the body, not as a 404. Headers are already sent
+  by then and can't be downgraded.
+</Aside>
+
+## Bulk export as a streamed ZIP
+
+No temp file, nothing buffered — entries stream out of storage as the archive streams to the client,
+even across mixed disks:
+
+<Code code={snippet(source, 'zip')} lang="ts" title="invoices.ts" />
+
+Set `customProperties.zipFilenamePrefix` on a record to file it into a folder inside the archive:
+
+```ts
+await library.setCustomProperty(media.id, 'zipFilenamePrefix', '2024/')
+// → the entry lands at 2024/invoice.pdf
+```
+
+That value is caller-controlled data, so it's sanitized against zip-slip — leading slashes,
+backslashes, and `.`/`..` segments are stripped before it's used.
+
+Every id is resolved to a record _before_ streaming starts, so an unknown id fails fast with a proper
+error rather than a truncated archive. Storage reads are opened lazily per entry, which is what keeps
+a thousand-file export from exhausting file descriptors.
+
+<Aside type="caution" title="Don't mutate while an archive streams">
+  Deleting a media item while it's being written into an in-flight archive aborts the response
+  stream. Export is a read-only operation; treat it as one.
+</Aside>
+
+## Next
+
+- [Security model](/production/security/) — the full set of checks and what you take on by replacing
+  them.
+- [Known limitations](/production/limitations/) — every sharp edge on this page, in one place.

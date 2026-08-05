@@ -30,11 +30,16 @@ packages/
   pdf/         pdftoppm-backed ImageGenerator
   video/       ffmpeg-backed ImageGenerator
   optimizers/  jpegoptim/pngquant-backed ImageOptimizers
+examples/    the docs site's code samples, kept executable (workspace member, private)
+website/     Astro Starlight docs site — NOT a workspace member (Astro needs Node >=22.12)
 docs/superpowers/specs/   design spec — source of truth for intended behavior
 docs/superpowers/plans/   historical plans, kept verbatim (prettier-ignored)
 ```
 
 Tests live in each package's `test/` directory, **not** colocated in `src/`.
+
+`website/` has its own lockfile and its own CI workflow; `pnpm -r` never touches it. Install it with
+`pnpm install --ignore-workspace` from inside that directory.
 
 ## Conventions
 

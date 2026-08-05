@@ -1,0 +1,24 @@
+---
+/**
+ * A documented limitation, shown at the point where a reader is about to
+ * depend on the thing it limits.
+ *
+ * Deliberately NOT Starlight's <Aside type="caution">: this variant is
+ * reserved for entries that also appear on the Known limitations page, so the
+ * mark means one specific thing. Use a normal aside for ordinary warnings.
+ *
+ * Every instance should link to its canonical anchor under
+ * /production/limitations so the detail lives in exactly one place.
+ */
+interface Props {
+  /** Short statement of the limitation itself, not a generic label. */
+  title: string
+}
+
+const { title } = Astro.props
+---
+
+<aside class="nml-edge" aria-label={`Sharp edge: ${title}`}>
+  <p class="nml-edge__title">{title}</p>
+  <div class="nml-edge__body"><slot /></div>
+</aside>
