@@ -4,7 +4,7 @@ editUrl: false
 ---
 # Interface: MediaEventMap
 
-Defined in: [packages/core/src/events.ts:7](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/events.ts#L7)
+Defined in: [packages/core/src/events.ts:7](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/events.ts#L7)
 
 ## Properties
 
@@ -12,7 +12,7 @@ Defined in: [packages/core/src/events.ts:7](https://github.com/mujtabarumi/node-
 
 > **collection:cleared**: `object`
 
-Defined in: [packages/core/src/events.ts:11](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/events.ts#L11)
+Defined in: [packages/core/src/events.ts:11](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/events.ts#L11)
 
 #### collection
 
@@ -32,7 +32,7 @@ Defined in: [packages/core/src/events.ts:11](https://github.com/mujtabarumi/node
 
 > **conversion:completed**: `object`
 
-Defined in: [packages/core/src/events.ts:15](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/events.ts#L15)
+Defined in: [packages/core/src/events.ts:15](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/events.ts#L15)
 
 #### conversion
 
@@ -48,7 +48,7 @@ Defined in: [packages/core/src/events.ts:15](https://github.com/mujtabarumi/node
 
 > **conversion:failed**: `object`
 
-Defined in: [packages/core/src/events.ts:16](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/events.ts#L16)
+Defined in: [packages/core/src/events.ts:16](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/events.ts#L16)
 
 #### conversion
 
@@ -68,7 +68,7 @@ Defined in: [packages/core/src/events.ts:16](https://github.com/mujtabarumi/node
 
 > **conversion:started**: `object`
 
-Defined in: [packages/core/src/events.ts:14](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/events.ts#L14)
+Defined in: [packages/core/src/events.ts:14](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/events.ts#L14)
 
 #### conversion
 
@@ -84,7 +84,7 @@ Defined in: [packages/core/src/events.ts:14](https://github.com/mujtabarumi/node
 
 > **media:added**: `object`
 
-Defined in: [packages/core/src/events.ts:8](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/events.ts#L8)
+Defined in: [packages/core/src/events.ts:8](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/events.ts#L8)
 
 #### media
 
@@ -96,7 +96,7 @@ Defined in: [packages/core/src/events.ts:8](https://github.com/mujtabarumi/node-
 
 > **media:copied**: `object`
 
-Defined in: [packages/core/src/events.ts:12](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/events.ts#L12)
+Defined in: [packages/core/src/events.ts:12](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/events.ts#L12)
 
 #### copy
 
@@ -112,7 +112,7 @@ Defined in: [packages/core/src/events.ts:12](https://github.com/mujtabarumi/node
 
 > **media:deleted**: `object`
 
-Defined in: [packages/core/src/events.ts:10](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/events.ts#L10)
+Defined in: [packages/core/src/events.ts:10](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/events.ts#L10)
 
 #### media
 
@@ -124,7 +124,7 @@ Defined in: [packages/core/src/events.ts:10](https://github.com/mujtabarumi/node
 
 > **media:deleting**: `object`
 
-Defined in: [packages/core/src/events.ts:9](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/events.ts#L9)
+Defined in: [packages/core/src/events.ts:9](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/events.ts#L9)
 
 #### media
 
@@ -136,7 +136,7 @@ Defined in: [packages/core/src/events.ts:9](https://github.com/mujtabarumi/node-
 
 > **media:moved**: `object`
 
-Defined in: [packages/core/src/events.ts:13](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/events.ts#L13)
+Defined in: [packages/core/src/events.ts:13](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/events.ts#L13)
 
 #### media
 
@@ -152,7 +152,7 @@ Defined in: [packages/core/src/events.ts:13](https://github.com/mujtabarumi/node
 
 > **responsive:failed**: `object`
 
-Defined in: [packages/core/src/events.ts:18](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/events.ts#L18)
+Defined in: [packages/core/src/events.ts:18](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/events.ts#L18)
 
 #### conversion
 
@@ -172,7 +172,7 @@ Defined in: [packages/core/src/events.ts:18](https://github.com/mujtabarumi/node
 
 > **responsive:generated**: `object`
 
-Defined in: [packages/core/src/events.ts:17](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/events.ts#L17)
+Defined in: [packages/core/src/events.ts:17](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/events.ts#L17)
 
 #### conversion
 

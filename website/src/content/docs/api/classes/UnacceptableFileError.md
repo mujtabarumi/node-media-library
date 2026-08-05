@@ -4,7 +4,7 @@ editUrl: false
 ---
 # Class: UnacceptableFileError
 
-Defined in: [packages/core/src/errors.ts:20](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/errors.ts#L20)
+Defined in: [packages/core/src/errors.ts:20](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/errors.ts#L20)
 
 ## Extends
 
@@ -16,7 +16,7 @@ Defined in: [packages/core/src/errors.ts:20](https://github.com/mujtabarumi/node
 
 > **new UnacceptableFileError**(`m`): `UnacceptableFileError`
 
-Defined in: [packages/core/src/errors.ts:21](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/errors.ts#L21)
+Defined in: [packages/core/src/errors.ts:21](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/errors.ts#L21)
 
 #### Parameters
 
@@ -50,7 +50,7 @@ Defined in: node\_modules/.pnpm/typescript@5.9.3/node\_modules/typescript/lib/li
 
 > `readonly` **code**: `string` = `'MEDIA_LIBRARY_ERROR'`
 
-Defined in: [packages/core/src/errors.ts:4](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/errors.ts#L4)
+Defined in: [packages/core/src/errors.ts:4](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/errors.ts#L4)
 
 #### Inherited from
 

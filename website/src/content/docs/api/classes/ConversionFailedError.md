@@ -4,7 +4,7 @@ editUrl: false
 ---
 # Class: ConversionFailedError
 
-Defined in: [packages/core/src/errors.ts:30](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/errors.ts#L30)
+Defined in: [packages/core/src/errors.ts:30](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/errors.ts#L30)
 
 ## Extends
 
@@ -16,7 +16,7 @@ Defined in: [packages/core/src/errors.ts:30](https://github.com/mujtabarumi/node
 
 > **new ConversionFailedError**(`m`): `ConversionFailedError`
 
-Defined in: [packages/core/src/errors.ts:31](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/errors.ts#L31)
+Defined in: [packages/core/src/errors.ts:31](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/errors.ts#L31)
 
 #### Parameters
 
@@ -50,7 +50,7 @@ Defined in: node\_modules/.pnpm/typescript@5.9.3/node\_modules/typescript/lib/li
 
 > `readonly` **code**: `string` = `'MEDIA_LIBRARY_ERROR'`
 
-Defined in: [packages/core/src/errors.ts:4](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/errors.ts#L4)
+Defined in: [packages/core/src/errors.ts:4](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/errors.ts#L4)
 
 #### Inherited from
 

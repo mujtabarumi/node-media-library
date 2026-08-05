@@ -4,7 +4,7 @@ editUrl: false
 ---
 # Interface: MediaRecord
 
-Defined in: [packages/core/src/types.ts:2](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/types.ts#L2)
+Defined in: [packages/core/src/types.ts:2](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/types.ts#L2)
 
 ## Properties
 
@@ -12,7 +12,7 @@ Defined in: [packages/core/src/types.ts:2](https://github.com/mujtabarumi/node-m
 
 > **collectionName**: `string`
 
-Defined in: [packages/core/src/types.ts:7](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/types.ts#L7)
+Defined in: [packages/core/src/types.ts:7](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/types.ts#L7)
 
 ***
 
@@ -20,7 +20,7 @@ Defined in: [packages/core/src/types.ts:7](https://github.com/mujtabarumi/node-m
 
 > **conversionsDisk**: `string` \| `null`
 
-Defined in: [packages/core/src/types.ts:12](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/types.ts#L12)
+Defined in: [packages/core/src/types.ts:12](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/types.ts#L12)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [packages/core/src/types.ts:12](https://github.com/mujtabarumi/node-
 
 > **createdAt**: `Date`
 
-Defined in: [packages/core/src/types.ts:19](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/types.ts#L19)
+Defined in: [packages/core/src/types.ts:19](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/types.ts#L19)
 
 ***
 
@@ -36,7 +36,7 @@ Defined in: [packages/core/src/types.ts:19](https://github.com/mujtabarumi/node-
 
 > **customProperties**: [`JsonObject`](/api/type-aliases/JsonObject/)
 
-Defined in: [packages/core/src/types.ts:15](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/types.ts#L15)
+Defined in: [packages/core/src/types.ts:15](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/types.ts#L15)
 
 ***
 
@@ -44,7 +44,7 @@ Defined in: [packages/core/src/types.ts:15](https://github.com/mujtabarumi/node-
 
 > **disk**: `string`
 
-Defined in: [packages/core/src/types.ts:11](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/types.ts#L11)
+Defined in: [packages/core/src/types.ts:11](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/types.ts#L11)
 
 ***
 
@@ -52,7 +52,7 @@ Defined in: [packages/core/src/types.ts:11](https://github.com/mujtabarumi/node-
 
 > **fileName**: `string`
 
-Defined in: [packages/core/src/types.ts:9](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/types.ts#L9)
+Defined in: [packages/core/src/types.ts:9](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/types.ts#L9)
 
 ***
 
@@ -60,7 +60,7 @@ Defined in: [packages/core/src/types.ts:9](https://github.com/mujtabarumi/node-m
 
 > **generatedConversions**: `Record`\<`string`, `boolean`\>
 
-Defined in: [packages/core/src/types.ts:16](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/types.ts#L16)
+Defined in: [packages/core/src/types.ts:16](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/types.ts#L16)
 
 ***
 
@@ -68,7 +68,7 @@ Defined in: [packages/core/src/types.ts:16](https://github.com/mujtabarumi/node-
 
 > **id**: `string`
 
-Defined in: [packages/core/src/types.ts:3](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/types.ts#L3)
+Defined in: [packages/core/src/types.ts:3](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/types.ts#L3)
 
 ***
 
@@ -76,7 +76,7 @@ Defined in: [packages/core/src/types.ts:3](https://github.com/mujtabarumi/node-m
 
 > **manipulations**: `Record`\<`string`, [`JsonObject`](/api/type-aliases/JsonObject/)\>
 
-Defined in: [packages/core/src/types.ts:14](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/types.ts#L14)
+Defined in: [packages/core/src/types.ts:14](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/types.ts#L14)
 
 ***
 
@@ -84,7 +84,7 @@ Defined in: [packages/core/src/types.ts:14](https://github.com/mujtabarumi/node-
 
 > **mimeType**: `string` \| `null`
 
-Defined in: [packages/core/src/types.ts:10](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/types.ts#L10)
+Defined in: [packages/core/src/types.ts:10](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/types.ts#L10)
 
 ***
 
@@ -92,7 +92,7 @@ Defined in: [packages/core/src/types.ts:10](https://github.com/mujtabarumi/node-
 
 > **modelId**: `string`
 
-Defined in: [packages/core/src/types.ts:5](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/types.ts#L5)
+Defined in: [packages/core/src/types.ts:5](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/types.ts#L5)
 
 ***
 
@@ -100,7 +100,7 @@ Defined in: [packages/core/src/types.ts:5](https://github.com/mujtabarumi/node-m
 
 > **modelType**: `string`
 
-Defined in: [packages/core/src/types.ts:4](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/types.ts#L4)
+Defined in: [packages/core/src/types.ts:4](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/types.ts#L4)
 
 ***
 
@@ -108,7 +108,7 @@ Defined in: [packages/core/src/types.ts:4](https://github.com/mujtabarumi/node-m
 
 > **name**: `string`
 
-Defined in: [packages/core/src/types.ts:8](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/types.ts#L8)
+Defined in: [packages/core/src/types.ts:8](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/types.ts#L8)
 
 ***
 
@@ -116,7 +116,7 @@ Defined in: [packages/core/src/types.ts:8](https://github.com/mujtabarumi/node-m
 
 > **orderColumn**: `number` \| `null`
 
-Defined in: [packages/core/src/types.ts:18](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/types.ts#L18)
+Defined in: [packages/core/src/types.ts:18](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/types.ts#L18)
 
 ***
 
@@ -124,7 +124,7 @@ Defined in: [packages/core/src/types.ts:18](https://github.com/mujtabarumi/node-
 
 > **responsiveImages**: [`JsonObject`](/api/type-aliases/JsonObject/)
 
-Defined in: [packages/core/src/types.ts:17](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/types.ts#L17)
+Defined in: [packages/core/src/types.ts:17](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/types.ts#L17)
 
 ***
 
@@ -132,7 +132,7 @@ Defined in: [packages/core/src/types.ts:17](https://github.com/mujtabarumi/node-
 
 > **size**: `number`
 
-Defined in: [packages/core/src/types.ts:13](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/types.ts#L13)
+Defined in: [packages/core/src/types.ts:13](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/types.ts#L13)
 
 ***
 
@@ -140,7 +140,7 @@ Defined in: [packages/core/src/types.ts:13](https://github.com/mujtabarumi/node-
 
 > **updatedAt**: `Date`
 
-Defined in: [packages/core/src/types.ts:20](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/types.ts#L20)
+Defined in: [packages/core/src/types.ts:20](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/types.ts#L20)
 
 ***
 
@@ -148,4 +148,4 @@ Defined in: [packages/core/src/types.ts:20](https://github.com/mujtabarumi/node-
 
 > **uuid**: `string`
 
-Defined in: [packages/core/src/types.ts:6](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/types.ts#L6)
+Defined in: [packages/core/src/types.ts:6](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/types.ts#L6)

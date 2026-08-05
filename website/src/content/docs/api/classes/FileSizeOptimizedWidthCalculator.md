@@ -4,7 +4,7 @@ editUrl: false
 ---
 # Class: FileSizeOptimizedWidthCalculator
 
-Defined in: [packages/core/src/responsive/width-calculator.ts:15](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/responsive/width-calculator.ts#L15)
+Defined in: [packages/core/src/responsive/width-calculator.ts:15](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/responsive/width-calculator.ts#L15)
 
 Port of Spatie's FileSizeOptimizedWidthCalculator: each successive variant
 targets ~70% of the previous predicted file size. Since file size scales
@@ -32,7 +32,7 @@ the width below 20px.
 
 > **calculateWidths**(`fileSizeBytes`, `width`, `height`): `number`[]
 
-Defined in: [packages/core/src/responsive/width-calculator.ts:16](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/responsive/width-calculator.ts#L16)
+Defined in: [packages/core/src/responsive/width-calculator.ts:16](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/responsive/width-calculator.ts#L16)
 
 #### Parameters
 

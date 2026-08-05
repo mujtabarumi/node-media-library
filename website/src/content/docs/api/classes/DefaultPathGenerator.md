@@ -4,7 +4,7 @@ editUrl: false
 ---
 # Class: DefaultPathGenerator
 
-Defined in: [packages/core/src/storage/path-generator.ts:14](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/storage/path-generator.ts#L14)
+Defined in: [packages/core/src/storage/path-generator.ts:14](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/storage/path-generator.ts#L14)
 
 ## Implements
 
@@ -16,7 +16,7 @@ Defined in: [packages/core/src/storage/path-generator.ts:14](https://github.com/
 
 > **new DefaultPathGenerator**(`prefix?`): `DefaultPathGenerator`
 
-Defined in: [packages/core/src/storage/path-generator.ts:15](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/storage/path-generator.ts#L15)
+Defined in: [packages/core/src/storage/path-generator.ts:15](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/storage/path-generator.ts#L15)
 
 #### Parameters
 
@@ -34,7 +34,7 @@ Defined in: [packages/core/src/storage/path-generator.ts:15](https://github.com/
 
 > **conversionsPath**(`media`): `string`
 
-Defined in: [packages/core/src/storage/path-generator.ts:29](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/storage/path-generator.ts#L29)
+Defined in: [packages/core/src/storage/path-generator.ts:29](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/storage/path-generator.ts#L29)
 
 Directory holding derived conversion files.
 
@@ -58,7 +58,7 @@ Directory holding derived conversion files.
 
 > **directory**(`media`): `string`
 
-Defined in: [packages/core/src/storage/path-generator.ts:21](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/storage/path-generator.ts#L21)
+Defined in: [packages/core/src/storage/path-generator.ts:21](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/storage/path-generator.ts#L21)
 
 Root directory for this media item (used e.g. for delete).
 
@@ -82,7 +82,7 @@ Root directory for this media item (used e.g. for delete).
 
 > **path**(`media`): `string`
 
-Defined in: [packages/core/src/storage/path-generator.ts:25](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/storage/path-generator.ts#L25)
+Defined in: [packages/core/src/storage/path-generator.ts:25](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/storage/path-generator.ts#L25)
 
 Path to the original file.
 
@@ -106,7 +106,7 @@ Path to the original file.
 
 > **responsivePath**(`media`): `string`
 
-Defined in: [packages/core/src/storage/path-generator.ts:33](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/storage/path-generator.ts#L33)
+Defined in: [packages/core/src/storage/path-generator.ts:33](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/storage/path-generator.ts#L33)
 
 Directory holding responsive image variants.
 

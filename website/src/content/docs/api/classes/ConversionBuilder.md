@@ -4,7 +4,7 @@ editUrl: false
 ---
 # Class: ConversionBuilder
 
-Defined in: [packages/core/src/definitions/conversion.ts:19](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/definitions/conversion.ts#L19)
+Defined in: [packages/core/src/definitions/conversion.ts:19](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/definitions/conversion.ts#L19)
 
 ## Constructors
 
@@ -12,7 +12,7 @@ Defined in: [packages/core/src/definitions/conversion.ts:19](https://github.com/
 
 > **new ConversionBuilder**(): `ConversionBuilder`
 
-Defined in: [packages/core/src/definitions/conversion.ts:22](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/definitions/conversion.ts#L22)
+Defined in: [packages/core/src/definitions/conversion.ts:22](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/definitions/conversion.ts#L22)
 
 #### Returns
 
@@ -24,7 +24,7 @@ Defined in: [packages/core/src/definitions/conversion.ts:22](https://github.com/
 
 > **autoOrient**(`on?`): `this`
 
-Defined in: [packages/core/src/definitions/conversion.ts:107](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/definitions/conversion.ts#L107)
+Defined in: [packages/core/src/definitions/conversion.ts:107](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/definitions/conversion.ts#L107)
 
 #### Parameters
 
@@ -42,7 +42,7 @@ Defined in: [packages/core/src/definitions/conversion.ts:107](https://github.com
 
 > **blur**(`sigma`): `this`
 
-Defined in: [packages/core/src/definitions/conversion.ts:97](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/definitions/conversion.ts#L97)
+Defined in: [packages/core/src/definitions/conversion.ts:97](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/definitions/conversion.ts#L97)
 
 #### Parameters
 
@@ -60,7 +60,7 @@ Defined in: [packages/core/src/definitions/conversion.ts:97](https://github.com/
 
 > **fit**(`f`): `this`
 
-Defined in: [packages/core/src/definitions/conversion.ts:52](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/definitions/conversion.ts#L52)
+Defined in: [packages/core/src/definitions/conversion.ts:52](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/definitions/conversion.ts#L52)
 
 #### Parameters
 
@@ -78,7 +78,7 @@ Defined in: [packages/core/src/definitions/conversion.ts:52](https://github.com/
 
 > **format**(`f`): `this`
 
-Defined in: [packages/core/src/definitions/conversion.ts:57](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/definitions/conversion.ts#L57)
+Defined in: [packages/core/src/definitions/conversion.ts:57](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/definitions/conversion.ts#L57)
 
 #### Parameters
 
@@ -96,7 +96,7 @@ Defined in: [packages/core/src/definitions/conversion.ts:57](https://github.com/
 
 > **greyscale**(): `this`
 
-Defined in: [packages/core/src/definitions/conversion.ts:102](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/definitions/conversion.ts#L102)
+Defined in: [packages/core/src/definitions/conversion.ts:102](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/definitions/conversion.ts#L102)
 
 #### Returns
 
@@ -108,7 +108,7 @@ Defined in: [packages/core/src/definitions/conversion.ts:102](https://github.com
 
 > **height**(`n`): `this`
 
-Defined in: [packages/core/src/definitions/conversion.ts:47](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/definitions/conversion.ts#L47)
+Defined in: [packages/core/src/definitions/conversion.ts:47](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/definitions/conversion.ts#L47)
 
 #### Parameters
 
@@ -126,7 +126,7 @@ Defined in: [packages/core/src/definitions/conversion.ts:47](https://github.com/
 
 > **keepOriginalFormat**(): `this`
 
-Defined in: [packages/core/src/definitions/conversion.ts:112](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/definitions/conversion.ts#L112)
+Defined in: [packages/core/src/definitions/conversion.ts:112](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/definitions/conversion.ts#L112)
 
 #### Returns
 
@@ -138,7 +138,7 @@ Defined in: [packages/core/src/definitions/conversion.ts:112](https://github.com
 
 > **nonQueued**(): `this`
 
-Defined in: [packages/core/src/definitions/conversion.ts:72](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/definitions/conversion.ts#L72)
+Defined in: [packages/core/src/definitions/conversion.ts:72](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/definitions/conversion.ts#L72)
 
 #### Returns
 
@@ -150,7 +150,7 @@ Defined in: [packages/core/src/definitions/conversion.ts:72](https://github.com/
 
 > **pdfPageNumber**(`n`): `this`
 
-Defined in: [packages/core/src/definitions/conversion.ts:117](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/definitions/conversion.ts#L117)
+Defined in: [packages/core/src/definitions/conversion.ts:117](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/definitions/conversion.ts#L117)
 
 #### Parameters
 
@@ -168,7 +168,7 @@ Defined in: [packages/core/src/definitions/conversion.ts:117](https://github.com
 
 > **performOnCollections**(...`names`): `this`
 
-Defined in: [packages/core/src/definitions/conversion.ts:77](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/definitions/conversion.ts#L77)
+Defined in: [packages/core/src/definitions/conversion.ts:77](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/definitions/conversion.ts#L77)
 
 #### Parameters
 
@@ -186,7 +186,7 @@ Defined in: [packages/core/src/definitions/conversion.ts:77](https://github.com/
 
 > **position**(`p`): `this`
 
-Defined in: [packages/core/src/definitions/conversion.ts:87](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/definitions/conversion.ts#L87)
+Defined in: [packages/core/src/definitions/conversion.ts:87](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/definitions/conversion.ts#L87)
 
 #### Parameters
 
@@ -204,7 +204,7 @@ Defined in: [packages/core/src/definitions/conversion.ts:87](https://github.com/
 
 > **quality**(`n`): `this`
 
-Defined in: [packages/core/src/definitions/conversion.ts:62](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/definitions/conversion.ts#L62)
+Defined in: [packages/core/src/definitions/conversion.ts:62](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/definitions/conversion.ts#L62)
 
 #### Parameters
 
@@ -222,7 +222,7 @@ Defined in: [packages/core/src/definitions/conversion.ts:62](https://github.com/
 
 > **queued**(): `this`
 
-Defined in: [packages/core/src/definitions/conversion.ts:67](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/definitions/conversion.ts#L67)
+Defined in: [packages/core/src/definitions/conversion.ts:67](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/definitions/conversion.ts#L67)
 
 #### Returns
 
@@ -234,7 +234,7 @@ Defined in: [packages/core/src/definitions/conversion.ts:67](https://github.com/
 
 > **sharpen**(): `this`
 
-Defined in: [packages/core/src/definitions/conversion.ts:92](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/definitions/conversion.ts#L92)
+Defined in: [packages/core/src/definitions/conversion.ts:92](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/definitions/conversion.ts#L92)
 
 #### Returns
 
@@ -246,7 +246,7 @@ Defined in: [packages/core/src/definitions/conversion.ts:92](https://github.com/
 
 > **toDefinition**(): [`ConversionDefinition`](/api/interfaces/ConversionDefinition/)
 
-Defined in: [packages/core/src/definitions/conversion.ts:127](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/definitions/conversion.ts#L127)
+Defined in: [packages/core/src/definitions/conversion.ts:127](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/definitions/conversion.ts#L127)
 
 #### Returns
 
@@ -258,7 +258,7 @@ Defined in: [packages/core/src/definitions/conversion.ts:127](https://github.com
 
 > **videoFrameAtSecond**(`s`): `this`
 
-Defined in: [packages/core/src/definitions/conversion.ts:122](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/definitions/conversion.ts#L122)
+Defined in: [packages/core/src/definitions/conversion.ts:122](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/definitions/conversion.ts#L122)
 
 #### Parameters
 
@@ -276,7 +276,7 @@ Defined in: [packages/core/src/definitions/conversion.ts:122](https://github.com
 
 > **width**(`n`): `this`
 
-Defined in: [packages/core/src/definitions/conversion.ts:42](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/definitions/conversion.ts#L42)
+Defined in: [packages/core/src/definitions/conversion.ts:42](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/definitions/conversion.ts#L42)
 
 #### Parameters
 
@@ -294,7 +294,7 @@ Defined in: [packages/core/src/definitions/conversion.ts:42](https://github.com/
 
 > **withResponsiveImages**(): `this`
 
-Defined in: [packages/core/src/definitions/conversion.ts:82](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/definitions/conversion.ts#L82)
+Defined in: [packages/core/src/definitions/conversion.ts:82](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/definitions/conversion.ts#L82)
 
 #### Returns
 

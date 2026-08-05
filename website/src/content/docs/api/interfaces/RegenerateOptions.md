@@ -4,7 +4,7 @@ editUrl: false
 ---
 # Interface: RegenerateOptions
 
-Defined in: [packages/core/src/conversions/engine.ts:18](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/conversions/engine.ts#L18)
+Defined in: [packages/core/src/conversions/engine.ts:18](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/conversions/engine.ts#L18)
 
 ## Properties
 
@@ -12,7 +12,7 @@ Defined in: [packages/core/src/conversions/engine.ts:18](https://github.com/mujt
 
 > `optional` **ids?**: `string`[]
 
-Defined in: [packages/core/src/conversions/engine.ts:20](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/conversions/engine.ts#L20)
+Defined in: [packages/core/src/conversions/engine.ts:20](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/conversions/engine.ts#L20)
 
 ***
 
@@ -20,7 +20,7 @@ Defined in: [packages/core/src/conversions/engine.ts:20](https://github.com/mujt
 
 > `optional` **modelType?**: `string`
 
-Defined in: [packages/core/src/conversions/engine.ts:19](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/conversions/engine.ts#L19)
+Defined in: [packages/core/src/conversions/engine.ts:19](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/conversions/engine.ts#L19)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [packages/core/src/conversions/engine.ts:19](https://github.com/mujt
 
 > `optional` **only?**: `string`[]
 
-Defined in: [packages/core/src/conversions/engine.ts:21](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/conversions/engine.ts#L21)
+Defined in: [packages/core/src/conversions/engine.ts:21](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/conversions/engine.ts#L21)
 
 ***
 
@@ -36,7 +36,7 @@ Defined in: [packages/core/src/conversions/engine.ts:21](https://github.com/mujt
 
 > `optional` **onlyMissing?**: `boolean`
 
-Defined in: [packages/core/src/conversions/engine.ts:22](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/conversions/engine.ts#L22)
+Defined in: [packages/core/src/conversions/engine.ts:22](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/conversions/engine.ts#L22)
 
 ***
 
@@ -44,7 +44,7 @@ Defined in: [packages/core/src/conversions/engine.ts:22](https://github.com/mujt
 
 > `optional` **withResponsive?**: `boolean`
 
-Defined in: [packages/core/src/conversions/engine.ts:29](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/conversions/engine.ts#L29)
+Defined in: [packages/core/src/conversions/engine.ts:29](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/conversions/engine.ts#L29)
 
 When true, appends the `'original'` responsive-regeneration sentinel to
 each record's dispatch names whenever `wantsOriginalResponsive(record)`.

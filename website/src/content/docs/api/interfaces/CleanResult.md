@@ -4,7 +4,7 @@ editUrl: false
 ---
 # Interface: CleanResult
 
-Defined in: [packages/core/src/maintenance/clean.ts:12](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/maintenance/clean.ts#L12)
+Defined in: [packages/core/src/maintenance/clean.ts:12](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/maintenance/clean.ts#L12)
 
 Summary counters returned by `MediaLibrary.clean()`.
 
@@ -14,7 +14,7 @@ Summary counters returned by `MediaLibrary.clean()`.
 
 > **dryRun**: `boolean`
 
-Defined in: [packages/core/src/maintenance/clean.ts:33](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/maintenance/clean.ts#L33)
+Defined in: [packages/core/src/maintenance/clean.ts:33](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/maintenance/clean.ts#L33)
 
 ***
 
@@ -22,7 +22,7 @@ Defined in: [packages/core/src/maintenance/clean.ts:33](https://github.com/mujta
 
 > **orphanedMediaDeleted**: `number`
 
-Defined in: [packages/core/src/maintenance/clean.ts:13](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/maintenance/clean.ts#L13)
+Defined in: [packages/core/src/maintenance/clean.ts:13](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/maintenance/clean.ts#L13)
 
 ***
 
@@ -30,7 +30,7 @@ Defined in: [packages/core/src/maintenance/clean.ts:13](https://github.com/mujta
 
 > **skippedUnregistered**: `number`
 
-Defined in: [packages/core/src/maintenance/clean.ts:28](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/maintenance/clean.ts#L28)
+Defined in: [packages/core/src/maintenance/clean.ts:28](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/maintenance/clean.ts#L28)
 
 Total records skipped entirely for staleness checks (files + JSON left
 untouched) because either (a) their modelType/collection isn't
@@ -49,7 +49,7 @@ registration. Equal to `skippedUnregisteredTargets + skippedWithoutGenerator`.
 
 > **skippedUnregisteredTargets**: `number`
 
-Defined in: [packages/core/src/maintenance/clean.ts:30](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/maintenance/clean.ts#L30)
+Defined in: [packages/core/src/maintenance/clean.ts:30](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/maintenance/clean.ts#L30)
 
 Skipped: record's modelType/collection isn't registered in this config.
 
@@ -59,7 +59,7 @@ Skipped: record's modelType/collection isn't registered in this config.
 
 > **skippedWithoutGenerator**: `number`
 
-Defined in: [packages/core/src/maintenance/clean.ts:32](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/maintenance/clean.ts#L32)
+Defined in: [packages/core/src/maintenance/clean.ts:32](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/maintenance/clean.ts#L32)
 
 Skipped: record has generated conversions but no registered imageGenerator supports its mimeType.
 
@@ -69,7 +69,7 @@ Skipped: record has generated conversions but no registered imageGenerator suppo
 
 > **staleEntriesRemoved**: `number`
 
-Defined in: [packages/core/src/maintenance/clean.ts:15](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/maintenance/clean.ts#L15)
+Defined in: [packages/core/src/maintenance/clean.ts:15](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/maintenance/clean.ts#L15)
 
 ***
 
@@ -77,4 +77,4 @@ Defined in: [packages/core/src/maintenance/clean.ts:15](https://github.com/mujta
 
 > **staleFilesDeleted**: `number`
 
-Defined in: [packages/core/src/maintenance/clean.ts:14](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/maintenance/clean.ts#L14)
+Defined in: [packages/core/src/maintenance/clean.ts:14](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/maintenance/clean.ts#L14)

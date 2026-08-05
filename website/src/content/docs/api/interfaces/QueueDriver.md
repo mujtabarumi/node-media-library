@@ -4,7 +4,7 @@ editUrl: false
 ---
 # Interface: QueueDriver
 
-Defined in: [packages/core/src/queue.ts:10](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/queue.ts#L10)
+Defined in: [packages/core/src/queue.ts:10](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/queue.ts#L10)
 
 ## Methods
 
@@ -12,7 +12,7 @@ Defined in: [packages/core/src/queue.ts:10](https://github.com/mujtabarumi/node-
 
 > **close**(): `Promise`\<`void`\>
 
-Defined in: [packages/core/src/queue.ts:13](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/queue.ts#L13)
+Defined in: [packages/core/src/queue.ts:13](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/queue.ts#L13)
 
 #### Returns
 
@@ -24,7 +24,7 @@ Defined in: [packages/core/src/queue.ts:13](https://github.com/mujtabarumi/node-
 
 > **enqueue**(`job`): `Promise`\<`void`\>
 
-Defined in: [packages/core/src/queue.ts:11](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/queue.ts#L11)
+Defined in: [packages/core/src/queue.ts:11](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/queue.ts#L11)
 
 #### Parameters
 
@@ -42,7 +42,7 @@ Defined in: [packages/core/src/queue.ts:11](https://github.com/mujtabarumi/node-
 
 > **registerProcessor**(`fn`): `void`
 
-Defined in: [packages/core/src/queue.ts:12](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/queue.ts#L12)
+Defined in: [packages/core/src/queue.ts:12](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/queue.ts#L12)
 
 #### Parameters
 

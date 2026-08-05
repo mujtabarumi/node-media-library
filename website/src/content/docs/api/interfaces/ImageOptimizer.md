@@ -4,7 +4,7 @@ editUrl: false
 ---
 # Interface: ImageOptimizer
 
-Defined in: [packages/core/src/conversions/optimizer.ts:11](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/conversions/optimizer.ts#L11)
+Defined in: [packages/core/src/conversions/optimizer.ts:11](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/conversions/optimizer.ts#L11)
 
 ## Properties
 
@@ -12,7 +12,7 @@ Defined in: [packages/core/src/conversions/optimizer.ts:11](https://github.com/m
 
 > **name**: `string`
 
-Defined in: [packages/core/src/conversions/optimizer.ts:12](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/conversions/optimizer.ts#L12)
+Defined in: [packages/core/src/conversions/optimizer.ts:12](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/conversions/optimizer.ts#L12)
 
 ## Methods
 
@@ -20,7 +20,7 @@ Defined in: [packages/core/src/conversions/optimizer.ts:12](https://github.com/m
 
 > **optimize**(`buffer`, `ctx`): `Promise`\<`Buffer`\<`ArrayBufferLike`\> \| `null`\>
 
-Defined in: [packages/core/src/conversions/optimizer.ts:14](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/conversions/optimizer.ts#L14)
+Defined in: [packages/core/src/conversions/optimizer.ts:14](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/conversions/optimizer.ts#L14)
 
 Return optimized bytes, or null to pass (unsupported format / binary missing).
 

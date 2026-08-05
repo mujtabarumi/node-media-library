@@ -4,7 +4,7 @@ editUrl: false
 ---
 # Interface: UrlGeneratorOptions
 
-Defined in: [packages/core/src/storage/url-generator.ts:36](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/storage/url-generator.ts#L36)
+Defined in: [packages/core/src/storage/url-generator.ts:36](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/storage/url-generator.ts#L36)
 
 ## Properties
 
@@ -12,7 +12,7 @@ Defined in: [packages/core/src/storage/url-generator.ts:36](https://github.com/m
 
 > `optional` **conversionFileNameFor?**: (`media`, `name`) => `string` \| `null`
 
-Defined in: [packages/core/src/storage/url-generator.ts:46](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/storage/url-generator.ts#L46)
+Defined in: [packages/core/src/storage/url-generator.ts:46](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/storage/url-generator.ts#L46)
 
 Resolves the on-disk filename for `name`'s conversion of `media`, or
 `null` when that conversion isn't defined/applicable. Optional so
@@ -40,7 +40,7 @@ existing callers (and Plan 1's generators.test.ts) that construct
 
 > `optional` **signedUrlExpiresIn?**: `string` \| `number`
 
-Defined in: [packages/core/src/storage/url-generator.ts:38](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/storage/url-generator.ts#L38)
+Defined in: [packages/core/src/storage/url-generator.ts:38](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/storage/url-generator.ts#L38)
 
 ***
 
@@ -48,4 +48,4 @@ Defined in: [packages/core/src/storage/url-generator.ts:38](https://github.com/m
 
 > `optional` **versionUrls?**: `boolean`
 
-Defined in: [packages/core/src/storage/url-generator.ts:37](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/storage/url-generator.ts#L37)
+Defined in: [packages/core/src/storage/url-generator.ts:37](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/storage/url-generator.ts#L37)

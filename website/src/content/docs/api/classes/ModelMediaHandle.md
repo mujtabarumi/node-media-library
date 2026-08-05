@@ -4,7 +4,7 @@ editUrl: false
 ---
 # Class: ModelMediaHandle
 
-Defined in: [packages/core/src/handle.ts:39](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/handle.ts#L39)
+Defined in: [packages/core/src/handle.ts:39](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/handle.ts#L39)
 
 Handle bound to a single (modelType, modelId) pair, scoped to operate on
 that model's media.
@@ -15,7 +15,7 @@ that model's media.
 
 > **new ModelMediaHandle**(`modelType`, `modelId`, `library`): `ModelMediaHandle`
 
-Defined in: [packages/core/src/handle.ts:40](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/handle.ts#L40)
+Defined in: [packages/core/src/handle.ts:40](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/handle.ts#L40)
 
 #### Parameters
 
@@ -41,7 +41,7 @@ Defined in: [packages/core/src/handle.ts:40](https://github.com/mujtabarumi/node
 
 > `readonly` **modelId**: `string`
 
-Defined in: [packages/core/src/handle.ts:42](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/handle.ts#L42)
+Defined in: [packages/core/src/handle.ts:42](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/handle.ts#L42)
 
 ***
 
@@ -49,7 +49,7 @@ Defined in: [packages/core/src/handle.ts:42](https://github.com/mujtabarumi/node
 
 > `readonly` **modelType**: `string`
 
-Defined in: [packages/core/src/handle.ts:41](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/handle.ts#L41)
+Defined in: [packages/core/src/handle.ts:41](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/handle.ts#L41)
 
 ## Methods
 
@@ -57,7 +57,7 @@ Defined in: [packages/core/src/handle.ts:41](https://github.com/mujtabarumi/node
 
 > **add**(`source`): [`FileAdder`](/api/classes/FileAdder/)
 
-Defined in: [packages/core/src/handle.ts:47](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/handle.ts#L47)
+Defined in: [packages/core/src/handle.ts:47](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/handle.ts#L47)
 
 Returns a `FileAdder` builder; call `.toCollection()` to run the pipeline.
 
@@ -77,7 +77,7 @@ Returns a `FileAdder` builder; call `.toCollection()` to run the pipeline.
 
 > **availableUrl**(`collection`, `conversionNames`): `Promise`\<`string` \| `null`\>
 
-Defined in: [packages/core/src/handle.ts:121](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/handle.ts#L121)
+Defined in: [packages/core/src/handle.ts:121](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/handle.ts#L121)
 
 Returns the URL for the first name in `conversionNames` whose conversion
 has actually been generated for the collection's first media item, or
@@ -104,7 +104,7 @@ the original file's URL if none have. All conversions currently report
 
 > **clear**(`collection?`): `Promise`\<`void`\>
 
-Defined in: [packages/core/src/handle.ts:146](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/handle.ts#L146)
+Defined in: [packages/core/src/handle.ts:146](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/handle.ts#L146)
 
 Deletes every record in `collection` (or all collections) and emits `collection:cleared`.
 
@@ -124,7 +124,7 @@ Deletes every record in `collection` (or all collections) and emits `collection:
 
 > **delete**(`mediaId`): `Promise`\<`void`\>
 
-Defined in: [packages/core/src/handle.ts:150](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/handle.ts#L150)
+Defined in: [packages/core/src/handle.ts:150](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/handle.ts#L150)
 
 #### Parameters
 
@@ -142,7 +142,7 @@ Defined in: [packages/core/src/handle.ts:150](https://github.com/mujtabarumi/nod
 
 > **first**(`collection?`): `Promise`\<[`MediaRecord`](/api/interfaces/MediaRecord/) \| `null`\>
 
-Defined in: [packages/core/src/handle.ts:63](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/handle.ts#L63)
+Defined in: [packages/core/src/handle.ts:63](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/handle.ts#L63)
 
 #### Parameters
 
@@ -160,7 +160,7 @@ Defined in: [packages/core/src/handle.ts:63](https://github.com/mujtabarumi/node
 
 > **firstSignedUrl**(`collection?`, `conversionName?`, `opts?`): `Promise`\<`string` \| `null`\>
 
-Defined in: [packages/core/src/handle.ts:99](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/handle.ts#L99)
+Defined in: [packages/core/src/handle.ts:99](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/handle.ts#L99)
 
 #### Parameters
 
@@ -186,7 +186,7 @@ Defined in: [packages/core/src/handle.ts:99](https://github.com/mujtabarumi/node
 
 > **firstUrl**(`collection?`, `conversionName?`): `Promise`\<`string` \| `null`\>
 
-Defined in: [packages/core/src/handle.ts:87](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/handle.ts#L87)
+Defined in: [packages/core/src/handle.ts:87](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/handle.ts#L87)
 
 Returns the URL of the first media item in `collection`, or the
 collection's registered fallback URL (if any) when it's empty, or
@@ -212,7 +212,7 @@ collection's registered fallback URL (if any) when it's empty, or
 
 > **getAll**(`collection?`, `filter?`): `Promise`\<[`MediaRecord`](/api/interfaces/MediaRecord/)[]\>
 
-Defined in: [packages/core/src/handle.ts:57](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/handle.ts#L57)
+Defined in: [packages/core/src/handle.ts:57](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/handle.ts#L57)
 
 Returns media across the model's collections. `collection` undefined or
 `'*'` means "all collections"; otherwise only that collection's media is
@@ -239,7 +239,7 @@ key to deep-equal `customProperties[key]`, a function is a predicate.
 
 > **reorder**(`ids`): `Promise`\<`void`\>
 
-Defined in: [packages/core/src/handle.ts:138](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/handle.ts#L138)
+Defined in: [packages/core/src/handle.ts:138](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/handle.ts#L138)
 
 Reorders this handle's media. `ids` is filtered down to records that
 actually belong to (modelType, modelId) — preserving the caller's

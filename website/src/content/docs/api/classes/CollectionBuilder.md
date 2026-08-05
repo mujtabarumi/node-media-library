@@ -4,7 +4,7 @@ editUrl: false
 ---
 # Class: CollectionBuilder
 
-Defined in: [packages/core/src/definitions/collection.ts:49](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/definitions/collection.ts#L49)
+Defined in: [packages/core/src/definitions/collection.ts:49](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/definitions/collection.ts#L49)
 
 ## Constructors
 
@@ -12,7 +12,7 @@ Defined in: [packages/core/src/definitions/collection.ts:49](https://github.com/
 
 > **new CollectionBuilder**(): `CollectionBuilder`
 
-Defined in: [packages/core/src/definitions/collection.ts:52](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/definitions/collection.ts#L52)
+Defined in: [packages/core/src/definitions/collection.ts:52](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/definitions/collection.ts#L52)
 
 #### Returns
 
@@ -24,7 +24,7 @@ Defined in: [packages/core/src/definitions/collection.ts:52](https://github.com/
 
 > **acceptsFile**(`fn`): `this`
 
-Defined in: [packages/core/src/definitions/collection.ts:88](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/definitions/collection.ts#L88)
+Defined in: [packages/core/src/definitions/collection.ts:88](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/definitions/collection.ts#L88)
 
 #### Parameters
 
@@ -42,7 +42,7 @@ Defined in: [packages/core/src/definitions/collection.ts:88](https://github.com/
 
 > **acceptsMimeTypes**(`types`): `this`
 
-Defined in: [packages/core/src/definitions/collection.ts:83](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/definitions/collection.ts#L83)
+Defined in: [packages/core/src/definitions/collection.ts:83](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/definitions/collection.ts#L83)
 
 #### Parameters
 
@@ -60,7 +60,7 @@ Defined in: [packages/core/src/definitions/collection.ts:83](https://github.com/
 
 > **conversions**(`record`): `this`
 
-Defined in: [packages/core/src/definitions/collection.ts:113](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/definitions/collection.ts#L113)
+Defined in: [packages/core/src/definitions/collection.ts:113](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/definitions/collection.ts#L113)
 
 #### Parameters
 
@@ -78,7 +78,7 @@ Defined in: [packages/core/src/definitions/collection.ts:113](https://github.com
 
 > **fallbackUrl**(`url`, `conversionName?`): `this`
 
-Defined in: [packages/core/src/definitions/collection.ts:108](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/definitions/collection.ts#L108)
+Defined in: [packages/core/src/definitions/collection.ts:108](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/definitions/collection.ts#L108)
 
 #### Parameters
 
@@ -100,7 +100,7 @@ Defined in: [packages/core/src/definitions/collection.ts:108](https://github.com
 
 > **onlyKeepLatest**(`n`): `this`
 
-Defined in: [packages/core/src/definitions/collection.ts:75](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/definitions/collection.ts#L75)
+Defined in: [packages/core/src/definitions/collection.ts:75](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/definitions/collection.ts#L75)
 
 #### Parameters
 
@@ -118,7 +118,7 @@ Defined in: [packages/core/src/definitions/collection.ts:75](https://github.com/
 
 > **public**(): `this`
 
-Defined in: [packages/core/src/definitions/collection.ts:103](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/definitions/collection.ts#L103)
+Defined in: [packages/core/src/definitions/collection.ts:103](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/definitions/collection.ts#L103)
 
 #### Returns
 
@@ -130,7 +130,7 @@ Defined in: [packages/core/src/definitions/collection.ts:103](https://github.com
 
 > **singleFile**(): `this`
 
-Defined in: [packages/core/src/definitions/collection.ts:67](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/definitions/collection.ts#L67)
+Defined in: [packages/core/src/definitions/collection.ts:67](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/definitions/collection.ts#L67)
 
 #### Returns
 
@@ -142,7 +142,7 @@ Defined in: [packages/core/src/definitions/collection.ts:67](https://github.com/
 
 > **storeConversionsOnDisk**(`name`): `this`
 
-Defined in: [packages/core/src/definitions/collection.ts:98](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/definitions/collection.ts#L98)
+Defined in: [packages/core/src/definitions/collection.ts:98](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/definitions/collection.ts#L98)
 
 #### Parameters
 
@@ -160,7 +160,7 @@ Defined in: [packages/core/src/definitions/collection.ts:98](https://github.com/
 
 > **toDefinition**(): [`CollectionDefinition`](/api/interfaces/CollectionDefinition/)
 
-Defined in: [packages/core/src/definitions/collection.ts:133](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/definitions/collection.ts#L133)
+Defined in: [packages/core/src/definitions/collection.ts:133](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/definitions/collection.ts#L133)
 
 #### Returns
 
@@ -172,7 +172,7 @@ Defined in: [packages/core/src/definitions/collection.ts:133](https://github.com
 
 > **useDisk**(`name`): `this`
 
-Defined in: [packages/core/src/definitions/collection.ts:93](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/definitions/collection.ts#L93)
+Defined in: [packages/core/src/definitions/collection.ts:93](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/definitions/collection.ts#L93)
 
 #### Parameters
 
@@ -190,7 +190,7 @@ Defined in: [packages/core/src/definitions/collection.ts:93](https://github.com/
 
 > **withResponsiveImages**(): `this`
 
-Defined in: [packages/core/src/definitions/collection.ts:128](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/definitions/collection.ts#L128)
+Defined in: [packages/core/src/definitions/collection.ts:128](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/definitions/collection.ts#L128)
 
 #### Returns
 

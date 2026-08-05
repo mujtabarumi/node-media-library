@@ -4,7 +4,7 @@ editUrl: false
 ---
 # Class: MediaLibraryError
 
-Defined in: [packages/core/src/errors.ts:1](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/errors.ts#L1)
+Defined in: [packages/core/src/errors.ts:1](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/errors.ts#L1)
 
 ## Extends
 
@@ -26,7 +26,7 @@ Defined in: [packages/core/src/errors.ts:1](https://github.com/mujtabarumi/node-
 
 > **new MediaLibraryError**(`message`, `code?`): `MediaLibraryError`
 
-Defined in: [packages/core/src/errors.ts:2](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/errors.ts#L2)
+Defined in: [packages/core/src/errors.ts:2](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/errors.ts#L2)
 
 #### Parameters
 
@@ -64,7 +64,7 @@ Defined in: node\_modules/.pnpm/typescript@5.9.3/node\_modules/typescript/lib/li
 
 > `readonly` **code**: `string` = `'MEDIA_LIBRARY_ERROR'`
 
-Defined in: [packages/core/src/errors.ts:4](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/errors.ts#L4)
+Defined in: [packages/core/src/errors.ts:4](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/errors.ts#L4)
 
 ***
 

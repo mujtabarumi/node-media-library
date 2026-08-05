@@ -4,7 +4,7 @@ editUrl: false
 ---
 # Interface: MediaRepository
 
-Defined in: [packages/core/src/repository.ts:8](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/repository.ts#L8)
+Defined in: [packages/core/src/repository.ts:8](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/repository.ts#L8)
 
 ## Methods
 
@@ -12,7 +12,7 @@ Defined in: [packages/core/src/repository.ts:8](https://github.com/mujtabarumi/n
 
 > **create**(`data`): `Promise`\<[`MediaRecord`](/api/interfaces/MediaRecord/)\>
 
-Defined in: [packages/core/src/repository.ts:9](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/repository.ts#L9)
+Defined in: [packages/core/src/repository.ts:9](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/repository.ts#L9)
 
 #### Parameters
 
@@ -30,7 +30,7 @@ Defined in: [packages/core/src/repository.ts:9](https://github.com/mujtabarumi/n
 
 > **delete**(`id`): `Promise`\<`void`\>
 
-Defined in: [packages/core/src/repository.ts:14](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/repository.ts#L14)
+Defined in: [packages/core/src/repository.ts:14](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/repository.ts#L14)
 
 #### Parameters
 
@@ -48,7 +48,7 @@ Defined in: [packages/core/src/repository.ts:14](https://github.com/mujtabarumi/
 
 > **findById**(`id`): `Promise`\<[`MediaRecord`](/api/interfaces/MediaRecord/) \| `null`\>
 
-Defined in: [packages/core/src/repository.ts:11](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/repository.ts#L11)
+Defined in: [packages/core/src/repository.ts:11](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/repository.ts#L11)
 
 #### Parameters
 
@@ -66,7 +66,7 @@ Defined in: [packages/core/src/repository.ts:11](https://github.com/mujtabarumi/
 
 > **findByUuid**(`uuid`): `Promise`\<[`MediaRecord`](/api/interfaces/MediaRecord/) \| `null`\>
 
-Defined in: [packages/core/src/repository.ts:12](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/repository.ts#L12)
+Defined in: [packages/core/src/repository.ts:12](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/repository.ts#L12)
 
 #### Parameters
 
@@ -84,7 +84,7 @@ Defined in: [packages/core/src/repository.ts:12](https://github.com/mujtabarumi/
 
 > **findForModel**(`modelType`, `modelId`, `collection?`): `Promise`\<[`MediaRecord`](/api/interfaces/MediaRecord/)[]\>
 
-Defined in: [packages/core/src/repository.ts:13](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/repository.ts#L13)
+Defined in: [packages/core/src/repository.ts:13](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/repository.ts#L13)
 
 #### Parameters
 
@@ -110,7 +110,7 @@ Defined in: [packages/core/src/repository.ts:13](https://github.com/mujtabarumi/
 
 > **iterateAll**(`filter?`): `AsyncIterable`\<[`MediaRecord`](/api/interfaces/MediaRecord/)\>
 
-Defined in: [packages/core/src/repository.ts:16](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/repository.ts#L16)
+Defined in: [packages/core/src/repository.ts:16](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/repository.ts#L16)
 
 #### Parameters
 
@@ -128,7 +128,7 @@ Defined in: [packages/core/src/repository.ts:16](https://github.com/mujtabarumi/
 
 > **markConversionGenerated**(`id`, `name`, `generated`): `Promise`\<[`MediaRecord`](/api/interfaces/MediaRecord/)\>
 
-Defined in: [packages/core/src/repository.ts:31](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/repository.ts#L31)
+Defined in: [packages/core/src/repository.ts:31](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/repository.ts#L31)
 
 Merges `{ [name]: generated }` into the record's `generatedConversions`
 map. Unlike a read→`update()` round-trip in the caller, the read-merge-
@@ -166,7 +166,7 @@ adapter's own docs for its actual guarantee.
 
 > **mergeResponsiveImages**(`id`, `conversion`, `entry`): `Promise`\<[`MediaRecord`](/api/interfaces/MediaRecord/)\>
 
-Defined in: [packages/core/src/repository.ts:33](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/repository.ts#L33)
+Defined in: [packages/core/src/repository.ts:33](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/repository.ts#L33)
 
 Same contract for `responsiveImages[conversion] = entry`.
 
@@ -194,7 +194,7 @@ Same contract for `responsiveImages[conversion] = entry`.
 
 > **ownerExists**(`modelType`, `modelId`): `Promise`\<`boolean`\>
 
-Defined in: [packages/core/src/repository.ts:17](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/repository.ts#L17)
+Defined in: [packages/core/src/repository.ts:17](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/repository.ts#L17)
 
 #### Parameters
 
@@ -216,7 +216,7 @@ Defined in: [packages/core/src/repository.ts:17](https://github.com/mujtabarumi/
 
 > **removeCustomProperty**(`id`, `key`): `Promise`\<[`MediaRecord`](/api/interfaces/MediaRecord/)\>
 
-Defined in: [packages/core/src/repository.ts:37](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/repository.ts#L37)
+Defined in: [packages/core/src/repository.ts:37](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/repository.ts#L37)
 
 Atomically remove a single custom property key, preserving sibling keys.
 
@@ -240,7 +240,7 @@ Atomically remove a single custom property key, preserving sibling keys.
 
 > **setCustomProperty**(`id`, `key`, `value`): `Promise`\<[`MediaRecord`](/api/interfaces/MediaRecord/)\>
 
-Defined in: [packages/core/src/repository.ts:35](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/repository.ts#L35)
+Defined in: [packages/core/src/repository.ts:35](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/repository.ts#L35)
 
 Atomically set a single custom property key, preserving sibling keys.
 
@@ -268,7 +268,7 @@ Atomically set a single custom property key, preserving sibling keys.
 
 > **setOrder**(`ids`, `startAt?`): `Promise`\<`void`\>
 
-Defined in: [packages/core/src/repository.ts:15](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/repository.ts#L15)
+Defined in: [packages/core/src/repository.ts:15](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/repository.ts#L15)
 
 #### Parameters
 
@@ -290,7 +290,7 @@ Defined in: [packages/core/src/repository.ts:15](https://github.com/mujtabarumi/
 
 > **update**(`id`, `patch`): `Promise`\<[`MediaRecord`](/api/interfaces/MediaRecord/)\>
 
-Defined in: [packages/core/src/repository.ts:10](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/repository.ts#L10)
+Defined in: [packages/core/src/repository.ts:10](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/repository.ts#L10)
 
 #### Parameters
 

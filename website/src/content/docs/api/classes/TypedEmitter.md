@@ -4,7 +4,7 @@ editUrl: false
 ---
 # Class: TypedEmitter\<T\>
 
-Defined in: [packages/core/src/events.ts:26](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/events.ts#L26)
+Defined in: [packages/core/src/events.ts:26](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/events.ts#L26)
 
 ## Type Parameters
 
@@ -28,7 +28,7 @@ Defined in: [packages/core/src/events.ts:26](https://github.com/mujtabarumi/node
 
 > **emit**\<`K`\>(`event`, `payload`): `void`
 
-Defined in: [packages/core/src/events.ts:37](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/events.ts#L37)
+Defined in: [packages/core/src/events.ts:37](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/events.ts#L37)
 
 #### Type Parameters
 
@@ -56,7 +56,7 @@ Defined in: [packages/core/src/events.ts:37](https://github.com/mujtabarumi/node
 
 > **on**\<`K`\>(`event`, `fn`): () => `void`
 
-Defined in: [packages/core/src/events.ts:29](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/events.ts#L29)
+Defined in: [packages/core/src/events.ts:29](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/events.ts#L29)
 
 #### Type Parameters
 

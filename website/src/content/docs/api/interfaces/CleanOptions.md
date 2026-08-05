@@ -4,7 +4,7 @@ editUrl: false
 ---
 # Interface: CleanOptions
 
-Defined in: [packages/core/src/maintenance/clean.ts:2](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/maintenance/clean.ts#L2)
+Defined in: [packages/core/src/maintenance/clean.ts:2](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/maintenance/clean.ts#L2)
 
 Options for `MediaLibrary.clean()`.
 
@@ -14,7 +14,7 @@ Options for `MediaLibrary.clean()`.
 
 > `optional` **deleteOrphaned?**: `boolean`
 
-Defined in: [packages/core/src/maintenance/clean.ts:6](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/maintenance/clean.ts#L6)
+Defined in: [packages/core/src/maintenance/clean.ts:6](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/maintenance/clean.ts#L6)
 
 Delete media whose owning model no longer exists (per `repository.ownerExists`).
 
@@ -24,7 +24,7 @@ Delete media whose owning model no longer exists (per `repository.ownerExists`).
 
 > `optional` **dryRun?**: `boolean`
 
-Defined in: [packages/core/src/maintenance/clean.ts:4](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/maintenance/clean.ts#L4)
+Defined in: [packages/core/src/maintenance/clean.ts:4](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/maintenance/clean.ts#L4)
 
 Count everything a real run would do, but perform no deletion/update.
 
@@ -34,6 +34,6 @@ Count everything a real run would do, but perform no deletion/update.
 
 > `optional` **rateLimit?**: `number`
 
-Defined in: [packages/core/src/maintenance/clean.ts:8](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/maintenance/clean.ts#L8)
+Defined in: [packages/core/src/maintenance/clean.ts:8](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/maintenance/clean.ts#L8)
 
 Max deletions per second across files+records; undefined = unthrottled.

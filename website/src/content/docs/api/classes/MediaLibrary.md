@@ -4,7 +4,7 @@ editUrl: false
 ---
 # Class: MediaLibrary
 
-Defined in: [packages/core/src/library.ts:49](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/library.ts#L49)
+Defined in: [packages/core/src/library.ts:49](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/library.ts#L49)
 
 ## Constructors
 
@@ -12,7 +12,7 @@ Defined in: [packages/core/src/library.ts:49](https://github.com/mujtabarumi/nod
 
 > **new MediaLibrary**(`config`): `MediaLibrary`
 
-Defined in: [packages/core/src/library.ts:55](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/library.ts#L55)
+Defined in: [packages/core/src/library.ts:55](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/library.ts#L55)
 
 #### Parameters
 
@@ -30,7 +30,7 @@ Defined in: [packages/core/src/library.ts:55](https://github.com/mujtabarumi/nod
 
 > `readonly` **events**: [`TypedEmitter`](/api/classes/TypedEmitter/)\<[`MediaEventMap`](/api/interfaces/MediaEventMap/)\>
 
-Defined in: [packages/core/src/library.ts:50](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/library.ts#L50)
+Defined in: [packages/core/src/library.ts:50](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/library.ts#L50)
 
 ## Accessors
 
@@ -40,7 +40,7 @@ Defined in: [packages/core/src/library.ts:50](https://github.com/mujtabarumi/nod
 
 > **get** **modelTypes**(): `string`[]
 
-Defined in: [packages/core/src/library.ts:227](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/library.ts#L227)
+Defined in: [packages/core/src/library.ts:227](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/library.ts#L227)
 
 Registered model type names (e.g. `['User', 'Post']`).
 
@@ -54,7 +54,7 @@ Registered model type names (e.g. `['User', 'Post']`).
 
 > **clean**(`opts?`): `Promise`\<[`CleanResult`](/api/interfaces/CleanResult/)\>
 
-Defined in: [packages/core/src/library.ts:637](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/library.ts#L637)
+Defined in: [packages/core/src/library.ts:637](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/library.ts#L637)
 
 Offline maintenance operation: removes orphaned media (when
 `opts.deleteOrphaned`), deletes derived files (conversions + responsive
@@ -100,7 +100,7 @@ uploads/conversions).
 
 > **clearFor**(`modelType`, `modelId`, `collection?`): `Promise`\<`void`\>
 
-Defined in: [packages/core/src/library.ts:414](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/library.ts#L414)
+Defined in: [packages/core/src/library.ts:414](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/library.ts#L414)
 
 Deletes every record in `collection` (or all collections, when omitted
 or `'*'`) for the given model and emits `collection:cleared`. This is
@@ -137,7 +137,7 @@ against `collectionName` and matches nothing.
 
 > **copyMedia**(`mediaOrId`, `toModelType`, `toModelId`, `opts?`): `Promise`\<[`MediaRecord`](/api/interfaces/MediaRecord/)\>
 
-Defined in: [packages/core/src/library.ts:360](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/library.ts#L360)
+Defined in: [packages/core/src/library.ts:360](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/library.ts#L360)
 
 Copy a media record to another model/collection by re-running the full
 add pipeline on the target (Spatie semantics): the copy gets a new
@@ -173,7 +173,7 @@ regenerated rather than byte-copied. The source is never modified.
 
 > **deleteMedia**(`mediaOrId`): `Promise`\<`void`\>
 
-Defined in: [packages/core/src/library.ts:323](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/library.ts#L323)
+Defined in: [packages/core/src/library.ts:323](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/library.ts#L323)
 
 #### Parameters
 
@@ -191,7 +191,7 @@ Defined in: [packages/core/src/library.ts:323](https://github.com/mujtabarumi/no
 
 > **download**(`mediaOrId`, `conversionName?`): `Promise`\<`Response`\>
 
-Defined in: [packages/core/src/library.ts:442](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/library.ts#L442)
+Defined in: [packages/core/src/library.ts:442](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/library.ts#L442)
 
 Web-standard Response streaming the file from storage — works natively in
 Hono/Next/Bun/Deno; use toNodeStream() for Express-style servers. A
@@ -226,7 +226,7 @@ headers are already committed.
 
 > **for**(`modelType`, `modelId`): [`ModelMediaHandle`](/api/classes/ModelMediaHandle/)
 
-Defined in: [packages/core/src/library.ts:219](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/library.ts#L219)
+Defined in: [packages/core/src/library.ts:219](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/library.ts#L219)
 
 #### Parameters
 
@@ -248,7 +248,7 @@ Defined in: [packages/core/src/library.ts:219](https://github.com/mujtabarumi/no
 
 > **getCollectionDefinition**(`modelType`, `collection`): [`CollectionDefinition`](/api/interfaces/CollectionDefinition/)
 
-Defined in: [packages/core/src/library.ts:231](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/library.ts#L231)
+Defined in: [packages/core/src/library.ts:231](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/library.ts#L231)
 
 #### Parameters
 
@@ -270,7 +270,7 @@ Defined in: [packages/core/src/library.ts:231](https://github.com/mujtabarumi/no
 
 > **inline**(`mediaOrId`, `conversionName?`): `Promise`\<`Response`\>
 
-Defined in: [packages/core/src/library.ts:446](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/library.ts#L446)
+Defined in: [packages/core/src/library.ts:446](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/library.ts#L446)
 
 #### Parameters
 
@@ -292,7 +292,7 @@ Defined in: [packages/core/src/library.ts:446](https://github.com/mujtabarumi/no
 
 > **moveMedia**(`mediaOrId`, `toModelType`, `toModelId`, `opts?`): `Promise`\<[`MediaRecord`](/api/interfaces/MediaRecord/)\>
 
-Defined in: [packages/core/src/library.ts:389](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/library.ts#L389)
+Defined in: [packages/core/src/library.ts:389](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/library.ts#L389)
 
 Move = copy + delete-source (Spatie semantics). If the copy fails the
 source record and files are untouched. Derived files regenerate on the
@@ -326,7 +326,7 @@ target; they are not carried over.
 
 > **performConversions**(`mediaId`, `names?`): `Promise`\<`void`\>
 
-Defined in: [packages/core/src/library.ts:104](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/library.ts#L104)
+Defined in: [packages/core/src/library.ts:104](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/library.ts#L104)
 
 Runs `names` (or all applicable) conversions for `mediaId` inline.
 
@@ -350,7 +350,7 @@ Runs `names` (or all applicable) conversions for `mediaId` inline.
 
 > **placeholder**(`mediaOrId`, `conversion?`): `Promise`\<`string` \| `null`\>
 
-Defined in: [packages/core/src/library.ts:315](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/library.ts#L315)
+Defined in: [packages/core/src/library.ts:315](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/library.ts#L315)
 
 The LQIP base64 SVG data URI for `conversion`, or `null` when absent.
 
@@ -374,7 +374,7 @@ The LQIP base64 SVG data URI for `conversion`, or `null` when absent.
 
 > **regenerate**(`opts?`): `Promise`\<\{ `enqueued`: `number`; \}\>
 
-Defined in: [packages/core/src/library.ts:147](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/library.ts#L147)
+Defined in: [packages/core/src/library.ts:147](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/library.ts#L147)
 
 Re-enqueues conversion generation across a set of media records.
 `opts.ids` (when given) selects exactly those records via `findById`,
@@ -410,7 +410,7 @@ failure.
 
 > **removeCustomProperty**(`mediaOrId`, `key`): `Promise`\<[`MediaRecord`](/api/interfaces/MediaRecord/)\>
 
-Defined in: [packages/core/src/library.ts:348](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/library.ts#L348)
+Defined in: [packages/core/src/library.ts:348](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/library.ts#L348)
 
 Remove one custom property atomically (sibling keys preserved).
 
@@ -434,7 +434,7 @@ Remove one custom property atomically (sibling keys preserved).
 
 > **responsiveUrls**(`mediaOrId`, `conversion?`, `opts?`): `Promise`\<`string`[]\>
 
-Defined in: [packages/core/src/library.ts:257](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/library.ts#L257)
+Defined in: [packages/core/src/library.ts:257](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/library.ts#L257)
 
 Public (or, with `opts.signed`, signed) URLs for `conversion`'s stored
 responsive variants (widest first, mirroring stored order). `[]` when
@@ -473,7 +473,7 @@ predating responsive images or signed responsive URLs.
 
 > **setCustomProperty**(`mediaOrId`, `key`, `value`): `Promise`\<[`MediaRecord`](/api/interfaces/MediaRecord/)\>
 
-Defined in: [packages/core/src/library.ts:338](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/library.ts#L338)
+Defined in: [packages/core/src/library.ts:338](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/library.ts#L338)
 
 Set one custom property atomically (sibling keys preserved).
 
@@ -501,7 +501,7 @@ Set one custom property atomically (sibling keys preserved).
 
 > **srcset**(`mediaOrId`, `conversion?`, `opts?`): `Promise`\<`string` \| `null`\>
 
-Defined in: [packages/core/src/library.ts:284](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/library.ts#L284)
+Defined in: [packages/core/src/library.ts:284](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/library.ts#L284)
 
 `'url1 800w, url2 669w'` srcset string; `null` when there's no entry/empty files.
 
@@ -535,7 +535,7 @@ Defined in: [packages/core/src/library.ts:284](https://github.com/mujtabarumi/no
 
 > **updateManipulations**(`mediaId`, `manipulations`): `Promise`\<[`MediaRecord`](/api/interfaces/MediaRecord/)\>
 
-Defined in: [packages/core/src/library.ts:119](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/library.ts#L119)
+Defined in: [packages/core/src/library.ts:119](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/library.ts#L119)
 
 Updates `mediaId`'s per-conversion manipulation overrides and dispatches
 regeneration for the changed conversions through the queue — per spec
@@ -567,7 +567,7 @@ overrides for other conversions must include them in this call.
 
 > **zip**(`archiveName`, `items`): `Promise`\<`Response`\>
 
-Defined in: [packages/core/src/library.ts:507](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/library.ts#L507)
+Defined in: [packages/core/src/library.ts:507](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/library.ts#L507)
 
 Streamed ZIP of `items` (records or ids, mixed disks fine) — no temp
 file; entries stream from storage as the archive streams out. Foldering:

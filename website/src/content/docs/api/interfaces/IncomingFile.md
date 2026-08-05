@@ -4,7 +4,7 @@ editUrl: false
 ---
 # Interface: IncomingFile
 
-Defined in: [packages/core/src/types.ts:23](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/types.ts#L23)
+Defined in: [packages/core/src/types.ts:23](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/types.ts#L23)
 
 ## Properties
 
@@ -12,7 +12,7 @@ Defined in: [packages/core/src/types.ts:23](https://github.com/mujtabarumi/node-
 
 > **fileName**: `string`
 
-Defined in: [packages/core/src/types.ts:24](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/types.ts#L24)
+Defined in: [packages/core/src/types.ts:24](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/types.ts#L24)
 
 ***
 
@@ -20,7 +20,7 @@ Defined in: [packages/core/src/types.ts:24](https://github.com/mujtabarumi/node-
 
 > **mimeType**: `string` \| `null`
 
-Defined in: [packages/core/src/types.ts:25](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/types.ts#L25)
+Defined in: [packages/core/src/types.ts:25](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/types.ts#L25)
 
 ***
 
@@ -28,4 +28,4 @@ Defined in: [packages/core/src/types.ts:25](https://github.com/mujtabarumi/node-
 
 > **size**: `number`
 
-Defined in: [packages/core/src/types.ts:26](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/types.ts#L26)
+Defined in: [packages/core/src/types.ts:26](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/types.ts#L26)

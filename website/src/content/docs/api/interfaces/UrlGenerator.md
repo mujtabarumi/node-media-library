@@ -4,7 +4,7 @@ editUrl: false
 ---
 # Interface: UrlGenerator
 
-Defined in: [packages/core/src/storage/url-generator.ts:10](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/storage/url-generator.ts#L10)
+Defined in: [packages/core/src/storage/url-generator.ts:10](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/storage/url-generator.ts#L10)
 
 ## Methods
 
@@ -12,7 +12,7 @@ Defined in: [packages/core/src/storage/url-generator.ts:10](https://github.com/m
 
 > `optional` **responsiveSignedUrl**(`media`, `fileName`, `opts?`): `Promise`\<`string`\>
 
-Defined in: [packages/core/src/storage/url-generator.ts:29](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/storage/url-generator.ts#L29)
+Defined in: [packages/core/src/storage/url-generator.ts:29](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/storage/url-generator.ts#L29)
 
 Signed URL for a responsive variant file — the private-disk counterpart
 to `responsiveUrl`. Optional for the same reason: custom `UrlGenerator`
@@ -44,7 +44,7 @@ degrade gracefully to `[]`/`null` when it's absent.
 
 > `optional` **responsiveUrl**(`media`, `fileName`): `Promise`\<`string`\>
 
-Defined in: [packages/core/src/storage/url-generator.ts:21](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/storage/url-generator.ts#L21)
+Defined in: [packages/core/src/storage/url-generator.ts:21](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/storage/url-generator.ts#L21)
 
 Public URL for a responsive variant file (as stored in
 `ResponsiveImagesEntry.files[].fileName`). Optional so custom
@@ -72,7 +72,7 @@ gracefully to `[]`/`null` when it's absent.
 
 > **signedUrl**(`media`, `conversionName?`, `opts?`): `Promise`\<`string`\>
 
-Defined in: [packages/core/src/storage/url-generator.ts:13](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/storage/url-generator.ts#L13)
+Defined in: [packages/core/src/storage/url-generator.ts:13](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/storage/url-generator.ts#L13)
 
 #### Parameters
 
@@ -98,7 +98,7 @@ Defined in: [packages/core/src/storage/url-generator.ts:13](https://github.com/m
 
 > **url**(`media`, `conversionName?`): `Promise`\<`string`\>
 
-Defined in: [packages/core/src/storage/url-generator.ts:12](https://github.com/mujtabarumi/node-media-library/blob/219751fb46b66dda5dbffa5c473c562b84c863e3/packages/core/src/storage/url-generator.ts#L12)
+Defined in: [packages/core/src/storage/url-generator.ts:12](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/storage/url-generator.ts#L12)
 
 Throws StorageError if the disk cannot build public URLs.
 
