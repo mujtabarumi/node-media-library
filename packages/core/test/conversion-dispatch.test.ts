@@ -117,11 +117,14 @@ describe('conversion dispatch from upload pipeline', () => {
     const thumbDef = library.getCollectionDefinition('Post', 'images').conversions.thumb!
     const thumbPath = join(root, conversionKey(media, pathGen, thumbDef, 'thumb'))
 
-    await vi.waitFor(() => {
-      expect(existsSync(thumbPath)).toBe(true)
+    // Waiting on existsSync alone is not enough: the file appears as soon as
+    // the write opens, so reading it immediately can hit a partially-written
+    // PNG and throw "Input file contains unsupported image format". Retry the
+    // read itself, the same way the post-update assertion below does.
+    await vi.waitFor(async () => {
+      const initialMeta = await sharp(thumbPath).metadata()
+      expect(initialMeta.width).toBe(8)
     })
-    const initialMeta = await sharp(thumbPath).metadata()
-    expect(initialMeta.width).toBe(8)
 
     const updated = await library.updateManipulations(media.id, { thumb: { width: 6 } })
     expect(updated.manipulations).toEqual({ thumb: { width: 6 } })
