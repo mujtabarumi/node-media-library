@@ -1,11 +1,13 @@
 {
   "$schema": "https://typedoc.org/schema.json",
   "entryPoints": ["src/index.ts"],
-  // Deliberately NOT inside website/src/content/docs. Starlight's collection
-  // schema requires `title` frontmatter and this plugin emits none, so writing
-  // there fails `astro build` outright. Publishing these pages needs
-  // starlight-typedoc (which adds the frontmatter) — see the PR discussion.
-  "out": "./api-docs",
+  // Written straight into the site's content collection and committed, so
+  // Cloudflare never has to install the library's dependency tree (sharp,
+  // prisma engines, better-sqlite3 — all with postinstall scripts) just to
+  // publish 20 static pages. `scripts/starlight-frontmatter.mjs` supplies the
+  // `title` frontmatter Starlight requires; without it `astro build` fails on
+  // the first generated file.
+  "out": "../../website/src/content/docs/api",
   "plugin": ["typedoc-plugin-markdown"],
 
   // Load-bearing, and NOT the default. Without it the @internal tags in src/
@@ -16,5 +18,10 @@
   "readme": "none",
   "githubPages": false,
   "hideGenerator": true,
-  "sort": ["kind", "alphabetical"]
+  "sort": ["kind", "alphabetical"],
+
+  // Starlight renders its own title and breadcrumbs from frontmatter and the
+  // sidebar, so TypeDoc's would be duplicated on every page.
+  "hideBreadcrumbs": true,
+  "hidePageHeader": true
 }

@@ -6,11 +6,6 @@ dist/
 packages/prisma/test/prisma/generated/
 packages/prisma/test/tmp/
 
-# TypeDoc output from `pnpm --filter @node-media-library/core docs:api`.
-# Generated, and not yet published anywhere — see the note in
-# packages/core/typedoc.json.
-packages/core/api-docs/
-
 # Local editor/agent state
 .claude/settings.local.json
 .idea/

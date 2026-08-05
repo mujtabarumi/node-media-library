@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="node-media-library">
+  <!--
+    An aperture, in the darkroom palette's amber accent. Starlight requests
+    /favicon.svg on every page; without this file each one 404s.
+  -->
+  <rect width="32" height="32" rx="7" fill="#151412" />
+  <g fill="none" stroke="#e0a83c" stroke-width="2" stroke-linejoin="round">
+    <circle cx="16" cy="16" r="9" />
+    <path d="M16 7 L16 16 L23.8 20.5" />
+    <path d="M8.2 20.5 L16 16 L8.2 11.5" />
+    <path d="M23.8 11.5 L16 16 L16 25" />
+  </g>
+</svg>

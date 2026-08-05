@@ -28,3 +28,24 @@ jobs:
       - run: pnpm -r build
       - run: pnpm -r test
         env: { REDIS_URL: 'redis://localhost:6379' }
+
+  # The API reference under website/src/content/docs/api is generated and
+  # committed, so Cloudflare can publish the site without installing the
+  # library's dependency tree. Committed generated output rots unless
+  # something checks it, so: regenerate, and fail on any diff.
+  api-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v5
+        with: { node-version: '22', cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @node-media-library/core docs:api
+      - name: API reference is up to date
+        run: |
+          if ! git diff --quiet -- website/src/content/docs/api; then
+            echo "::error::The committed API reference is stale. Run: pnpm --filter @node-media-library/core docs:api"
+            git diff --stat -- website/src/content/docs/api
+            exit 1
+          fi
