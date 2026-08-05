@@ -1,0 +1,19 @@
+# Declares this directory as its own pnpm workspace root, with no members.
+#
+# Without it, `pnpm install` run from here walks UP to the repo-root
+# pnpm-workspace.yaml, decides it is installing the monorepo, and leaves
+# website/node_modules empty — so the build fails with no `astro` binary. The
+# `--ignore-workspace` flag fixes that, but only if whoever (or whatever) runs
+# the install remembers to pass it. Cloudflare Pages runs a bare
+# `pnpm install`, so the fix has to be declarative.
+#
+# The site is excluded from the real workspace on purpose: Astro requires
+# Node >=22.12 while the library supports >=20 and CI tests both.
+packages: []
+
+# pnpm 10 blocks postinstall scripts unless a package is allowlisted. Astro
+# pulls both of these in; without this the install prints an approve-builds
+# warning on every CI and Cloudflare run.
+onlyBuiltDependencies:
+  - esbuild
+  - sharp

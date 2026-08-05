@@ -38,8 +38,10 @@ docs/superpowers/plans/   historical plans, kept verbatim (prettier-ignored)
 
 Tests live in each package's `test/` directory, **not** colocated in `src/`.
 
-`website/` has its own lockfile and its own CI workflow; `pnpm -r` never touches it. Install it with
-`pnpm install --ignore-workspace` from inside that directory.
+`website/` has its own lockfile, its own `pnpm-workspace.yaml` (declaring it a workspace root with no
+members, so a bare `pnpm install` resolves there instead of walking up), and its own CI workflow.
+`pnpm -r` never touches it. Its `.node-version` pins Node 22 — the root `.nvmrc` says `20`, which is
+correct for the library and below Astro's floor.
 
 ## Conventions
 

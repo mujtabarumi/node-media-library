@@ -19,8 +19,10 @@ jobs:
       # why the site is not a pnpm workspace member. See website/README.md.
       - uses: actions/setup-node@v5
         with: { node-version: '22' }
-      # --ignore-workspace because website/ is intentionally outside the
-      # workspace and resolves against its own lockfile.
-      - run: pnpm install --frozen-lockfile --ignore-workspace
+      # No --ignore-workspace needed: website/pnpm-workspace.yaml declares this
+      # directory its own workspace root, so a bare install resolves against
+      # website/pnpm-lock.yaml. Keeping the flag off here is deliberate — it
+      # means CI exercises the same command Cloudflare Pages runs.
+      - run: pnpm install --frozen-lockfile
       - run: pnpm check
       - run: pnpm build
