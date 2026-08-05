@@ -30,7 +30,18 @@ import { join } from 'node:path'
 
 const library = createMediaLibrary({
   repository: new InMemoryMediaRepository(),
-  storage: { disks: { default: { driver: 'fs', root: join(process.cwd(), 'media') } } },
+  storage: {
+    disks: {
+      default: {
+        driver: 'fs',
+        root: join(process.cwd(), 'media'),
+        // Required: the fs driver cannot derive a public URL on its own, so
+        // url()/firstUrl() throw StorageError without it. Point it at the path
+        // your server serves `root` from.
+        baseUrl: 'http://localhost:3000/media',
+      },
+    },
+  },
   // Default `queue` is `syncDriver()` (inline). Swap in `bullmqDriver({ connection })`
   // from `@node-media-library/bullmq` to dispatch queued conversions to a worker.
   models: {
@@ -183,6 +194,14 @@ createMediaLibrary({
 - `@node-media-library/video` extracts a still frame via the `ffmpeg` binary — select the timestamp with
   `conversion().videoFrameAtSecond(n)` (default 0). Requires `ffmpeg` on the system.
 
+Both generators also implement `toSourceImage`, so `.withResponsiveImages()` (collection, conversion, or
+per-upload) works the same way it does for images: it rasterizes the source once and derives the responsive
+variant set from that raster, not from the original PDF/video bytes.
+
+If a media file's MIME type isn't `supports()`-ed by any configured generator, conversions and responsive
+images for that file are skipped silently — the upload itself still succeeds and the file remains usable as a
+plain (attachment-only) piece of media.
+
 ## Storage disks
 
 `storage.disks` accepts `fs`, `s3`, and `gcs` driver configs. Without explicit config, the default disk is
@@ -208,13 +227,16 @@ createMediaLibrary({
 Requires the optional peer `@google-cloud/storage ^7.10.2` — install it alongside `@node-media-library/core` to
 use the `gcs` driver.
 
-Both generators also implement `toSourceImage`, so `.withResponsiveImages()` (collection, conversion, or
-per-upload) works the same way it does for images: it rasterizes the source once and derives the responsive
-variant set from that raster, not from the original PDF/video bytes.
+### URL building per driver
 
-If a media file's MIME type isn't `supports()`-ed by any configured generator, conversions and responsive
-images for that file are skipped silently — the upload itself still succeeds and the file remains usable as a
-plain (attachment-only) piece of media.
+- **`fs` requires `baseUrl`.** The `DefaultUrlGenerator` short-circuits to `{baseUrl}/{path}` for `fs` disks;
+  without it, it falls through to flydrive's `disk.getUrl()`, which the FS driver refuses to implement — so
+  `url()`/`firstUrl()` throw `StorageError`. Serve the disk's `root` statically and point `baseUrl` at it.
+- **`signedUrl()` does not sign on the `fs` driver.** It returns the plain public URL and ignores `expiresIn`
+  (documented dev-mode behavior — the returned URL never expires). Use `s3`/`gcs` for genuinely time-limited
+  URLs, or serve the bytes yourself via `download()`/`inline()` behind your own authorization.
+- **`baseUrl` is accepted but unconsumed by the `s3`/`gcs` drivers** — their public URLs come from the driver's
+  own defaults. A custom CDN hostname needs a custom `UrlGenerator`.
 
 ## Security model
 

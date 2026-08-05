@@ -46,11 +46,15 @@ videoImageGenerator({
 Use `conversion().videoFrameAtSecond(n)` to select which frame to extract (default is frame at 0 seconds):
 
 ```typescript
-conversion()
-  .videoFrameAtSecond(2.5) // Extract frame at 2.5 seconds
-  .width(800)
-  .toDefinition()
+import { collection, conversion } from '@node-media-library/core'
+
+collection().conversions({
+  // Extract the frame at 2.5 seconds, at 800px wide
+  poster: conversion().videoFrameAtSecond(2.5).width(800),
+})
 ```
+
+`conversions()` takes the builders themselves — don't call `.toDefinition()`, which is applied for you.
 
 ## Testing
 

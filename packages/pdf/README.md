@@ -47,11 +47,15 @@ pdfImageGenerator({
 Use `conversion().pdfPageNumber(n)` to select which page to render (default is page 1):
 
 ```typescript
-conversion()
-  .pdfPageNumber(2) // Render page 2
-  .width(800)
-  .toDefinition()
+import { collection, conversion } from '@node-media-library/core'
+
+collection().conversions({
+  // Render page 2 at 800px wide
+  cover: conversion().pdfPageNumber(2).width(800),
+})
 ```
+
+`conversions()` takes the builders themselves — don't call `.toDefinition()`, which is applied for you.
 
 ## Testing
 
