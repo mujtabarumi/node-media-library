@@ -1,0 +1,163 @@
+---
+title: Persistence with Prisma
+description: Add the Media model, wire the adapter, and decide what happens when an owner row is deleted.
+---
+
+import { Aside } from '@astrojs/starlight/components'
+import SharpEdge from '../../../components/SharpEdge.astro'
+import Requires from '../../../components/Requires.astro'
+
+<Requires items={['@node-media-library/prisma', '@prisma/client >=6.2 <8']} />
+
+`InMemoryMediaRepository` is for tests. For anything real, media records need a table.
+
+:::note
+These samples need a generated Prisma client, so they aren't executed on this site. The adapter is
+validated in the project's CI against a real SQLite database, through the same shared repository
+contract every backend must pass.
+:::
+
+## The model
+
+Paste into `schema.prisma` and run your usual migrate flow. It's also exported as
+`MEDIA_MODEL_SNIPPET` if you'd rather generate it.
+
+```prisma
+model Media {
+  id                   String   @id
+  modelType            String
+  modelId              String
+  uuid                 String   @unique
+  collectionName       String
+  name                 String
+  fileName             String
+  mimeType             String?
+  disk                 String
+  conversionsDisk      String?
+  size                 Int
+  manipulations        Json
+  customProperties     Json
+  generatedConversions Json
+  responsiveImages     Json
+  orderColumn          Int?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  @@index([modelType, modelId])
+  @@map("media")
+}
+```
+
+`size Int` covers files up to about 2 GB. If you accept larger, switch it to `BigInt` and adjust
+`MediaRow` accordingly.
+
+## Wiring the adapter
+
+```ts
+import { createMediaLibrary } from '@node-media-library/core'
+import { prismaAdapter } from '@node-media-library/prisma'
+import { PrismaClient } from './generated/prisma/client.js'
+
+const prisma = new PrismaClient()
+
+export const library = createMediaLibrary({
+  repository: prismaAdapter(prisma),
+  storage: {/* … */},
+  models: {/* … */},
+})
+```
+
+<Aside type="tip" title="Prisma 7 generates into your own directory">
+  It no longer writes into `node_modules/@prisma/client` by default. Import from wherever your
+  generator's `output` points and pass that instance in — don't assume a package default.
+</Aside>
+
+## No foreign keys, on purpose
+
+Media rows store `modelType` and `modelId` as plain strings, with no relation to your tables. That's
+what lets one media table serve a Prisma model, a Drizzle model, and a row you fetched with raw SQL.
+
+The cost is that your database will not cascade a delete for you. Two mechanisms cover it.
+
+### Opt-in cascade
+
+```ts
+import { withMediaCascade } from '@node-media-library/prisma'
+
+const db = withMediaCascade(prisma, library)
+
+await db.user.delete({ where: { id: userId } }) // media rows and stored files go too
+await db.user.deleteMany({ where: { inactive: true } }) // each matched row, too
+```
+
+It's a Prisma client extension, so use the returned `db` where you'd have used `prisma`. Restrict it
+to specific models with `withMediaCascade(prisma, library, { models: ['User', 'Post'] })`.
+
+Cascaded models must expose a scalar `id` — the extension reads `result.id` from a `delete`, or each
+matched row's `id` from a `deleteMany`, to know what to clean up.
+
+### Sweeping up
+
+Anything that slipped past — rows deleted through raw SQL, or before you adopted the extension:
+
+```bash
+node-media-library clean --config media.config.mjs --dry-run --delete-orphaned
+```
+
+This needs the `owners` option so the adapter can tell whether an owner still exists:
+
+```ts
+prismaAdapter(prisma, {
+  owners: {
+    User: async (id) => (await prisma.user.count({ where: { id } })) > 0,
+    Post: async (id) => (await prisma.post.count({ where: { id } })) > 0,
+  },
+})
+```
+
+Most integrations can omit `owners` entirely — it's consulted only by `--delete-orphaned`. See
+[the CLI reference](/reference/cli/).
+
+## Other options
+
+```ts
+prismaAdapter(prisma, {
+  owners: {/* … */},
+  iterateBatchSize: 100, // page size for iterateAll(), used by regenerate/clean
+})
+```
+
+## Ordering
+
+A model's media is ordered by `[{ orderColumn: { sort: 'asc', nulls: 'last' } }, { createdAt: 'asc' }]`
+— so explicitly ordered records come first in their assigned order, and unordered ones fall to the end
+oldest-first.
+
+<Aside type="caution" title="nulls: 'last' is verified on SQLite only">
+  The project's test suite proves this behaviour against SQLite. Run the exported contract suite
+  against your own Postgres or MySQL before relying on it there.
+</Aside>
+
+## Concurrency
+
+<SharpEdge title="JSON-column merges aren't lock-safe on Postgres or MySQL">
+  `setCustomProperty`, `markConversionGenerated`, and `mergeResponsiveImages` do a read-merge-write
+  inside the repository, wrapped in `$transaction` when the client offers one. But read-committed
+  isolation doesn't lock the row that `findUnique` read, so two concurrent merges on the _same_
+  record can both see the pre-update row and one write is lost. SQLite is unaffected — it serializes
+  writes. [Full detail →](/production/limitations/#prisma-json-column-merges-arent-lock-safe)
+</SharpEdge>
+
+In practice this bites when several conversion workers write back to one media record. If that's your
+shape, take an explicit row lock around the merge or partition per-media work to a single worker.
+
+## Using a different backend
+
+Nothing here is Prisma-specific at the library level. Implement `MediaRepository` and validate it
+against the shared contract exported from `@node-media-library/core/testing`. Every bundled adapter
+runs that same suite, and adding a repository method means adding its cases to the contract so all
+backends are held to it.
+
+## Next
+
+- [Known limitations](/production/limitations/) — the concurrency caveats in full.
+- [The CLI](/reference/cli/) — `clean --delete-orphaned` and friends.
