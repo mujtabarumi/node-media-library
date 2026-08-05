@@ -1,0 +1,26 @@
+{
+  "name": "node-media-library-docs",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Documentation site for node-media-library. Standalone: NOT a pnpm workspace member, because Astro requires Node >=22.12 while the library supports Node >=20.",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "check": "astro check"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "^0.41.7",
+    "astro": "^7.1.6",
+    "sharp": "^0.34.4"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.10",
+    "typescript": "^5.5.0"
+  }
+}

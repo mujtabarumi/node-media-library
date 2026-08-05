@@ -1,0 +1,7 @@
+# Astro
+.astro/
+dist/
+
+# Environment
+.env
+.env.production

@@ -1,0 +1,115 @@
+---
+title: Your first upload
+description: A complete, runnable example — an in-memory repository and a local disk, so there is nothing to provision.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components'
+
+Nothing to provision: an in-memory repository and a local directory. Both are real implementations,
+not stubs, so everything on this page behaves exactly as it will in production — only the storage and
+persistence targets change.
+
+<p class="nml-verified">Every sample on this page runs against the library in CI.</p>
+
+<Steps>
+
+1. **Describe what a `User`'s avatar is.**
+
+   The configuration is the interesting part. You are not writing upload code here — you are
+   declaring a policy that upload code will obey.
+
+   ```ts title="media.ts"
+   import {
+     createMediaLibrary,
+     InMemoryMediaRepository,
+     collection,
+     conversion,
+   } from '@node-media-library/core'
+
+   export const library = createMediaLibrary({
+     repository: new InMemoryMediaRepository(),
+     storage: {
+       disks: {
+         default: {
+           driver: 'fs',
+           root: './storage/media',
+           // Required. The fs driver cannot know your public URL, so url() throws
+           // without this. Point it at the path your server serves `root` from.
+           baseUrl: 'http://localhost:3000/media',
+         },
+       },
+     },
+     models: {
+       User: {
+         collections: {
+           avatar: collection()
+             .singleFile()
+             .acceptsMimeTypes(['image/*'])
+             .conversions({
+               // nonQueued() runs it inline, so the URL is valid the moment add() resolves
+               thumb: conversion().width(96).height(96).fit('cover').format('webp').nonQueued(),
+             }),
+         },
+       },
+     },
+   })
+   ```
+
+2. **Store a file.**
+
+   ```ts
+   import { library } from './media.js'
+
+   const media = await library.for('User', 'user-1').add('/tmp/upload.png').toCollection('avatar')
+
+   media.id //  '0e5f…'    — the media record id
+   media.mimeType //  'image/png' — sniffed from the bytes, not the filename
+   ```
+
+3. **Read it back.**
+
+   ```ts
+   await library.for('User', 'user-1').firstUrl('avatar') //  the original
+   await library.for('User', 'user-1').firstUrl('avatar', 'thumb') //  96×96 webp
+   ```
+
+</Steps>
+
+## What just happened
+
+Three things, and they are the entire value proposition:
+
+1. **The file was validated against the collection**, not against ad-hoc checks at the call site. A
+   file that isn't really an image is rejected here — `acceptsMimeTypes` is checked against the type
+   sniffed from the file's bytes, so a PHP script named `photo.png` doesn't get through.
+2. **The `thumb` conversion was derived and stored automatically**, because the collection declares
+   it. No separate resize step, no queue plumbing, no "did the thumbnail get made" state to track.
+3. **The previous avatar was deleted** — the record, the original file, and every file derived from
+   it — because `avatar` is `singleFile()`. You never write cleanup code.
+
+Change the policy in one place and every call site follows. That is what you are buying.
+
+<Aside type="caution" title="Path sources are moved, not copied">
+  A filesystem-path source is consumed: after that `add()`, `/tmp/upload.png` no longer exists. This
+  is deliberate — it means a framework's temp upload file is cleaned up for you. Call
+  `.preservingOriginal()` when you need the source to survive.
+</Aside>
+
+## Serving the files
+
+The `fs` driver has no idea what URL your files are reachable at, which is why `baseUrl` isn't
+optional above. In development, serve the disk's `root` statically and point `baseUrl` at that path:
+
+```ts title="server.ts"
+app.use('/media', express.static('./storage/media'))
+```
+
+In production you would typically use S3 or GCS instead, where URLs come from the driver.
+
+## Where to go next
+
+- [Handling uploads](/guides/uploads/) — wiring this into Express, Hono, or Next.js, and mapping
+  validation failures to HTTP status codes. Realistically your next step.
+- [Core concepts](/start/concepts/) — models, collections, conversions, and the lifecycle of an
+  `add()` call, if you'd rather understand the model before building on it.
+- [Avatars & single-file collections](/guides/avatars/) — the example above, taken to production.

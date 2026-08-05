@@ -1,0 +1,103 @@
+---
+title: Known limitations
+description: Every documented sharp edge in one place — what happens, when it bites, and what to do about it.
+---
+
+Finding these out in production is worse than reading them here.
+
+Each entry below is linked from the page where you'd be about to depend on it. None of them is a bug
+report — they're places where the library's guarantees stop, stated so you can decide whether they
+matter for your workload. Most won't.
+
+## Concurrent `add()` calls race
+
+**What happens.** `add()` reads the collection's existing sibling records twice — once to compute the
+new record's order, once to enforce `singleFile()` or `onlyKeepLatest(n)` — with no lock in between.
+Two concurrent calls for the same (model, collection) can each read the same "before" snapshot. Both
+may compute the same order value, or a `singleFile()` collection may briefly hold two records before
+the losing call's displacement pass runs.
+
+**When it bites.** Machine-driven imports, retried webhooks, or a client that fires two uploads
+without waiting. It is not a realistic race for a person uploading their own avatar.
+
+**What to do.** Serialize `add()` calls per (model, collection) yourself if you need a hard guarantee
+— a per-key mutex, or a queue with a concurrency of one, is enough.
+
+## Prisma JSON-column merges aren't lock-safe
+
+**What happens.** `setCustomProperty`, `markConversionGenerated`, and `mergeResponsiveImages` do a
+read-merge-write inside the repository. The Prisma adapter wraps that in `$transaction` when the
+client offers one, but on Postgres and MySQL's default read-committed isolation a transaction alone
+doesn't lock the row that `findUnique` read. Two concurrent merges on the **same** record can both
+read the same pre-update row, and one write is lost.
+
+**When it bites.** Parallel conversion workers writing back to one media record, or concurrent
+`setCustomProperty` calls on the same item. SQLite is unaffected — it serializes all writes.
+
+**What to do.** If you run parallel workers against Postgres or MySQL and this matters, take an
+explicit row lock (`SELECT … FOR UPDATE`) around the merge, or route per-media work to a single
+worker via a queue partition key.
+
+## `signedUrl()` does not sign on the `fs` driver
+
+**What happens.** The local filesystem driver has no signing mechanism, so `signedUrl()` falls back to
+the plain public URL and **ignores `expiresIn` entirely**. The returned link never expires.
+
+**When it bites.** Any private media served from an `fs` disk under the assumption that the URL is
+time-limited. It's silent — you get a working URL, just not a temporary one.
+
+**What to do.** Use S3 or GCS for genuinely private files, or serve the bytes yourself with
+`download()`/`inline()` behind your own authorization check. See
+[Private files & downloads](/guides/private-files/).
+
+## `baseUrl` is ignored by the `s3` and `gcs` drivers
+
+**What happens.** All three disk configs accept a `baseUrl`, but only the `fs` driver's URL generator
+reads it. Public S3 and GCS URLs come from the driver's own defaults.
+
+**When it bites.** Pointing public URLs at a CDN hostname in front of your bucket.
+
+**What to do.** Supply a custom `UrlGenerator` for now. (On `fs`, the opposite applies — `baseUrl` is
+not optional there, and `url()` throws `StorageError` without it.)
+
+## Video frames are extracted one process at a time, from memory
+
+**What happens.** `@node-media-library/video` reads the entire source video into a `Buffer` before
+shelling out, and spawns a separate `ffmpeg` process per frame extraction — an N+1 spawn pattern when
+one media item has several video-derived conversions.
+
+**When it bites.** Large video files, or many video conversions per item. Fine for typical clips.
+
+**What to do.** Keep video conversions few, queue them rather than running inline, and cap worker
+concurrency so simultaneous extractions don't multiply memory use.
+
+## `clean()` is not concurrency-safe with running workers
+
+**What happens.** `clean()` diffs on-disk files against what your configuration says should exist. A
+worker writing a conversion's file or JSON for a record while `clean()` is diffing that same record
+can produce either a spurious deletion or a missed one.
+
+**When it bites.** Running the maintenance command against a live system with active conversion
+workers.
+
+**What to do.** Run it offline — a scheduled job with no in-flight uploads or conversions — and use
+`--dry-run` first. Note also that `clean()` **skips** (loudly, via `console.warn`) any record whose
+model or collection isn't registered in the config you hand it, rather than treating its files as
+stale. Always run it with your full configuration, not a trimmed-down one.
+
+## Media rows are not foreign-keyed to your models
+
+**What happens.** Media records store `modelType` and `modelId` as plain strings. That's what lets one
+media table serve every model in your application regardless of ORM — but the database won't cascade
+a delete for you.
+
+**When it bites.** Deleting an owner row leaves its media records and their stored files behind.
+
+**What to do.** Use the Prisma adapter's opt-in `withMediaCascade(prisma, library)` extension, and
+sweep up anything that escaped with `clean({ deleteOrphaned: true })`.
+
+---
+
+If one of these blocks you, the honest answer is usually "that's a fixable design decision, not a law
+of nature" — [open an issue](https://github.com/mujtabarumi/node-media-library/issues) and say what
+you're building.

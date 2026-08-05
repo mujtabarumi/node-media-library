@@ -1,0 +1,79 @@
+---
+title: Media handling that cleans up after itself
+description: Declare your collections and conversions once. One call validates the file, sniffs its real type, stores it, derives your thumbnails, and hands back a URL — and when the record goes, every derived file goes with it.
+template: splash
+hero:
+  tagline: Declare your collections and conversions once. One call then validates the file, sniffs its real type, stores it, derives your thumbnails, and hands back a URL — and when the record goes, every derived file goes with it.
+  actions:
+    - text: Read the five-minute guide
+      link: /start/first-upload/
+      icon: right-arrow
+    - text: View on GitHub
+      link: https://github.com/mujtabarumi/node-media-library
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid, Aside } from '@astrojs/starlight/components'
+
+<Aside type="caution" title="Pre-release">
+  Not yet published to npm. Everything documented here is implemented and tested in the repository
+  today, but you'll need to install from a git checkout until the first release.
+</Aside>
+
+## Two files. That's the whole idea.
+
+The collection carries the policy. Call sites stay one line.
+
+```ts title="media.config.ts"
+avatar: collection()
+  .singleFile()
+  .acceptsMimeTypes(['image/*'])
+  .conversions({
+    thumb: conversion().width(96).height(96).fit('cover').format('webp'),
+  })
+```
+
+```ts title="routes/avatar.ts"
+await library.for('User', user.id).add(upload).toCollection('avatar')
+// rejected if it isn't really an image — MIME is sniffed from the bytes, not the filename
+// thumb is derived and stored automatically
+// the previous avatar and its thumb are deleted — no cleanup code, ever
+
+await library.for('User', user.id).firstUrl('avatar', 'thumb')
+// → 'https://cdn.example.com/9f3…/conversions/photo-thumb.webp'
+```
+
+<CardGrid>
+  <Card title="Validated, not trusted" icon="approve-check">
+    MIME type is detected from the file's actual bytes. Filenames are sanitized, extensions are
+    blocked per dot-segment so `evil.php.jpg` is rejected, and size caps are enforced while the
+    bytes stream in — not after they're buffered.
+  </Card>
+  <Card title="Derived automatically" icon="seti:image">
+    Thumbnails, format conversions, and responsive variant sets with LQIP placeholders, generated
+    from what the collection declares. Inline when you need the URL immediately, queued when you
+    don't.
+  </Card>
+  <Card title="Deleted together" icon="trash">
+    One media item is one directory. Deleting the record removes the original, every conversion, and
+    every responsive variant — so there is no orphan-cleanup code to write or forget.
+  </Card>
+  <Card title="Every sample runs in CI" icon="rocket">
+    The code on these pages is executed against the library on every commit. A guide that drifts
+    from shipped behavior fails the build — which is how the last round of documentation bugs was
+    caught.
+  </Card>
+</CardGrid>
+
+## Bring your own everything
+
+Storage is [flydrive](https://flydrive.dev) — filesystem, S3, or GCS. Persistence is a
+`MediaRepository` interface with a Prisma adapter included, so your media table is a table like any
+other rather than an ORM you have to adopt. Queueing is a `QueueDriver` — synchronous by default,
+BullMQ when you're ready. Image work is [sharp](https://sharp.pixelplumbing.com).
+
+Nothing auto-registers. Installing a package enables nothing until you wire it in, which is why you
+can read a config file and know exactly what will happen to an upload.
+
+[Start with install and requirements →](/start/install/)

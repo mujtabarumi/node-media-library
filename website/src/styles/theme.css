@@ -1,0 +1,176 @@
+/*
+ * Darkroom palette. Warm near-black neutrals with a single amber accent —
+ * a nod to safelights and film, without literal photographic imagery.
+ *
+ * Dark is the default and the designed-for theme; light is derived from it.
+ * One accent only: adding a second colour is how this stops looking deliberate.
+ */
+
+:root {
+  --nml-amber-100: #fdf1d6;
+  --nml-amber-200: #f7dda8;
+  --nml-amber-300: #f0c46b;
+  --nml-amber-400: #e0a83c;
+  --nml-amber-500: #c1871c;
+  --nml-amber-700: #6d4a0d;
+  --nml-amber-900: #2a1d06;
+
+  --sl-color-accent-low: var(--nml-amber-900);
+  --sl-color-accent: var(--nml-amber-500);
+  --sl-color-accent-high: var(--nml-amber-300);
+
+  --sl-color-white: #ffffff;
+  --sl-color-gray-1: #eae7e1;
+  --sl-color-gray-2: #c5c0b8;
+  --sl-color-gray-3: #8e8880;
+  --sl-color-gray-4: #5b5750;
+  --sl-color-gray-5: #3a3733;
+  --sl-color-gray-6: #262421;
+  --sl-color-gray-7: #1d1b19;
+  --sl-color-black: #151412;
+
+  --sl-color-bg-sidebar: var(--sl-color-gray-7);
+  --sl-color-bg-nav: var(--sl-color-gray-7);
+
+  --sl-font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+
+  /* Semantic tokens for this site's own components. */
+  --nml-edge-border: var(--nml-amber-400);
+  --nml-edge-bg: rgba(224, 168, 60, 0.07);
+  --nml-edge-text: var(--nml-amber-200);
+  --nml-pill-bg: var(--sl-color-gray-6);
+  --nml-pill-border: var(--sl-color-gray-5);
+}
+
+:root[data-theme='light'] {
+  --sl-color-accent-low: var(--nml-amber-100);
+  --sl-color-accent: #8a5d0a;
+  --sl-color-accent-high: #4a3206;
+
+  --sl-color-white: #151412;
+  --sl-color-gray-1: #262421;
+  --sl-color-gray-2: #3a3733;
+  --sl-color-gray-3: #6c675f;
+  --sl-color-gray-4: #938e86;
+  --sl-color-gray-5: #d0cbc3;
+  --sl-color-gray-6: #eae7e1;
+  --sl-color-gray-7: #f6f4f0;
+  --sl-color-black: #ffffff;
+
+  --sl-color-bg-sidebar: var(--sl-color-gray-7);
+  --sl-color-bg-nav: var(--sl-color-gray-7);
+
+  --nml-edge-border: #b3781a;
+  --nml-edge-bg: rgba(179, 120, 26, 0.08);
+  --nml-edge-text: #5c3d07;
+  --nml-pill-bg: var(--sl-color-gray-6);
+  --nml-pill-border: var(--sl-color-gray-5);
+}
+
+/* Headings read tighter than Starlight's default, which is set for prose. */
+.sl-markdown-content h1,
+.sl-markdown-content h2,
+.sl-markdown-content h3 {
+  letter-spacing: -0.018em;
+}
+
+/*
+ * "Sharp edge" — the one branded callout, used ONLY for documented
+ * limitations, never for ordinary tips. The whole point is that readers learn
+ * to recognise it: this project tells you where the cliffs are. Diluting it
+ * across general advice destroys that signal.
+ */
+.nml-edge {
+  position: relative;
+  margin: 1.5rem 0;
+  padding: 0.9rem 1rem 0.9rem 2.6rem;
+  border: 1px solid var(--nml-edge-border);
+  border-left-width: 3px;
+  border-radius: 0.4rem;
+  background-color: var(--nml-edge-bg);
+}
+
+.nml-edge::before {
+  content: '';
+  position: absolute;
+  top: 1.05rem;
+  left: 1rem;
+  width: 1rem;
+  height: 1rem;
+  background-color: var(--nml-edge-border);
+  /* A notched triangle — a chipped edge, not a generic warning sign. */
+  clip-path: polygon(50% 0, 100% 100%, 0 100%, 22% 62%, 50% 62%);
+}
+
+.nml-edge__title {
+  margin: 0 0 0.35rem;
+  font-size: var(--sl-text-sm);
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: 0.01em;
+  color: var(--nml-edge-text);
+}
+
+.nml-edge__body > :first-child {
+  margin-top: 0;
+}
+
+.nml-edge__body > :last-child {
+  margin-bottom: 0;
+}
+
+/*
+ * Requirement pills. Nothing in this library auto-registers — installing a
+ * package enables nothing until it is wired in. These state a page's external
+ * prerequisites before the reader hits "why doesn't this work".
+ */
+.nml-requires {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0 0 1.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.nml-requires__item {
+  padding: 0.15rem 0.6rem;
+  border: 1px solid var(--nml-pill-border);
+  border-radius: 999px;
+  background-color: var(--nml-pill-bg);
+  font-family: var(--sl-font-mono);
+  font-size: var(--sl-text-xs);
+  color: var(--sl-color-gray-2);
+}
+
+.nml-requires__item::before {
+  content: 'needs ';
+  color: var(--sl-color-gray-3);
+}
+
+/*
+ * Every code sample on a guide page is executed in CI. It is the most
+ * distinctive claim this site can make, so it gets a visible mark rather
+ * than a sentence in a footer.
+ */
+.nml-verified {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 1.5rem;
+  font-size: var(--sl-text-xs);
+  color: var(--sl-color-gray-3);
+}
+
+.nml-verified::before {
+  content: '';
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background-color: var(--nml-amber-400);
+}
+
+/* The landing hero: the code sample IS the illustration, so give it room. */
+.hero h1 {
+  letter-spacing: -0.03em;
+}

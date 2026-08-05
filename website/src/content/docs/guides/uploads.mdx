@@ -1,0 +1,136 @@
+---
+title: Handling uploads
+description: Wiring add() into Express, Hono, or Next.js, and turning validation failures into the right HTTP status codes.
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components'
+
+`add()` accepts whatever your framework already hands you, so there is no adapter layer to write.
+Pick the tab that matches your stack.
+
+<p class="nml-verified">Every sample on this page runs against the library in CI.</p>
+
+## Accepting a file
+
+<Tabs syncKey="server">
+<TabItem label="Hono / Next.js / Bun">
+
+Web `File` objects go straight in, and `download()` returns a `Response` you can return as-is.
+
+```ts title="app/api/avatar/route.ts"
+export async function POST(request: Request) {
+  const form = await request.formData()
+  const file = form.get('avatar') as File
+  const user = library.for('User', session.userId)
+
+  const media = await user.add(file).toCollection('avatar')
+
+  return Response.json({ id: media.id, url: await user.firstUrl('avatar', 'thumb') })
+}
+```
+
+```ts title="app/api/media/[id]/route.ts"
+export async function GET(_: Request, { params }: { params: { id: string } }) {
+  return library.inline(params.id)
+}
+```
+
+</TabItem>
+<TabItem label="Express / Fastify">
+
+Pass multer's temp path (or its buffer), and bridge the `Response` back to a Node stream with
+`toNodeStream()`.
+
+```ts title="routes/avatar.ts"
+import multer from 'multer'
+import { toNodeStream } from '@node-media-library/core'
+
+const upload = multer({ dest: '/tmp/uploads' })
+
+app.post('/avatar', upload.single('avatar'), async (req, res) => {
+  // A path source is MOVED into the library, so multer's temp file is cleaned up for you
+  const media = await library.for('User', req.user.id).add(req.file.path).toCollection('avatar')
+  res.json({ id: media.id })
+})
+
+app.get('/media/:id/download', async (req, res) => {
+  const response = await library.download(req.params.id)
+  response.headers.forEach((value, key) => res.setHeader(key, value))
+  toNodeStream(response).pipe(res)
+})
+```
+
+</TabItem>
+</Tabs>
+
+## Every source `add()` accepts
+
+| Source                   | Notes                                                             |
+| ------------------------ | ----------------------------------------------------------------- |
+| `string`                 | A filesystem path. **Moved**, not copied — see the caution below. |
+| `Buffer`                 | Bytes you already have.                                           |
+| `Readable`               | A Node stream. Size-capped as it arrives.                         |
+| `File` / `Blob`          | Web standard, straight from `formData()`.                         |
+| `{ base64, fileName? }`  | Data URIs and JSON payloads.                                      |
+| `{ url, allowedHosts? }` | Downloaded server-side, with an optional host allowlist.          |
+
+<Aside type="caution" title="Path sources are consumed">
+  Passing a path **moves** the file. That's usually what you want — the framework's temp upload is
+  cleaned up for free — but call `.preservingOriginal()` when the source must survive.
+</Aside>
+
+## Turning failures into status codes
+
+Every validation failure is a typed error carrying a stable `code`, so the mapping is mechanical
+rather than string-matching:
+
+```ts
+import {
+  FileTooLargeError,
+  UnacceptableFileError,
+  DisallowedExtensionError,
+} from '@node-media-library/core'
+
+try {
+  await library.for('User', id).add(file).toCollection('avatar')
+} catch (err) {
+  if (err instanceof FileTooLargeError) return res.status(413).json({ error: err.message })
+  if (err instanceof UnacceptableFileError) return res.status(415).json({ error: err.message })
+  if (err instanceof DisallowedExtensionError) return res.status(422).json({ error: err.message })
+  throw err
+}
+```
+
+The full table — every error class, its `code`, and what triggers it — is in the
+[errors reference](/reference/errors/).
+
+## Naming and metadata at upload time
+
+The builder returned by `add()` takes optional metadata before you commit with `toCollection()`:
+
+```ts
+await library
+  .for('Post', post.id)
+  .add(file)
+  .usingName('Front view') // human-readable label; defaults to the filename
+  .usingFileName('front.jpg') // override the stored filename (still sanitized)
+  .withCustomProperties({ alt: 'A blue door', credit: 'A. Photographer' })
+  .toCollection('images')
+```
+
+`usingFileName()` goes through the same sanitizer as a source-derived name — there is no "trusted"
+filename path.
+
+## What you don't have to handle
+
+- **Cleaning up replaced files.** A `singleFile()` collection deletes the previous record and every
+  file derived from it.
+- **Making thumbnails.** They're declared on the collection and produced by `add()`.
+- **Validating file type by extension.** The sniffed MIME type is what `acceptsMimeTypes` checks.
+
+## Next
+
+- [Avatars & single-file collections](/guides/avatars/) — replacement semantics and fallback images.
+- [Private files & downloads](/guides/private-files/) — signed URLs, streaming, and ZIP exports.
+- [Security model](/production/security/) — what's checked, and what you take on if you replace the
+  sanitizer.
