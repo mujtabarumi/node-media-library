@@ -25,6 +25,24 @@ updates:
       - dependency-name: '@types/node'
         update-types: ['version-update:semver-major']
 
+  # The docs site is not a workspace member and has its own lockfile, so the
+  # entry above does not see it. Without this, Astro/Starlight never get update
+  # PRs and quietly rot. Its Node floor (>=22.12) is why it is separate at all.
+  - package-ecosystem: npm
+    directory: /website
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      astro:
+        patterns: ['astro', '@astrojs/*']
+      dev-dependencies:
+        dependency-type: development
+        update-types: ['minor', 'patch']
+
   - package-ecosystem: github-actions
     directory: /
     schedule:
