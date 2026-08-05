@@ -29,6 +29,7 @@ export interface RegenerateOptions {
   withResponsive?: boolean
 }
 
+/** @internal */
 export interface ConversionEngineDeps {
   repository: MediaRepository
   storage: ResolvedStorage
@@ -55,6 +56,7 @@ function snapshot(record: MediaRecord): MediaRecord {
   return { ...record, generatedConversions: { ...record.generatedConversions } }
 }
 
+/** @internal */
 export class ConversionEngine {
   constructor(private readonly deps: ConversionEngineDeps) {}
 

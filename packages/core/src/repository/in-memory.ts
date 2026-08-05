@@ -2,6 +2,7 @@ import { MediaLibraryError } from '../errors.js'
 import { JsonObject, MediaRecord, NewMediaRecord } from '../types.js'
 import { MediaFilter, MediaRepository } from '../repository.js'
 
+/** @internal */
 export function compareMediaOrder(a: MediaRecord, b: MediaRecord): number {
   if (a.orderColumn !== b.orderColumn) {
     if (a.orderColumn === null) return 1

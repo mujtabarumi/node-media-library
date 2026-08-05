@@ -8,6 +8,7 @@ import { StorageError } from '../errors.js'
  * the object with public ACLs/permissions; non-public collections pass
  * `undefined` so the disk's own configured default (private, per
  * `resolveStorage`'s `synthesizeDefaultDisk`) applies unchanged.
+ * @internal
  */
 export function writeOptionsFor(isPublicCollection: boolean): { visibility: 'public' } | undefined {
   return isPublicCollection ? { visibility: 'public' } : undefined
@@ -40,6 +41,7 @@ export interface StorageConfig {
   disks?: Record<string, DiskConfig>
 }
 
+/** @internal */
 export interface ResolvedStorage {
   defaultDisk: string
   prefix: string
@@ -71,6 +73,7 @@ function synthesizeDefaultDisk(env: Record<string, string | undefined>): DiskCon
   }
 }
 
+/** @internal */
 export function resolveStorage(
   config?: StorageConfig,
   env: Record<string, string | undefined> = process.env,

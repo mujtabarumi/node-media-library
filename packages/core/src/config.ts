@@ -50,6 +50,7 @@ export interface MediaLibraryConfig {
  * `models` holds materialized `CollectionDefinition`s (builders are consumed
  * up front) keyed by modelType then collection name. Consumed internally by
  * `MediaLibrary`, and by `FileAdder`/`ModelMediaHandle` in later tasks.
+ * @internal
  */
 export interface ResolvedConfig {
   readonly repository: MediaRepository
@@ -71,9 +72,12 @@ export interface ResolvedConfig {
 const DEFAULT_MAX_FILE_SIZE = 10 * 1024 * 1024
 /** Exported so MediaLibrary can rebuild the default UrlGenerator with the
  * `conversionFileNameFor` dep (which needs the ConversionEngine, built after
- * resolveConfig()) using the same default expiry. */
+ * resolveConfig()) using the same default expiry.
+ * @internal
+ */
 export const DEFAULT_SIGNED_URL_EXPIRES_IN = '30 mins'
 
+/** @internal */
 export function resolveConfig(config: MediaLibraryConfig): ResolvedConfig {
   const storage = resolveStorage(config.storage)
   const pathGenerator = config.pathGenerator ?? new DefaultPathGenerator(storage.prefix)

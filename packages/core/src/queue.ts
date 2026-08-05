@@ -47,6 +47,7 @@ export function syncDriver(): QueueDriver {
  * runs on a later tick via `setImmediate`. Processor errors are caught and
  * logged (never surfaced as unhandled rejections) — the engine is
  * responsible for emitting `conversion:failed` itself.
+ * @internal
  */
 export function deferDriver(): QueueDriver {
   let processor: ConversionProcessor | undefined

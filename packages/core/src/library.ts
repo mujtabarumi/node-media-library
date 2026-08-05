@@ -35,7 +35,10 @@ export interface CopyMediaOptions {
   toCollection?: string
 }
 
-/** Limits/fields FileAdder and ModelMediaHandle need to validate incoming files (Task 11+). */
+/**
+ * Limits/fields FileAdder and ModelMediaHandle need to validate incoming files (Task 11+).
+ * @internal
+ */
 export interface ResolvedLimits {
   readonly maxFileSize: number
   readonly disallowedExtensions: readonly string[]

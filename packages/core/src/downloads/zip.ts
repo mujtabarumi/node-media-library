@@ -11,6 +11,7 @@ import { extname, basename } from 'node:path'
  * slashes are stripped so the prefix can never start an entry as if it were
  * archive-root-absolute; `.`/`..` segments are dropped rather than resolved,
  * since resolving them would require knowing what they're relative to.
+ * @internal
  */
 export function sanitizeZipPrefix(prefix: string): string {
   const noBackslashes = prefix.replace(/\\/g, '')
@@ -25,6 +26,7 @@ export function sanitizeZipPrefix(prefix: string): string {
  * Entry name inside the archive: `${prefix}${fileName}`, deduplicated against
  * `taken` by inserting `-2`, `-3`, ... before the extension. Mutates `taken`.
  * `prefix` is sanitized via `sanitizeZipPrefix()` before use.
+ * @internal
  */
 export function zipEntryName(fileName: string, prefix: string, taken: Set<string>): string {
   const safePrefix = sanitizeZipPrefix(prefix)

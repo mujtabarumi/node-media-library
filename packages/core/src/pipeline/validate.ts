@@ -9,6 +9,7 @@ export const DEFAULT_DISALLOWED_EXTENSIONS: readonly string[] = Object.freeze([
   'htaccess',
 ])
 
+/** @internal */
 export interface ValidationContext {
   maxFileSize: number
   disallowedExtensions: readonly string[]
@@ -16,6 +17,7 @@ export interface ValidationContext {
   collection: CollectionDefinition
 }
 
+/** @internal */
 export function validateFile(file: IncomingFile, ctx: ValidationContext): void {
   if (file.size > ctx.maxFileSize) {
     throw new FileTooLargeError(

@@ -5,12 +5,16 @@ import { MediaLibraryError } from '../errors.js'
 import type { RegenerateOptions } from '../conversions/engine.js'
 import type { CleanOptions, CleanResult } from '../maintenance/clean.js'
 
-/** Duck-typed subset of `MediaLibrary` the CLI needs — no `instanceof` checks. */
+/**
+ * Duck-typed subset of `MediaLibrary` the CLI needs — no `instanceof` checks.
+ * @internal
+ */
 export interface CliLibrary {
   regenerate(opts: RegenerateOptions): Promise<{ enqueued: number }>
   clean(opts?: CleanOptions): Promise<CleanResult>
 }
 
+/** @internal */
 export interface CliDeps {
   loadLibrary(configPath: string): Promise<CliLibrary>
   log(line: string): void
@@ -59,6 +63,7 @@ const FLAGS_BY_COMMAND: Record<'regenerate' | 'clean', readonly string[]> = {
   clean: ['dry-run', 'delete-orphaned', 'rate-limit'],
 }
 
+/** @internal */
 export async function runCli(argv: string[], deps: CliDeps): Promise<number> {
   let parsed: ReturnType<typeof parseArgs>
   try {
@@ -183,6 +188,7 @@ export async function runCli(argv: string[], deps: CliDeps): Promise<number> {
  * Loads a `MediaLibrary` instance from a config module's default export.
  * `.ts` configs must be run through a TypeScript loader (e.g. `tsx`) since
  * this uses a plain dynamic `import()`.
+ * @internal
  */
 export async function defaultLoadLibrary(configPath: string): Promise<CliLibrary> {
   const url = pathToFileURL(resolve(configPath)).href
