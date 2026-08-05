@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "statusMessage": "Formatting with Prettier",
+            "timeout": 30,
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && jq -r '.tool_input.file_path // .tool_response.filePath // empty' | { read -r f || exit 0; [ -n \"$f\" ] || exit 0; pnpm exec prettier --write --ignore-unknown --log-level warn \"$f\"; } || true"
+          }
+        ]
+      }
+    ]
+  }
+}
