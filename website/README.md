@@ -63,19 +63,29 @@ their samples run in CI; don't add it to a page whose code isn't covered yet.
 
 ## Deployment
 
-Static output in `dist/` — no adapter, no server runtime. Hosted on **Cloudflare Pages**.
+Static output in `dist/` — no adapter, no server runtime. Hosted on **Cloudflare Workers** as an
+assets-only Worker, built from git by Workers Builds.
 
 Connect the GitHub repo and set:
 
-| Setting                | Value        |
-| ---------------------- | ------------ |
-| Framework preset       | Astro        |
-| Build command          | `pnpm build` |
-| Build output directory | `dist`       |
-| Root directory         | `website`    |
+| Setting        | Value                 |
+| -------------- | --------------------- |
+| Project name   | `node-media-library`  |
+| Build command  | `pnpm run build`      |
+| Deploy command | `npx wrangler deploy` |
+| Path           | `website`             |
 
-Nothing else is required. Cloudflare's automatic dependency install resolves correctly because of
-`pnpm-workspace.yaml` above, and Node comes from `.node-version`.
+**`Path` must be `website`.** At the repository root, `pnpm run build` runs the _library_ build
+(`pnpm -r build`), not the site.
+
+`wrangler.jsonc` in this directory does the rest. It declares an assets-only Worker — no `main`
+script — pointing at `./dist`, so Cloudflare uploads the built files and serves them. Node comes from
+`.node-version`, and the dependency install resolves correctly because of `pnpm-workspace.yaml` above.
+
+`wrangler` is a devDependency so the deploy uses a pinned version rather than whatever `npx` resolves
+at build time.
+
+Tick **"Builds for non-production branches"** if you want a preview deployment per pull request.
 
 Cloudflare Pages was chosen over Vercel for two reasons. Vercel's Hobby plan forbids commercial use —
 their definition covers "a paid employee or consultant writing the code" — so any future company
@@ -85,7 +95,10 @@ plan limits that could eventually bind: 500 builds/month, one concurrent build, 
 deployment. See `docs/superpowers/specs/2026-08-05-docs-site-hosting-design.md`.
 
 **Keep `site` in `astro.config.mjs` correct.** It feeds the sitemap and canonical URLs, so it must
-match the deployed hostname — `https://<project>.pages.dev` until a custom domain is attached.
+match the deployed hostname. It currently reads `https://node-media-library.pages.dev`, which is
+wrong for a Worker — those are served from `https://<name>.<account-subdomain>.workers.dev`, and the
+subdomain isn't known until the project exists. Update it after the first deploy, or straight to a
+custom domain. Only the sitemap and canonical tags are affected, not routing.
 
 ### A playground does not belong here
 
