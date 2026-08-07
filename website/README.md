@@ -7,8 +7,8 @@ The documentation site, built with [Astro](https://astro.build) and
 
 This directory is deliberately **outside** the pnpm workspace (`pnpm-workspace.yaml` lists only
 `packages/*`) and keeps its own `pnpm-lock.yaml`. Astro requires Node ≥ 22.12 while the library
-supports Node ≥ 20 and CI tests against both — adding the site to the workspace would break the Node
-20 leg of `pnpm -r build`, and would make every library install pull down the site's dependency tree.
+supports Node ≥ 22 — a narrow gap, but a real one: Node 22.0–22.11 runs the library and not the site.
+Adding the site to the workspace would also make every library install pull down its dependency tree.
 
 `pnpm-workspace.yaml` in this directory is what makes that work. It declares `website/` its own
 workspace root with no members, so pnpm stops here instead of walking up to the repo root. Without it
@@ -20,8 +20,8 @@ Consequences worth knowing:
 
 - The root `pnpm -r test` / `typecheck` / `build` commands do not touch the site.
 - The site is built and checked by its own workflow, `.github/workflows/docs.yml`, on Node 22.
-- `.node-version` pins Node 22 here. The repo root's `.nvmrc` says `20` — correct for the library,
-  below Astro's floor for this site.
+- `.node-version` pins Node 22.16 here. The repo root's `.nvmrc` says `22`. Both sit on Node 22 now,
+  but Astro's floor is the stricter `≥ 22.12`.
 
 ## Local development
 
