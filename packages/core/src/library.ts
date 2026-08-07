@@ -505,12 +505,14 @@ export class MediaLibrary {
    * propagates to the archive and then to the Response body.
    */
   async zip(archiveName: string, items: Array<MediaRecord | string>): Promise<Response> {
-    const archiver = (await import('archiver')).default
+    // archiver 8 is ESM-only and exports named classes; the callable
+    // `archiver('zip')` factory that was v7's default export is gone.
+    const { ZipArchive } = await import('archiver')
     // Resolve every item to a MediaRecord (and fail fast on unknown ids)
     // BEFORE streaming starts — this is metadata-only, no storage read.
     const records = await Promise.all(items.map((item) => this.requireMedia(item)))
 
-    const archive = archiver('zip')
+    const archive = new ZipArchive()
     const taken = new Set<string>()
     for (const media of records) {
       const prefix =

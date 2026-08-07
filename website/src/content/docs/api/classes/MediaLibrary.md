@@ -54,7 +54,7 @@ Registered model type names (e.g. `['User', 'Post']`).
 
 > **clean**(`opts?`): `Promise`\<[`CleanResult`](/api/interfaces/CleanResult/)\>
 
-Defined in: [packages/core/src/library.ts:637](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/library.ts#L637)
+Defined in: [packages/core/src/library.ts:639](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/library.ts#L639)
 
 Offline maintenance operation: removes orphaned media (when
 `opts.deleteOrphaned`), deletes derived files (conversions + responsive
