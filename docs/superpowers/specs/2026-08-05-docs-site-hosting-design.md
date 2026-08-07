@@ -13,7 +13,7 @@ out of scope for this host and belongs on a separate container platform.
 
 `website/` is an Astro + Starlight site producing static output — no adapter, no server runtime. It is
 deliberately outside the pnpm workspace because Astro requires Node ≥ 22.12 while the library supports
-≥ 20 and CI tests both.
+≥ 22 — Node 22.0–22.11 runs the library but not the site.
 
 Anticipated expansion, in the maintainer's own words: more docs and eventual versioning, some
 server-side pieces, a live playground, and a custom domain with analytics.
@@ -76,8 +76,8 @@ Cloudflare runs.
 
 ### Node version
 
-`website/.node-version` pins 22.16.0. The repo root's `.nvmrc` says `20` — correct for the library,
-below Astro's floor. Cloudflare honours `.nvmrc`/`.node-version` in the configured root directory, and
+`website/.node-version` pins 22.16.0. The repo root's `.nvmrc` says `22` — correct for the library,
+still below Astro's stricter `≥ 22.12` floor. Cloudflare honours `.nvmrc`/`.node-version` in the configured root directory, and
 its default is already 22.16.0, so this is defence in depth rather than strictly required.
 
 ### Build settings

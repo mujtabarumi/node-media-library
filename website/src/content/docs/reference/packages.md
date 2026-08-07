@@ -129,11 +129,14 @@ Return `null` to pass — the un-optimized buffer is kept.
 
 ## Version pinning
 
-Two dependencies are deliberately held back, and dependabot is configured to ignore their majors:
+Three dependencies are deliberately held back, and dependabot is configured to ignore their majors:
 
-- **`flydrive` stays on `^1`.** 2.x requires Node ≥ 24; this project supports ≥ 20.
-- **`@types/node` stays on `^20`.** Types should track the _minimum_ supported runtime, so you don't
+- **`flydrive` stays on `^1`.** 2.x requires Node ≥ 24; this project supports ≥ 22.
+- **`@types/node` stays on `^22`.** Types should track the _minimum_ supported runtime, so you don't
   compile against APIs the floor lacks.
+- **`typescript` stays on `^6`.** TypeDoc 0.28 crashes on load against TypeScript 7, and its peer
+  range stops at `6.0.x`. The library itself compiles fine under 7 — only the API-reference build
+  blocks.
 
 ## Publishing
 

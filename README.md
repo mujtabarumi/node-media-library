@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/mujtabarumi/node-media-library/actions/workflows/ci.yml/badge.svg)](https://github.com/mujtabarumi/node-media-library/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Node](https://img.shields.io/badge/node-%3E%3D20-brightgreen.svg)](package.json)
+[![Node](https://img.shields.io/badge/node-%3E%3D22-brightgreen.svg)](package.json)
 
 **Attach files to anything in your app — then stop thinking about them.**
 
@@ -72,7 +72,7 @@ for image work. It is **not** a transliteration — see
 
 ## Requirements
 
-- **Node ≥ 20**
+- **Node ≥ 22**
 - A repository backend — the bundled `InMemoryMediaRepository` for tests, `@node-media-library/prisma`
   for real use, or your own `MediaRepository`
 - Optional system binaries, only for the packages that use them: `pdftoppm` (PDF), `ffmpeg` (video),
