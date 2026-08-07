@@ -56,6 +56,6 @@
     "@types/node": "^22.20.1",
     "bullmq": "^5.81.2",
     "typescript": "^5.5.0",
-    "vitest": "^2.0.0"
+    "vitest": "^4.1.10"
   }
 }
