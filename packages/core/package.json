@@ -76,7 +76,7 @@
     "@types/yauzl": "^3.4.0",
     "typedoc": "^0.28.20",
     "typedoc-plugin-markdown": "^4.12.0",
-    "typescript": "^5.5.0",
+    "typescript": "^6.0.3",
     "vitest": "^4.1.10",
     "yauzl": "^3.1.3"
   }
