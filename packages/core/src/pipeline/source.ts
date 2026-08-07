@@ -13,6 +13,7 @@ export type MediaSource =
   | { base64: string; fileName?: string }
   | { url: string; allowedHosts?: string[] }
 
+/** @internal */
 export interface NormalizedSource {
   buffer: Buffer
   originalFileName: string | null
@@ -20,6 +21,7 @@ export interface NormalizedSource {
   sourcePath: string | null
 }
 
+/** @internal */
 export interface NormalizeSourceOptions {
   /** When set, caps how many bytes are buffered while collecting a stream/url source. */
   maxBytes?: number
@@ -148,6 +150,7 @@ async function downloadUrl(
   return buffer
 }
 
+/** @internal */
 export async function normalizeSource(
   source: MediaSource,
   opts?: NormalizeSourceOptions,

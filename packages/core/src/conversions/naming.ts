@@ -6,6 +6,7 @@ import type { ConversionDefinition } from '../definitions/conversion.js'
 /**
  * `'photo.jpg','thumb',null` → `'photo-thumb.jpg'`; `'photo.jpg','web','webp'`
  * → `'photo-web.webp'`; extensionless `'file','t',null` → `'file-t'`.
+ * @internal
  */
 export function conversionFileName(
   originalFileName: string,
@@ -18,6 +19,7 @@ export function conversionFileName(
   return `${base}-${conversionName}${outExt}`
 }
 
+/** @internal */
 export function conversionKey(
   media: MediaRecord,
   pathGen: PathGenerator,

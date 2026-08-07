@@ -15,6 +15,7 @@ export interface CollectionDefinition {
   responsiveImages: boolean
 }
 
+/** @internal */
 export const DEFAULT_COLLECTION: CollectionDefinition = Object.freeze({
   singleFile: false,
   keepLatest: null,
@@ -37,6 +38,7 @@ export const DEFAULT_COLLECTION: CollectionDefinition = Object.freeze({
  */
 export const RESERVED_CONVERSION_NAMES: readonly string[] = Object.freeze(['original', 'requested'])
 
+/** @internal */
 export function matchesMime(pattern: string, mime: string): boolean {
   if (pattern.endsWith('/*')) {
     return mime.startsWith(pattern.slice(0, -1))

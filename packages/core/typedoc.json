@@ -1,0 +1,33 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["src/index.ts"],
+  // Written straight into the site's content collection and committed, so
+  // Cloudflare never has to install the library's dependency tree (sharp,
+  // prisma engines, better-sqlite3 — all with postinstall scripts) just to
+  // publish 20 static pages. `scripts/starlight-frontmatter.mjs` supplies the
+  // `title` frontmatter Starlight requires; without it `astro build` fails on
+  // the first generated file.
+  "out": "../../website/src/content/docs/api",
+  "plugin": ["typedoc-plugin-markdown"],
+
+  // Load-bearing, and NOT the default. Without it the @internal tags in src/
+  // are parsed and then ignored: the reference lists all 92 exported symbols,
+  // including engine, CLI, and pipeline plumbing. With it, 61 remain.
+  "excludeInternal": true,
+
+  "readme": "none",
+  "githubPages": false,
+  "hideGenerator": true,
+
+  // Without this TypeDoc stamps the CURRENT commit SHA into every "Defined in"
+  // link, so the output changes on every commit and CI's regenerate-and-diff
+  // check can never pass. Pinning to a branch keeps the links working and makes
+  // regeneration deterministic.
+  "gitRevision": "main",
+  "sort": ["kind", "alphabetical"],
+
+  // Starlight renders its own title and breadcrumbs from frontmatter and the
+  // sidebar, so TypeDoc's would be duplicated on every page.
+  "hideBreadcrumbs": true,
+  "hidePageHeader": true
+}

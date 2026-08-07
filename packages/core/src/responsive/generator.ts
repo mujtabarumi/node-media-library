@@ -1,9 +1,11 @@
+/** @internal */
 export interface RenderedVariant {
   buffer: Buffer
   width: number
   height: number
 }
 
+/** @internal */
 export async function renderVariant(
   input: Buffer,
   width: number,
@@ -23,6 +25,7 @@ export async function renderVariant(
  * LQIP: a 32px blurred jpeg wrapped in an SVG at the source's intrinsic
  * dimensions (so the placeholder reserves the right layout box), returned as
  * a base64 SVG data URI. Port of Spatie's approach.
+ * @internal
  */
 export async function tinyPlaceholder(input: Buffer): Promise<string> {
   const sharp = (await import('sharp')).default

@@ -33,7 +33,10 @@ export interface CleanResult {
   dryRun: boolean
 }
 
-/** Spaces delete operations to at most `perSecond` per rolling second. */
+/**
+ * Spaces delete operations to at most `perSecond` per rolling second.
+ * @internal
+ */
 export class DeleteRateGate {
   private lastAt = 0
   constructor(private readonly perSecond: number | undefined) {}

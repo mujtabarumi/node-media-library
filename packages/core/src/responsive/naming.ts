@@ -3,6 +3,7 @@ import { extname, basename } from 'node:path'
 /**
  * `'photo.jpg','thumb',800,600,null` → `'photo___thumb_800_600.jpg'`.
  * `format` overrides the output extension (mirrors conversionFileName).
+ * @internal
  */
 export function responsiveFileName(
   originalFileName: string,
