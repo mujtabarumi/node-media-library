@@ -7,7 +7,7 @@ checkout, run the test suites, and open a pull request that's easy to review.
 
 | Requirement | Version   | Notes                                                                                                   |
 | ----------- | --------- | ------------------------------------------------------------------------------------------------------- |
-| Node.js     | `>=20`    | 20 and 22 are both tested in CI.                                                                        |
+| Node.js     | `>=22`    | 22 is tested in CI.                                                                                     |
 | pnpm        | `10.25.0` | Pinned via the root `packageManager` field. Run `corepack enable` and pnpm will match it automatically. |
 
 This project **requires pnpm**. It's a pnpm workspace, and publishing depends on pnpm-specific
@@ -131,10 +131,10 @@ binary-missing path, following `packages/optimizers/test/optimizers.test.ts`.
 
 Two dependencies are held back deliberately, and `.github/dependabot.yml` ignores major bumps for both:
 
-- **`flydrive` stays on `^1.3.0`.** 2.x requires Node `>=24`, and this project supports Node `>=20`
-  (CI tests 20 and 22). Only revisit when the support floor itself moves.
-- **`@types/node` stays on `^20`.** Node types should track the _minimum_ supported runtime, so we
-  don't silently compile against APIs that Node 20 doesn't have.
+- **`flydrive` stays on `^1.3.0`.** 2.x requires Node `>=24`, and this project supports Node `>=22`
+  (CI tests 22). Only revisit when the support floor itself moves.
+- **`@types/node` stays on `^22`.** Node types should track the _minimum_ supported runtime, so we
+  don't silently compile against APIs that Node 22 doesn't have.
 
 Every package must declare `@types/node` itself rather than relying on pnpm hoisting — an
 undeclared version resolves to whatever a sibling happens to pull in.

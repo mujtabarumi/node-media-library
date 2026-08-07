@@ -8,7 +8,7 @@
 # `pnpm install`, so the fix has to be declarative.
 #
 # The site is excluded from the real workspace on purpose: Astro requires
-# Node >=22.12 while the library supports >=20 and CI tests both.
+# Node >=22.12 while the library supports >=22 and CI tests the library floor.
 packages: []
 
 # pnpm 10 blocks postinstall scripts unless a package is allowlisted. Astro

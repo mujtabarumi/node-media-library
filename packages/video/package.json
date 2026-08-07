@@ -21,7 +21,7 @@
     "ffmpeg"
   ],
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "files": [
     "dist",
@@ -50,7 +50,7 @@
     "@node-media-library/core": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^20.19.43",
+    "@types/node": "^22.20.1",
     "sharp": "^0.35.3",
     "typescript": "^5.5.0",
     "vitest": "^2.0.0"

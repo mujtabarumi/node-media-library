@@ -20,7 +20,7 @@
     "prisma"
   ],
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "files": [
     "dist",
@@ -61,7 +61,7 @@
   "devDependencies": {
     "@prisma/adapter-better-sqlite3": "^7.9.1",
     "@prisma/client": "^7.9.1",
-    "@types/node": "^20.19.43",
+    "@types/node": "^22.20.1",
     "prisma": "^7.9.1",
     "typescript": "^5.5.0",
     "vitest": "^2.0.0"

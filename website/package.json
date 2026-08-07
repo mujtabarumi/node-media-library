@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Documentation site for node-media-library. Standalone: NOT a pnpm workspace member, because Astro requires Node >=22.12 while the library supports Node >=20.",
+  "description": "Documentation site for node-media-library. Standalone: NOT a pnpm workspace member, because Astro requires Node >=22.12 while the library supports Node >=22.",
   "engines": {
     "node": ">=22.12.0"
   },
