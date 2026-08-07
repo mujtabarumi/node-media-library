@@ -50,6 +50,32 @@ function rewriteLinks(content, file) {
   })
 }
 
+/**
+ * Drops `Defined in:` lines that point into `node_modules`.
+ *
+ * TypeDoc renders a source line for every member, including the `Error`
+ * members the error classes inherit (`message`, `stack`, `cause`, and the
+ * `captureStackTrace`/`prepareStackTrace`/`stackTraceLimit` statics). Those
+ * resolve into the pnpm store, so the emitted path carries an exact version:
+ * `node_modules/.pnpm/@types+node@22.20.1/...`. A patch bump of `@types/node`
+ * or `typescript` rewrites all 56 of them, and CI's regenerate-and-diff check
+ * fails until the reference is regenerated and committed — churn with no API
+ * surface change behind it.
+ *
+ * Unlike first-party sources these are plain text, not links: TypeDoc has no
+ * repository to map them onto, so they name a path that exists only on the
+ * machine that ran the build. Nothing is lost by removing them, and the member
+ * itself — with its `Inherited from` cross-link — stays.
+ *
+ * `excludeExternals` is the tempting native alternative, but it deletes those
+ * inherited members outright AND shortens first-party link text to a bare
+ * `errors.ts:35` (excluding node_modules moves TypeDoc's computed base path).
+ * This keeps both intact.
+ */
+const EXTERNAL_SOURCE = /^Defined in:.*node\\?_modules.*\n?\n?/gm
+
+const stripExternalSources = (content) => content.replace(EXTERNAL_SOURCE, '')
+
 async function* walk(dir) {
   for (const entry of await readdir(dir, { withFileTypes: true })) {
     const path = join(dir, entry.name)
@@ -100,7 +126,7 @@ for await (const file of walk(OUT)) {
     '',
   ].join('\n')
 
-  await writeFile(file, frontmatter + rewriteLinks(content, file))
+  await writeFile(file, frontmatter + stripExternalSources(rewriteLinks(content, file)))
   count++
 }
 
