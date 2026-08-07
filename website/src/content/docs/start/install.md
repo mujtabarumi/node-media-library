@@ -5,7 +5,7 @@ description: What to install, what each package needs, and which optional system
 
 ## Requirements
 
-- **Node 20 or newer.** The library targets Node ≥ 20. (This documentation site needs Node ≥ 22
+- **Node 22 or newer.** The library targets Node ≥ 22. (This documentation site needs Node ≥ 22.12
   because Astro does, which is why it isn't part of the pnpm workspace.)
 - **A repository backend.** `InMemoryMediaRepository` ships with core and is enough for tests and for
   the [five-minute guide](/start/first-upload/). For anything real, use the Prisma adapter or
