@@ -13,11 +13,11 @@ jobs:
     defaults:
       run: { working-directory: website }
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
       # Node 22, not the library's 20/22 matrix: Astro requires >=22.12, which is
       # why the site is not a pnpm workspace member. See website/README.md.
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with: { node-version: '22' }
       # No --ignore-workspace needed: website/pnpm-workspace.yaml declares this
       # directory its own workspace root, so a bare install resolves against
