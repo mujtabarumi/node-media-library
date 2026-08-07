@@ -16,11 +16,11 @@ updates:
         dependency-type: production
         update-types: ['patch']
     ignore:
-      # flydrive 2.x requires Node >=24; this project supports Node >=20 and CI
-      # tests against 20. Revisit only when the support floor moves to 24.
+      # flydrive 2.x requires Node >=24; this project supports Node >=22 and CI
+      # tests against 22. Revisit only when the support floor moves to 24.
       - dependency-name: flydrive
         update-types: ['version-update:semver-major']
-      # Node types should track the *minimum* supported runtime (20), not the
+      # Node types should track the *minimum* supported runtime (22), not the
       # newest release, so we don't compile against APIs the floor lacks.
       - dependency-name: '@types/node'
         update-types: ['version-update:semver-major']

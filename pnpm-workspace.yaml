@@ -3,7 +3,8 @@ packages:
   # The documentation site's code samples, kept executable so a guide cannot
   # drift from shipped behavior. Private — never published.
   # `website/` is deliberately absent: Astro needs Node >=22.12 and this
-  # workspace supports >=20. See website/README.md.
+  # workspace supports >=22, so 22.0-22.11 runs the library but not the
+  # site. See website/README.md.
   - 'examples'
 
 onlyBuiltDependencies:
