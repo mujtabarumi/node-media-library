@@ -176,41 +176,58 @@ That is unusual for a `*.config.*` file, but correct here: the configuration leg
 objects — a Prisma client, a queue driver, image generators. The existing `.ts`-needs-a-loader hint in
 `defaultLoadLibrary` continues to apply.
 
-### 6. `selectQueueDriver`
+### 6. Environment-driven selection: a documented pattern, not an API
 
-A small helper for environment-driven selection over a **user-supplied** factory map:
+Selecting a backend by environment variable is a README example, not a shipped helper:
 
 ```ts
-queue: selectQueueDriver(process.env.MEDIA_QUEUE ?? 'sync', {
-  sync: () => syncDriver(),
-  bullmq: () => bullmqDriver({ connection: redis }),
-  rabbitmq: () => rabbitmqDriver({ url: process.env.AMQP_URL! }),
-  ordaroo: () => ordarooDriver(queueRegistry),
-})
+function resolveQueue() {
+  switch (process.env.MEDIA_QUEUE ?? 'sync') {
+    case 'sync':
+      return syncDriver()
+    case 'bullmq':
+      return bullmqDriver({ connection: redis })
+    case 'rabbitmq':
+      return rabbitmqDriver({ connection: amqp })
+    default:
+      throw new Error(`unknown MEDIA_QUEUE: ${process.env.MEDIA_QUEUE}`)
+  }
+}
 ```
 
-Core never imports an adapter; the map belongs to the caller, so an in-house driver is a first-class
-entry beside the first-party ones. Only the selected factory runs, so an unused backend's connection
-is never opened.
+An earlier draft of this spec proposed shipping a `selectQueueDriver(name, factoryMap)` helper. It is
+dropped. No comparable library ships one — Keyv, Auth.js, and Vite all leave backend selection to the
+caller — because it is a five-line `Record<string, () => T>` lookup that would become permanent public
+API.
 
-It is generic over the map's value types, so the return type is the union of what the factories
-actually produce — a map of only in-process factories yields `InProcessQueueDriver`, and a mixed map
-yields the union that `MediaLibraryConfig.queue` accepts. Selection is by string, so the result is a
-union rather than a single known driver; a caller needing `startWorker()` unconditionally should
-construct that driver directly instead.
+The hazard that justified it was real but misattributed. A hand-rolled ternary that falls through to
+`syncDriver()` on a typo'd environment variable produces no error, only heavy image conversion running
+inline inside HTTP requests. The ecosystem's answer to that is **fail-fast environment validation at
+boot** (`envalid`, `zod`, `t3-env`) — which is the host application's responsibility, and which fixes
+every environment variable rather than this one. A helper in core would solve it for `MEDIA_QUEUE`
+while the app's other variables stayed unchecked.
 
-Its one substantive justification is failing loud. A hand-rolled ternary falls through to
-`syncDriver()` on a typo'd environment variable, and the symptom is not an error — it is heavy image
-conversion running inline inside HTTP requests. `selectQueueDriver` throws a `MediaLibraryError`
-naming the unknown value and listing the valid keys.
+What core owes here is the `default: throw` in the documented example, and a README note pointing at
+environment validation.
 
 ### 7. `@node-media-library/rabbitmq`
 
 A new package implementing `BrokerQueueDriver` over `amqplib`, following standard AMQP practice:
 
 ```ts
-rabbitmqDriver({ url, connection?, queueName?, prefetch?, deadLetterExchange? })
+// `url` and `connection` are mutually exclusive; exactly one is required.
+rabbitmqDriver({ url: string } | ({ connection: AmqpLikeConnection } & SharedOptions))
+
+interface SharedOptions {
+  queueName?: string
+  prefetch?: number
+  deadLetterExchange?: string
+}
 ```
+
+When given a `url` the driver owns the connection and closes it on `close()`. When given a
+`connection` the host app owns it, and `close()` closes only the channels the driver opened — closing
+a connection the driver did not create would break every other consumer sharing it.
 
 - **Producer:** `assertQueue(name, { durable: true })`, publish with `persistent: true`. Durability
   and persistence must be paired — a durable queue holding non-persistent messages still loses them
@@ -221,11 +238,19 @@ rabbitmqDriver({ url, connection?, queueName?, prefetch?, deadLetterExchange? })
 - **Retry and DLQ stay RabbitMQ-native.** The adapter exposes `deadLetterExchange` and otherwise gets
   out of the way. Ack/nack/retry/DLQ deliberately do **not** appear in the core interface — they are
   driver policy, and the broker implements them better than we would.
-- **Bring-your-own connection.** Options accept either a `url` or an existing amqplib connection,
-  mirroring how `bullmqDriver` accepts an ioredis instance. This matters because amqplib does not
-  auto-reconnect; the ecosystem answer is `amqp-connection-manager`. Rather than reimplementing
-  reconnection, the host app passes its managed connection — which is precisely how an in-house
-  wrapper such as `@ordaroo/queue` plugs in.
+- **Bring-your-own connection, structurally typed.** Options accept either a `url` or an existing
+  connection satisfying a minimal `AmqpLikeConnection` interface — `createChannel()` and `close()`,
+  nothing more. This mirrors `packages/prisma`'s existing `PrismaLikeClient` duck typing rather than
+  inventing a second convention, and it matches how adapters across the ecosystem accept a client
+  they did not create (BullMQ takes an ioredis instance, `connect-redis` takes a client, Kysely
+  dialects take a pool).
+
+  It matters here because amqplib does not auto-reconnect, and the ecosystem answer is
+  `amqp-connection-manager`. Rather than reimplementing reconnection, the host app passes its managed
+  connection. Because the type is structural, this works for any wrapper exposing an
+  amqplib-compatible `createChannel()` — including an in-house one such as `@ordaroo/queue` — without
+  the adapter needing to know its concrete shape.
+
 - **Dependencies:** `amqplib` as a peer dependency, `@node-media-library/core` as the only runtime
   dependency, matching the bullmq package's shape.
 
