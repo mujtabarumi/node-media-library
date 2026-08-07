@@ -37,7 +37,7 @@ is the reason.
 | -------- | ----------------------- | --------------------------------------------- |
 | `core`   | `@google-cloud/storage` | Optional — only for the `gcs` storage driver. |
 | `prisma` | `@prisma/client`        | Optional — bring your own (`>=6.2 <8`).       |
-| `bullmq` | `bullmq`                | Required (`^5`).                              |
+| `bullmq` | `bullmq`                | Required (`^5 \|\| ^6`).                      |
 
 ## System binaries
 

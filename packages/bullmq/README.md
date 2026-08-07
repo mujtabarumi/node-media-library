@@ -5,7 +5,14 @@ BullMQ queue driver for `@node-media-library/core`. Pre-release: not yet publish
 ## Install
 
 Once published: `npm install @node-media-library/bullmq bullmq`
-`bullmq` (`^5`) is a required peer dependency.
+`bullmq` (`^5 || ^6`) is a required peer dependency. Both majors were verified against a real Redis
+with the full `QueueDriver` contract suite; CI runs whichever version the lockfile pins.
+
+**On BullMQ 6, also install a Redis client.** BullMQ 5 bundled `ioredis` as a dependency; 6 makes it
+an _optional peer_ (alongside `redis` and `pg`), so it is only present if your package manager
+auto-installs optional peers — pnpm does, npm and yarn do not. Passing a plain connection object like
+`{ url }` needs a client, so on npm/yarn run `npm install ioredis` too. Passing your own client
+instance instead sidesteps this entirely.
 
 ## Usage
 
