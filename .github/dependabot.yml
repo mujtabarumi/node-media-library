@@ -24,6 +24,11 @@ updates:
       # newest release, so we don't compile against APIs the floor lacks.
       - dependency-name: '@types/node'
         update-types: ['version-update:semver-major']
+      # TypeScript 7 is the native port, and typedoc 0.28 (latest stable) reads
+      # ts.SyntaxKind at import time, so it crashes on load against it — its
+      # peer range stops at 6.0.x. Revisit when typedoc ships TS 7 support.
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major']
 
   # The docs site is not a workspace member and has its own lockfile, so the
   # entry above does not see it. Without this, Astro/Starlight never get update

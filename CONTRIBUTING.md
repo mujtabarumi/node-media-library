@@ -129,12 +129,17 @@ binary-missing path, following `packages/optimizers/test/optimizers.test.ts`.
 
 ### Pinned dependencies
 
-Two dependencies are held back deliberately, and `.github/dependabot.yml` ignores major bumps for both:
+Three dependencies are held back deliberately, and `.github/dependabot.yml` ignores major bumps for
+each:
 
 - **`flydrive` stays on `^1.3.0`.** 2.x requires Node `>=24`, and this project supports Node `>=22`
   (CI tests 22). Only revisit when the support floor itself moves.
 - **`@types/node` stays on `^22`.** Node types should track the _minimum_ supported runtime, so we
   don't silently compile against APIs that Node 22 doesn't have.
+- **`typescript` stays on `^6.0.3`.** TypeScript 7 is the native port; typedoc 0.28 (latest stable)
+  reads `ts.SyntaxKind` at import time and crashes on load against it, and its peer range stops at
+  `6.0.x`. The library itself compiles fine under 7 — only `docs:api` blocks. Revisit when typedoc
+  ships TS 7 support.
 
 Every package must declare `@types/node` itself rather than relying on pnpm hoisting — an
 undeclared version resolves to whatever a sibling happens to pull in.

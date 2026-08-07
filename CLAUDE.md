@@ -73,9 +73,10 @@ validated by `packages/core/src/testing/repository-contract.ts`, exported as
 parallel tests; adding a repository method means adding its cases to the contract so every backend is
 held to them.
 
-**Pinned deps.** `flydrive` stays on `^1` (2.x needs Node ≥24; this project supports ≥22) and
-`@types/node` stays on `^22` (types track the _minimum_ supported runtime). `.github/dependabot.yml`
-ignores majors for both. Every package declares `@types/node` itself rather than relying on pnpm
+**Pinned deps.** `flydrive` stays on `^1` (2.x needs Node ≥24; this project supports ≥22),
+`@types/node` stays on `^22` (types track the _minimum_ supported runtime), and `typescript` stays on
+`^6` (typedoc 0.28 crashes on load against TS 7 — the library compiles fine, only `docs:api` blocks).
+`.github/dependabot.yml` ignores majors for all three. Every package declares `@types/node` itself rather than relying on pnpm
 hoisting.
 
 **Docs must match shipped behavior.** A README, spec, or JSDoc claim that over- or under-states what
