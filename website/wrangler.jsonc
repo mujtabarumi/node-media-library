@@ -1,0 +1,21 @@
+{
+  // Assets-only Worker: there is no `main` script. Cloudflare uploads the
+  // contents of ./dist and serves them directly, which is all a static Astro
+  // build needs.
+  //
+  // Used by Cloudflare Workers Builds, which runs `npx wrangler deploy` from
+  // this directory. Set the project's build Path to `website` — at the repo
+  // root, `pnpm run build` runs the LIBRARY build (`pnpm -r build`), not the
+  // site.
+  "$schema": "https://unpkg.com/wrangler/config-schema.json",
+  "name": "node-media-library",
+  "compatibility_date": "2026-08-06",
+  "assets": {
+    "directory": "./dist",
+
+    // Starlight emits directory-style routes (dist/start/install/index.html)
+    // and builds its own 404 page. Without this, an unmatched path returns a
+    // bare Cloudflare 404 instead of the site's styled one.
+    "not_found_handling": "404-page",
+  },
+}

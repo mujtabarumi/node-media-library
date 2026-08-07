@@ -82,14 +82,37 @@ its default is already 22.16.0, so this is defence in depth rather than strictly
 
 ### Build settings
 
-Framework preset Astro; build command `pnpm build`; output directory `dist`; root directory `website`.
-No environment variables required.
+Cloudflare has folded Pages into **Workers Builds** for new projects, so the site deploys as an
+assets-only Worker rather than a Pages project. Practically that means a committed
+`website/wrangler.jsonc` (`assets.directory: ./dist`, no `main` script) instead of dashboard-only
+output settings.
+
+| Setting        | Value                 |
+| -------------- | --------------------- |
+| Project name   | `node-media-library`  |
+| Build command  | `pnpm run build`      |
+| Deploy command | `npx wrangler deploy` |
+| Path           | `website`             |
+
+`Path` is load-bearing: at the repository root, `pnpm run build` runs `pnpm -r build` — the library's
+TypeScript build, not the site.
+
+The platform choice is unaffected — the reasoning above was about Cloudflare versus Vercel, not about
+which Cloudflare product. Workers Builds still builds from git on Cloudflare's infrastructure, so
+anything that would otherwise force that host to install the library's dependency tree is still worth
+avoiding. No GitHub secret is involved; the deploy token is created and held by Cloudflare.
 
 ### `site` must match the deployed hostname
 
-`astro.config.mjs` sets `site`, which feeds the sitemap and canonical URLs. It is currently
-`https://node-media-library.pages.dev`, correct only if the Pages project is named
-`node-media-library`. Attaching a custom domain means updating it.
+`astro.config.mjs` sets `site`, which feeds the sitemap and canonical URLs.
+
+It is currently `https://node-media-library.pages.dev`, which is **wrong for a Worker**. Workers are
+served from `https://<name>.<account-subdomain>.workers.dev`, and the account subdomain is not known
+until the project exists. Update `site` to the real hostname after the first deploy — or straight to
+the custom domain, if one is attached immediately.
+
+Nothing breaks in the meantime: `site` affects only the sitemap and canonical tags, not routing or
+rendering. But a sitemap advertising a hostname you do not own is worth fixing promptly.
 
 ### The build reads files outside `website/`
 
