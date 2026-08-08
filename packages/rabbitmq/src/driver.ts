@@ -57,6 +57,7 @@ export function rabbitmqDriver(opts: RabbitmqDriverOptions): BrokerQueueDriver {
   let connection: AmqpLikeConnection | undefined = opts.connection
   let producerChannel: amqp.Channel | undefined
   const consumerChannels = new Set<amqp.Channel>()
+  const workers = new Set<QueueWorker>()
   let closed = false
 
   const queueArgs = opts.deadLetterExchange
@@ -118,30 +119,52 @@ export function rabbitmqDriver(opts: RabbitmqDriverOptions): BrokerQueueDriver {
           }
         })()
         inFlight.add(settled)
-        void settled.finally(() => inFlight.delete(settled))
+        // Two independent safeguards against an unhandled rejection, not one:
+        // `.finally()` marks `settled` itself handled, but the promise IT
+        // returns is a fresh derivative — if that one rejects (ack/nack
+        // racing a channel already being torn down) and nothing observes it,
+        // Node reports an unhandled rejection and can crash the process
+        // under strict handling. The `.catch(() => {})` below closes that
+        // gap. Draining `inFlight` before closing the channel (in `close()`
+        // below) is what keeps ack/nack from racing teardown in the first
+        // place — this catch is the backstop for whatever that drain
+        // doesn't cover.
+        void settled.finally(() => inFlight.delete(settled)).catch(() => {})
       })
 
-      return {
+      const worker: QueueWorker = {
         async close(closeOpts?: { force?: boolean }) {
           // driver.close() may already have closed this channel — guard so
           // a caller's worker.close() afterward is a safe no-op rather than
           // throwing on an already-closed channel.
           if (!consumerChannels.has(channel)) return
+          workers.delete(worker)
           await channel.cancel(consumerTag)
           if (!closeOpts?.force) {
+            // Drain in-flight jobs while the channel is still open, so their
+            // ack()/nack() calls land before close() invalidates the
+            // channel. This is also what driver.close() relies on below.
             await Promise.all([...inFlight])
           }
           consumerChannels.delete(channel)
           await channel.close()
         },
       }
+      workers.add(worker)
+      return worker
     },
 
     async close() {
       if (closed) return
       closed = true
-      await Promise.all([...consumerChannels].map((c) => c.close()))
-      consumerChannels.clear()
+      // Route through each worker's own graceful close (mirrors
+      // packages/bullmq/src/driver.ts) rather than calling `channel.close()`
+      // directly: that drains in-flight jobs before the channel closes, so
+      // an in-flight processor's later ack()/nack() lands on a still-open
+      // channel instead of racing teardown and throwing
+      // IllegalOperationError.
+      await Promise.all([...workers].map((w) => w.close()))
+      workers.clear()
       await producerChannel?.close()
       producerChannel = undefined
       if (ownsConnection) {

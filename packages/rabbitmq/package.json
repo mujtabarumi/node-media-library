@@ -10,13 +10,35 @@
     "directory": "packages/rabbitmq"
   },
   "homepage": "https://github.com/mujtabarumi/node-media-library/tree/main/packages/rabbitmq#readme",
-  "bugs": { "url": "https://github.com/mujtabarumi/node-media-library/issues" },
-  "keywords": ["media-library", "uploads", "conversions", "rabbitmq", "amqp", "queue"],
-  "engines": { "node": ">=22" },
-  "files": ["dist", "README.md", "LICENSE"],
-  "exports": { ".": "./src/index.ts" },
+  "bugs": {
+    "url": "https://github.com/mujtabarumi/node-media-library/issues"
+  },
+  "keywords": [
+    "media-library",
+    "uploads",
+    "conversions",
+    "rabbitmq",
+    "amqp",
+    "queue"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "publishConfig": {
-    "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } }
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
   },
   "scripts": {
     "test": "vitest run",
@@ -25,8 +47,12 @@
     "prepublishOnly": "pnpm build",
     "prepack": "node ../../scripts/ensure-pnpm-pack.mjs"
   },
-  "dependencies": { "@node-media-library/core": "workspace:*" },
-  "peerDependencies": { "amqplib": "^0.10" },
+  "dependencies": {
+    "@node-media-library/core": "workspace:*"
+  },
+  "peerDependencies": {
+    "amqplib": "^0.10"
+  },
   "devDependencies": {
     "@types/amqplib": "^0.10.7",
     "@types/node": "^22.20.1",
