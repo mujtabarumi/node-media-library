@@ -287,6 +287,14 @@ describe('worker command', () => {
     const { deps, recorder } = makeDeps({
       startWorker: async () => ({
         close: async () => {
+          // A real async gap before the push is what makes this test able
+          // to distinguish sequential awaits from Promise.all: with no gap,
+          // both mocks push synchronously at call time, and array-literal
+          // evaluation order (left to right) makes worker.close() get called
+          // - and push - first under Promise.all too, so the assertion below
+          // would pass under both the correct code and the regression it's
+          // meant to catch.
+          await new Promise((r) => setTimeout(r, 10))
           workerClosed = true
           order.push('worker')
         },
@@ -303,7 +311,8 @@ describe('worker command', () => {
     expect(libraryClosed).toBe(true)
     // Proves the drain-then-close ordering, not just that both eventually
     // ran - e.g. a regression to Promise.all([worker.close(), library.close()])
-    // would still leave both flags true but would not preserve this order.
+    // would let the library push land first, since worker.close()'s push is
+    // delayed by the setTimeout above while library.close()'s is immediate.
     expect(order).toEqual(['worker', 'library'])
     expect(recorder.logs.join('\n')).toContain('Worker started')
   })
@@ -366,27 +375,34 @@ describe('worker command', () => {
     }
     process.on('unhandledRejection', onUnhandledRejection)
 
-    const { deps, recorder } = makeDeps({
-      startWorker: async () => ({
-        close: async (opts?: { force?: boolean }) => {
-          if (opts?.force) return // the forced close succeeds immediately
-          // The un-forced drain rejects well after the 0.05s shutdown-timeout
-          // has already fired and lost the race - e.g. the broker connection
-          // dropping mid-drain, after we've already moved on to force-close.
-          await new Promise((_, reject) => setTimeout(() => reject(new Error('broker gone')), 200))
-        },
-      }),
-    })
-    const run = runCli(['worker', '--config', './x.js', '--shutdown-timeout', '0.05'], deps)
-    setImmediate(() => process.emit('SIGTERM'))
-    const code = await run
-    expect(code).toBe(0)
-    expect(recorder.errors.join('\n')).toContain('timed out')
-    // Give the abandoned close() promise time to reject in the background,
-    // proving it doesn't escape as an unhandled rejection once it does.
-    await new Promise((r) => setTimeout(r, 300))
-    process.off('unhandledRejection', onUnhandledRejection)
-    expect(unhandled).toBeUndefined()
+    try {
+      const { deps, recorder } = makeDeps({
+        startWorker: async () => ({
+          close: async (opts?: { force?: boolean }) => {
+            if (opts?.force) return // the forced close succeeds immediately
+            // The un-forced drain rejects well after the 0.05s shutdown-timeout
+            // has already fired and lost the race - e.g. the broker connection
+            // dropping mid-drain, after we've already moved on to force-close.
+            await new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('broker gone')), 200),
+            )
+          },
+        }),
+      })
+      const run = runCli(['worker', '--config', './x.js', '--shutdown-timeout', '0.05'], deps)
+      setImmediate(() => process.emit('SIGTERM'))
+      const code = await run
+      expect(code).toBe(0)
+      expect(recorder.errors.join('\n')).toContain('timed out')
+      // Give the abandoned close() promise time to reject in the background,
+      // proving it doesn't escape as an unhandled rejection once it does.
+      await new Promise((r) => setTimeout(r, 300))
+      expect(unhandled).toBeUndefined()
+    } finally {
+      // try/finally so a thrown assertion above can't leak this listener
+      // onto the shared `process` object for the rest of the suite.
+      process.off('unhandledRejection', onUnhandledRejection)
+    }
   })
 })
 

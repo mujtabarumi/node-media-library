@@ -214,14 +214,14 @@ export async function runCli(argv: string[], deps: CliDeps): Promise<number> {
       // killed mid-job anyway — bound it and report the outcome honestly.
       let timer: ReturnType<typeof setTimeout> | undefined
       const drain = worker.close()
-      // A no-op catch alongside the race (not folded into the raced chain
-      // below): if the drain loses the race and only fails afterwards — the
-      // broker connection drops mid-drain after shutdown-timeout already won
-      // — that later rejection must never surface as an unhandled rejection
-      // and crash an already "stopped" worker. Kept separate from the raced
-      // `.then(() => false)` chain so a rejection that arrives *before* the
-      // timeout still fails the race for real and is reported as an actual
-      // error below, instead of being silently downgraded to "timed out".
+      // Promise.race already keeps `drain`'s rejection handled (it attaches
+      // its own reaction to every raced promise, winner or loser), so this
+      // catch isn't averting a live crash — it's defensive insurance in case
+      // a future refactor stops chaining directly off `drain` here. Kept
+      // separate from the raced `.then(() => false)` chain below so a
+      // rejection that arrives *before* the timeout still fails the race for
+      // real and is reported as an actual error, instead of being silently
+      // downgraded to "timed out".
       drain.catch(() => {})
       const timedOut = await Promise.race([
         drain.then(() => false),
