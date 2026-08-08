@@ -36,8 +36,9 @@ never touches RabbitMQ.
 
 ## Worker process
 
-Conversion processing registration happens inside the `MediaLibrary` constructor, so run a separate
-process with the _same_ config and keep it alive:
+`rabbitmqDriver` is a `BrokerQueueDriver`: constructing a `MediaLibrary` with it never starts consuming
+— only producing (`enqueue`) works out of the box. Consuming requires an explicit `startWorker()` call,
+made from a dedicated process with the _same_ config, kept alive:
 
 ```ts
 // worker.ts
