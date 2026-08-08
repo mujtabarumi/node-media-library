@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { runCli } from '../src/cli/run.js'
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { runCli, resolveConfigPath } from '../src/cli/run.js'
 import type { CliDeps, CliLibrary } from '../src/cli/run.js'
 import type { RegenerateOptions } from '../src/conversions/engine.js'
 import type { CleanOptions, CleanResult } from '../src/maintenance/clean.js'
@@ -280,14 +283,17 @@ describe('worker command', () => {
   it('starts a worker and returns 0 on SIGTERM', async () => {
     let workerClosed = false
     let libraryClosed = false
+    const order: string[] = []
     const { deps, recorder } = makeDeps({
       startWorker: async () => ({
         close: async () => {
           workerClosed = true
+          order.push('worker')
         },
       }),
       close: async () => {
         libraryClosed = true
+        order.push('library')
       },
     })
     const run = runCli(['worker', '--config', './x.js'], deps)
@@ -295,6 +301,10 @@ describe('worker command', () => {
     expect(await run).toBe(0)
     expect(workerClosed).toBe(true)
     expect(libraryClosed).toBe(true)
+    // Proves the drain-then-close ordering, not just that both eventually
+    // ran - e.g. a regression to Promise.all([worker.close(), library.close()])
+    // would still leave both flags true but would not preserve this order.
+    expect(order).toEqual(['worker', 'library'])
     expect(recorder.logs.join('\n')).toContain('Worker started')
   })
 
@@ -347,5 +357,71 @@ describe('worker command', () => {
     // Proves the CLI doesn't hang for the unresolved close() call once the
     // shutdown-timeout elapses, and that the leftover timer is cleared.
     expect(Date.now() - start).toBeLessThan(2000)
+  })
+
+  it('does not crash when the abandoned close() rejects after the shutdown timeout already elapsed', async () => {
+    let unhandled: unknown
+    const onUnhandledRejection = (err: unknown) => {
+      unhandled = err
+    }
+    process.on('unhandledRejection', onUnhandledRejection)
+
+    const { deps, recorder } = makeDeps({
+      startWorker: async () => ({
+        close: async (opts?: { force?: boolean }) => {
+          if (opts?.force) return // the forced close succeeds immediately
+          // The un-forced drain rejects well after the 0.05s shutdown-timeout
+          // has already fired and lost the race - e.g. the broker connection
+          // dropping mid-drain, after we've already moved on to force-close.
+          await new Promise((_, reject) => setTimeout(() => reject(new Error('broker gone')), 200))
+        },
+      }),
+    })
+    const run = runCli(['worker', '--config', './x.js', '--shutdown-timeout', '0.05'], deps)
+    setImmediate(() => process.emit('SIGTERM'))
+    const code = await run
+    expect(code).toBe(0)
+    expect(recorder.errors.join('\n')).toContain('timed out')
+    // Give the abandoned close() promise time to reject in the background,
+    // proving it doesn't escape as an unhandled rejection once it does.
+    await new Promise((r) => setTimeout(r, 300))
+    process.off('unhandledRejection', onUnhandledRejection)
+    expect(unhandled).toBeUndefined()
+  })
+})
+
+describe('resolveConfigPath', () => {
+  it('returns the explicit path unchanged, without touching the filesystem', () => {
+    expect(resolveConfigPath('./somewhere/else.mjs')).toBe('./somewhere/else.mjs')
+  })
+
+  it('returns undefined when no explicit path is given and no conventional file exists', () => {
+    // realpath'd because process.cwd() (which resolveConfigPath resolves
+    // against) reports the real path, while os.tmpdir() on macOS is a
+    // symlink (/var/folders/... -> /private/var/folders/...) - without this
+    // the two would disagree on a string that is otherwise the same directory.
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'nml-cli-config-')))
+    const originalCwd = process.cwd()
+    try {
+      process.chdir(dir)
+      expect(resolveConfigPath(undefined)).toBeUndefined()
+    } finally {
+      process.chdir(originalCwd)
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('falls back to a conventional medialibrary.config file in the current directory', () => {
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'nml-cli-config-')))
+    const originalCwd = process.cwd()
+    try {
+      const configPath = join(dir, 'medialibrary.config.mjs')
+      writeFileSync(configPath, 'export default {}\n')
+      process.chdir(dir)
+      expect(resolveConfigPath(undefined)).toBe(configPath)
+    } finally {
+      process.chdir(originalCwd)
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 })
