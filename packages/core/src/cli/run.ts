@@ -231,7 +231,10 @@ export async function runCli(argv: string[], deps: CliDeps): Promise<number> {
       ])
       if (timer !== undefined) clearTimeout(timer)
       if (timedOut) {
-        deps.error(`Shutdown timed out after ${timeoutSeconds}s; abandoning in-flight jobs.`)
+        deps.error(
+          `Shutdown timed out after ${timeoutSeconds}s; attempting a forced close. Some drivers ` +
+            'may not honor it and continue waiting on in-flight jobs regardless.',
+        )
         await worker.close({ force: true })
       }
       await library.close()

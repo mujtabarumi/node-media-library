@@ -224,10 +224,11 @@ process.on('SIGTERM', () => worker.close()) // waits for in-flight jobs; { force
 ```
 
 `startWorker()` throws a `MediaLibraryError` if the configured driver is in-process — those run
-conversions inline and have no separate worker to start. It also throws if the configured driver
-implements _both_ `attach()` and `work()`: that shape would consume inline in every process that
-constructs a `MediaLibrary` while `startWorker()` consumes from the broker too, which is exactly the
-accident the two interfaces exist to prevent.
+conversions inline and have no separate worker to start. Separately, the `MediaLibrary` constructor
+itself throws if the configured driver implements _both_ `attach()` and `work()`, before `startWorker()`
+is ever reached: that shape would consume inline in every process that constructs a `MediaLibrary`
+while `startWorker()` consumes from the broker too, which is exactly the accident the two interfaces
+exist to prevent.
 
 Call `library.close()` when you're done with a `MediaLibrary` (worker or producer) to release the
 driver's underlying connections/channels. **`close()` drains in-flight jobs with no timeout** — a
@@ -236,8 +237,10 @@ against your own timer rather than awaiting it unbounded.
 
 The package also ships a `worker` CLI command, a convenience wrapper around the same call that traps
 `SIGTERM`/`SIGINT`, drains in-flight jobs, and escalates to a forced close after `--shutdown-timeout`
-elapses (the escalation cuts a wedged drain short with `rabbitmqDriver`; with `bullmqDriver` it is a
-no-op, because BullMQ's own `close()` returns the still-pending graceful close on a repeat call):
+elapses (the escalation cuts a wedged drain short with `rabbitmqDriver`; with `bullmqDriver` it does
+not — BullMQ's own `Worker.close()` memoizes its close promise on the first call, so the forced call
+just returns the still-pending graceful close instead of skipping the drain, and shutdown keeps
+blocking on the in-flight jobs past `--shutdown-timeout`):
 
 ```bash
 node-media-library worker --config ./medialibrary.config.ts [--concurrency 4] [--shutdown-timeout 30]

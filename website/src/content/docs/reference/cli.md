@@ -169,9 +169,13 @@ node-media-library worker --config <path> [--concurrency <n>] [--shutdown-timeou
 | `--shutdown-timeout <s>` | Seconds to wait for in-flight jobs on shutdown. Default `30`.  |
 
 On `SIGTERM`/`SIGINT` it stops accepting new jobs and waits for in-flight ones to finish. If they
-haven't settled within `--shutdown-timeout` seconds, it force-closes — abandoning them — and reports
-the timeout rather than hanging forever; set the timeout below whatever grace period your process
-manager gives you before it sends `SIGKILL`.
+haven't settled within `--shutdown-timeout` seconds, it logs the timeout and attempts a forced close.
+Whether that bounds shutdown depends on the driver: with `rabbitmqDriver` the forced close cuts the
+drain short and abandons the in-flight jobs, so shutdown stays bounded. With `bullmqDriver` it does
+not — BullMQ's own `Worker.close()` memoizes its close promise on the first call, so the later forced
+call just returns the graceful close already in progress, and the process keeps waiting for those jobs
+regardless of `--shutdown-timeout`. Set the timeout below whatever grace period your process manager
+gives you before `SIGKILL` either way; that's the only backstop `bullmqDriver` gets.
 
 It exits `1` if the configured driver has no `work()` — an in-process driver (`syncDriver()`,
 `deferDriver()`) runs conversions inline and has no separate worker to start.

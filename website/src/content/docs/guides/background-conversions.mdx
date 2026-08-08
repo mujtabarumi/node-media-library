@@ -173,9 +173,13 @@ worker's conversion events — they're in-process emitters, not a distributed bu
 - Deploy both processes from the same commit. A worker running an older config generates the older
   conversion set.
 - Trap `SIGTERM`/`SIGINT` and call `worker.close()` before exiting, so in-flight jobs finish instead of
-  being abandoned mid-conversion. The `worker` CLI command already does this, force-closing after
-  `--shutdown-timeout` seconds (default 30) — set it below whatever grace period your orchestrator
-  gives you before `SIGKILL`.
+  being abandoned mid-conversion. The `worker` CLI command already does this, then attempts a forced
+  close after `--shutdown-timeout` seconds (default 30). That forced close only bounds shutdown with
+  `rabbitmqDriver` — with `bullmqDriver`, BullMQ's own `Worker.close()` memoizes its close promise on
+  the first call, so the later forced call returns the same graceful close already in progress and
+  shutdown keeps waiting for in-flight jobs regardless of the timeout. Set `--shutdown-timeout` below
+  whatever grace period your orchestrator gives you before `SIGKILL` either way; that's the only
+  backstop `bullmqDriver` gets. See [the CLI reference](/reference/cli/) for the full caveat.
 
 ## Next
 

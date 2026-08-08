@@ -156,10 +156,22 @@ module — having `regenerate` and `clean` but requiring a hand-rolled worker wo
 node-media-library worker --config ./medialibrary.config.ts [--concurrency n] [--shutdown-timeout s]
 ```
 
-It traps `SIGTERM`/`SIGINT`, calls `worker.close()`, then `driver.close()`, and force-closes after
-`--shutdown-timeout` (default 30s) before exiting. The timeout is not optional politeness: Kubernetes
-sends `SIGTERM` and then `SIGKILL` after a grace period, so an unbounded drain is killed mid-job
-anyway.
+It traps `SIGTERM`/`SIGINT`, calls `worker.close()`, then `driver.close()`, and attempts a forced close
+after `--shutdown-timeout` (default 30s) before exiting. The timeout is not optional politeness:
+Kubernetes sends `SIGTERM` and then `SIGKILL` after a grace period, so an unbounded drain is killed
+mid-job anyway.
+
+**Known limitation (final review).** The forced close only bounds shutdown with `rabbitmqDriver`.
+Verified against `bullmq@6.0.9`: `Worker.close(force)` memoizes its close promise on the first call
+(`if (this.closing) return this.closing`) and captures `force` in the closure that runs then — so a
+`worker.close()` that starts a graceful drain, followed by a `worker.close({ force: true })` once the
+timeout fires, does not get a fresh forced close; it gets back the same graceful-close promise already
+in flight, which still waits on the in-flight jobs. Under `bullmqDriver`, `--shutdown-timeout` does not
+bound shutdown: the CLI blocks past the timeout instead of abandoning the jobs and exiting.
+`rabbitmqDriver` does not share this defect — its `QueueWorker.close()` memoizes each teardown step
+(cancel/drain/channel-close) separately rather than memoizing the whole call, so a later forced call
+correctly skips the drain step. This is a caveat we ship, not a problem this design solved; see
+`packages/core/README.md` and the `worker` CLI reference for the driver-qualified wording.
 
 Concurrency moves from driver construction to `work(fn, { concurrency })`, mirroring BullMQ's own
 `new Worker(name, fn, { concurrency })`. `bullmqDriver`'s existing `workerConcurrency` option remains
