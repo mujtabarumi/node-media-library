@@ -92,8 +92,20 @@ Two different `close()`s exist, and they mean different things:
   resources those workers depend on. If you want to abandon in-flight work instead of waiting for it,
   close the worker yourself with `{ force: true }` first, then call `driver.close()`. Calling
   `QueueWorker.close()` again afterward — on a worker `driver.close()` already closed — is safe and
-  resolves immediately; both shipped drivers guard for that ordering, and the contract suite asserts it
-  (`driver.close() closes workers it created and does not hang`).
+  resolves immediately, and the contract suite asserts it (`driver.close() closes workers it created
+and does not hang`). Both shipped drivers hold that guarantee, though only one of them does so in
+  our own code: `packages/rabbitmq` memoizes each teardown step explicitly, while `packages/bullmq`
+  inherits it from BullMQ's own `Worker.close()`, which returns its in-progress close promise on a
+  repeat call. Write the guard into your own driver rather than assuming your broker client has one.
+
+**`close()` has no timeout.** The graceful drain waits for in-flight jobs indefinitely — a processor
+that wedges hangs shutdown forever, and neither shipped driver imposes a bound. The `worker` CLI
+bounds its own drain with `--shutdown-timeout`; a programmatic caller told to "call `library.close()`
+when you're done" gets no bound at all, so if you have your own SIGTERM handling, race `close()`
+against your own timer and fall back to `worker.close({ force: true })`. Note that the escalation is
+only as good as the driver: `packages/rabbitmq` honors a `{ force: true }` call that arrives while a
+graceful close is still draining, but BullMQ's memoized `close()` hands back the pending graceful
+close instead, so forcing after the fact does not cut a wedged BullMQ job short.
 
 `deferDriver()` is a concrete example worth reading
 ([`packages/core/src/queue.ts`](../src/queue.ts)): its `enqueue()` resolves immediately and schedules
@@ -172,7 +184,16 @@ implementation for a `BrokerQueueDriver` — connection lifecycle, lazy connect-
 policy, and the contract suite wiring all live there. Read them alongside this guide rather than
 starting from a blank file.
 
-The contract suite covers, among other cases: enqueuing before any worker exists, `work()` returning a
-`QueueWorker`, graceful vs. forced `close()`, and — for broker drivers — at-least-once redelivery after
-a simulated crash. If your driver passes it, `core` will treat it correctly regardless of what broker
-sits behind it.
+The broker suite's cases, in full: enqueuing before any worker exists, a worker receiving the exact
+job payload, multiple jobs all processed, `worker.close()` stopping delivery, `worker.close()` waiting
+for an in-flight job, `worker.close({ force: true })` abandoning one, `driver.close()` closing workers
+it created without hanging, `close()` idempotence, and `enqueue()` rejecting after `close()`. The
+in-process suite additionally pins that `close()` resolves only after already-enqueued work has
+settled.
+
+What the suite does **not** cover is at-least-once redelivery. That guarantee is real and you must
+design for it (see above), but asserting it portably means driving each broker's own crash-recovery
+machinery on wildly different timescales — RabbitMQ redelivers the moment the channel drops, BullMQ
+only once its stalled-job checker fires — so it stays a documented contract rather than an executed
+one. If your driver passes the suite, `core` will drive it correctly; redelivery behavior is still
+yours to get right.

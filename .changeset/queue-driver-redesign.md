@@ -13,5 +13,12 @@ attaching a processor to broker drivers at construction — a process that merel
 returns a `QueueWorker` whose `close()` waits for in-flight jobs unless forced. `deferDriver.close()`
 now drains its scheduled callbacks instead of resolving while work is still pending.
 
+A driver implementing _both_ `attach()` and `work()` is now rejected: the `MediaLibrary` constructor
+throws a `MediaLibraryError` before wiring anything. The union type admits that shape, but it would
+consume inline in every process that constructs a `MediaLibrary` while `startWorker()` also consumed
+from the broker — reinstating the exact defect this split removes.
+
 Adds `@node-media-library/rabbitmq`, an amqplib-backed driver accepting either a `url` or a
-caller-owned `connection`.
+caller-owned `connection`. Note that `amqp-connection-manager` is **not** a compatible `connection`
+(its `createChannel()` is synchronous and returns a `ChannelWrapper`), so reconnection is the caller's
+responsibility — see that package's "Known limitations".

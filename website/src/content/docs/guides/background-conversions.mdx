@@ -94,12 +94,18 @@ process.on('SIGTERM', () => worker.close()) // waits for in-flight jobs; { force
 Constructing a `MediaLibrary` with `bullmqDriver` never starts consuming — only producing (`enqueue`)
 works out of the box. A process that just builds `config` and constructs the library, without calling
 `startWorker()`, enqueues jobs that sit on the BullMQ queue forever; nothing picks them up. Consuming
-requires the explicit `await media.startWorker()` call above, made from a dedicated process kept alive
-by that `await`, or the equivalent CLI command:
+requires the explicit `await media.startWorker()` call above, made from a dedicated process, or the
+equivalent CLI command:
 
 ```bash
 node-media-library worker --config media.config.ts --concurrency 4
 ```
+
+`startWorker()` resolves as soon as the worker is subscribed — it is not what keeps the process
+running. What keeps it alive is the broker connection the worker holds open: an active socket is a
+live handle, so Node's event loop never drains and the process stays up until you close the worker (or
+the connection dies). Don't reach for a `setInterval` or a never-resolving promise to "hold it open";
+do make sure nothing else calls `process.exit()` on you.
 
 </TabItem>
 </Tabs>

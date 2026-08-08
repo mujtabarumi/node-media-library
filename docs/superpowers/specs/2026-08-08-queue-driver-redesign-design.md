@@ -245,11 +245,27 @@ a connection the driver did not create would break every other consumer sharing 
   they did not create (BullMQ takes an ioredis instance, `connect-redis` takes a client, Kysely
   dialects take a pool).
 
-  It matters here because amqplib does not auto-reconnect, and the ecosystem answer is
-  `amqp-connection-manager`. Rather than reimplementing reconnection, the host app passes its managed
-  connection. Because the type is structural, this works for any wrapper exposing an
-  amqplib-compatible `createChannel()` — including an in-house one such as `@ordaroo/queue` — without
-  the adapter needing to know its concrete shape.
+  What it buys is sharing one connection across several consumers in a process, and accepting an
+  in-house wrapper or pool — such as `@ordaroo/queue` — without the adapter needing to know its
+  concrete shape. The bar is narrow but real: `createChannel()` must **resolve to** an amqplib
+  `Channel`, because that is the object the adapter calls
+  `assertQueue`/`prefetch`/`consume`/`ack`/`nack`/`cancel` on.
+
+  **Correction (final review).** An earlier draft of this section justified structural typing by
+  saying amqplib does not auto-reconnect, that `amqp-connection-manager` is the ecosystem answer, and
+  that a structural type therefore lets the host app hand us its managed connection instead of us
+  reimplementing reconnection. The first clause is true; the conclusion is not. Verified against
+  `amqp-connection-manager@5` (current `latest`): `createChannel(options?)` is **synchronous** and
+  returns a `ChannelWrapper` — an `addSetup`-callback reconnect abstraction — not a
+  `Promise<amqplib.Channel>`. It fails `AmqpLikeConnection` on both the sync/async mismatch and the
+  return type, so no amount of structural typing makes it fit; bridging the two models would take a
+  real adapter, not a cast.
+
+  Structural typing still earns its place for the bring-your-own-connection cases above. But
+  **amqplib's lack of auto-reconnect remains unsolved for this adapter** — a caveat we ship, not a
+  problem this design solved. `packages/rabbitmq/README.md` documents it under "Known limitations":
+  reconnection is the caller's problem, and the practical answer is to run the worker under a
+  supervisor and let it exit on a dropped connection.
 
 - **Dependencies:** `amqplib` as a peer dependency, `@node-media-library/core` as the only runtime
   dependency, matching the bullmq package's shape.
@@ -257,9 +273,17 @@ a connection the driver did not create would break every other consumer sharing 
 ### 8. Contract suite and docs
 
 `runQueueDriverContract` splits into in-process and broker variants. The broker variant adds cases for
-`work()` lifecycle, graceful versus forced close, and at-least-once redelivery. The RabbitMQ suite
-gates on `AMQP_URL` exactly as the BullMQ suite gates on `REDIS_URL`; CI gains a rabbitmq service
-container.
+`work()` lifecycle and graceful versus forced close. The RabbitMQ suite gates on `AMQP_URL` exactly as
+the BullMQ suite gates on `REDIS_URL`; CI gains a rabbitmq service container.
+
+**Not shipped: an at-least-once redelivery case.** This section originally listed one. Simulating the
+crash that causes redelivery portably — kill the consumer between the processor's side effects and the
+ack, then assert the next consumer sees the message again — means driving each broker's own
+recovery machinery (RabbitMQ redelivers on channel loss immediately; BullMQ only after its stalled-job
+checker fires, on a timescale measured in tens of seconds). A shared contract case would have to be
+written to the slowest of those, and would be testing the broker rather than the driver. At-least-once
+therefore stays a documented guarantee that processors must assume — see the "Delivery is
+at-least-once" section of `packages/core/docs/writing-a-queue-driver.md` — not an asserted one.
 
 A "Writing a queue driver" guide is added, anchored on the exported contract suite — the artifact that
 would have served the reporting user directly. It documents the delivery guarantee explicitly:

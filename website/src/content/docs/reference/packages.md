@@ -84,13 +84,13 @@ See [background conversions](/guides/background-conversions/).
 
 `url` and `connection` are mutually exclusive — pass exactly one.
 
-| Option               | Default                         | Meaning                                                                                                                 |
-| -------------------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `url`                | — (required if no `connection`) | AMQP connection string; the driver opens and owns this connection.                                                      |
-| `connection`         | — (required if no `url`)        | An already-open connection (or compatible wrapper, e.g. `amqp-connection-manager`) you own; the driver never closes it. |
-| `queueName`          | `'media-conversions'`           | RabbitMQ queue name.                                                                                                    |
-| `prefetch`           | `2`                             | Default unacked-message window per worker, overridden per call by `startWorker({ concurrency })`.                       |
-| `deadLetterExchange` | — (none)                        | Exchange rejected messages are routed to. Setting up the exchange/bindings is your responsibility.                      |
+| Option               | Default                         | Meaning                                                                                                                                  |
+| -------------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `url`                | — (required if no `connection`) | AMQP connection string; the driver opens and owns this connection.                                                                       |
+| `connection`         | — (required if no `url`)        | An already-open connection you own, or any wrapper whose `createChannel()` resolves to an amqplib `Channel`; the driver never closes it. |
+| `queueName`          | `'media-conversions'`           | RabbitMQ queue name.                                                                                                                     |
+| `prefetch`           | `2`                             | Default unacked-message window per worker, overridden per call by `startWorker({ concurrency })`.                                        |
+| `deadLetterExchange` | — (none)                        | Exchange rejected messages are routed to. Setting up the exchange/bindings is your responsibility.                                       |
 
 Delivery is **at-least-once**: a crash between a processor's side effects and the broker receiving the
 ack can redeliver the same job, so processors must be idempotent — see the core package's
@@ -98,6 +98,13 @@ ack can redeliver the same job, so processors must be idempotent — see the cor
 for why that's already safe for the shipped conversion pipeline. A processor that rejects has its
 message `nack`'d without requeue, so a poison message is dead-lettered (or dropped) rather than looping
 forever.
+
+**Reconnection is not handled.** `amqplib` does not reconnect, and neither does this driver — if the
+connection drops, the worker stops consuming. `amqp-connection-manager`, the usual ecosystem answer,
+is **not** accepted by `connection`: its `createChannel()` is synchronous and returns a
+`ChannelWrapper`, not a `Promise<Channel>`. Run the worker under a supervisor and exit non-zero when
+the connection closes. See the package's
+[Known limitations](https://github.com/mujtabarumi/node-media-library/blob/main/packages/rabbitmq/README.md#known-limitations).
 
 ### `pdfImageGenerator(options?)`
 

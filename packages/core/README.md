@@ -224,11 +224,20 @@ process.on('SIGTERM', () => worker.close()) // waits for in-flight jobs; { force
 ```
 
 `startWorker()` throws a `MediaLibraryError` if the configured driver is in-process — those run
-conversions inline and have no separate worker to start. Call `library.close()` when you're done with
-a `MediaLibrary` (worker or producer) to release the driver's underlying connections/channels.
+conversions inline and have no separate worker to start. It also throws if the configured driver
+implements _both_ `attach()` and `work()`: that shape would consume inline in every process that
+constructs a `MediaLibrary` while `startWorker()` consumes from the broker too, which is exactly the
+accident the two interfaces exist to prevent.
+
+Call `library.close()` when you're done with a `MediaLibrary` (worker or producer) to release the
+driver's underlying connections/channels. **`close()` drains in-flight jobs with no timeout** — a
+wedged processor hangs shutdown forever. If your process has its own `SIGTERM` handling, race it
+against your own timer rather than awaiting it unbounded.
 
 The package also ships a `worker` CLI command, a convenience wrapper around the same call that traps
-`SIGTERM`/`SIGINT`, drains in-flight jobs, and force-closes after a timeout:
+`SIGTERM`/`SIGINT`, drains in-flight jobs, and escalates to a forced close after `--shutdown-timeout`
+elapses (the escalation cuts a wedged drain short with `rabbitmqDriver`; with `bullmqDriver` it is a
+no-op, because BullMQ's own `close()` returns the still-pending graceful close on a repeat call):
 
 ```bash
 node-media-library worker --config ./medialibrary.config.ts [--concurrency 4] [--shutdown-timeout 30]

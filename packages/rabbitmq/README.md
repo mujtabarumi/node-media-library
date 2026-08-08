@@ -7,6 +7,10 @@ RabbitMQ (amqplib) queue driver for `@node-media-library/core`. Pre-release: not
 Once published: `npm install @node-media-library/rabbitmq amqplib`
 `amqplib` (`^0.10`) is a required peer dependency.
 
+TypeScript consumers also need `npm install -D @types/amqplib`. `amqplib` ships no bundled types, and
+this package's exported `AmqpLikeConnection` type references `amqplib`'s `Channel` — without
+`@types/amqplib` installed, TypeScript reports an unresolved module when it reads our `.d.ts`.
+
 ## Usage
 
 Wire it into `createMediaLibrary` via the `queue` option. Two mutually exclusive option shapes are
@@ -26,10 +30,11 @@ const media = createMediaLibrary({
 
 - **`url`** — the driver opens its own connection on first `enqueue`/`work` call and closes it on
   `close()`.
-- **`connection`** — pass an already-open connection (or a structurally compatible wrapper, e.g.
-  `amqp-connection-manager`) that you own. The driver only ever closes the channels it created;
-  `close()` never touches a connection it didn't open, so tearing down a `MediaLibrary` never breaks
-  other consumers sharing that connection in the same process.
+- **`connection`** — pass an already-open connection you own, or any structurally compatible wrapper
+  (an in-house wrapper, a connection pool) whose `createChannel()` **resolves to** an amqplib
+  `Channel`. The driver only ever closes the channels it created; `close()` never touches a connection
+  it didn't open, so tearing down a `MediaLibrary` never breaks other consumers sharing that
+  connection in the same process.
 
 The connection/channel are created lazily on first `enqueue`/`work` call, so constructing the driver
 never touches RabbitMQ.
@@ -75,6 +80,28 @@ A processor that rejects has its message `nack`'d without requeue (`nack(msg, fa
 poison message is dead-lettered (or dropped) rather than looping redelivery forever. Retry policy —
 how many times, with what backoff, whether to alert — is intentionally left to the broker/exchange
 topology, not built into this driver.
+
+## Known limitations
+
+**Reconnection is your problem.** `amqplib` does not reconnect on its own, and neither does this
+driver: if the broker or the TCP connection goes away, the channels this driver opened are dead and
+the worker stops consuming. Nothing here retries the connect.
+
+The obvious escape hatch does not fit either — `amqp-connection-manager`, the usual ecosystem answer
+for managed AMQP connections, is **not** compatible with the `connection` option. Its `createChannel()`
+is synchronous and returns a `ChannelWrapper` (a reconnect abstraction driven by `addSetup` callbacks),
+whereas `AmqpLikeConnection` requires a `createChannel()` that resolves to a real amqplib `Channel`.
+The two models are different enough that adapting one to the other is not a type cast. So:
+
+- Under a supervisor (Kubernetes, systemd, PM2, Nomad), the practical answer is to let the process
+  exit and be restarted. Watch the connection yourself and exit non-zero on `'close'`/`'error'`.
+- The `connection` option is still useful for sharing one connection across several consumers in a
+  process, and for in-house wrappers/pools that hand back real amqplib channels.
+
+**`driver.close()` drains unboundedly.** It waits for every in-flight job to settle with no timeout,
+so a wedged processor hangs shutdown forever. The `worker` CLI bounds this with `--shutdown-timeout`
+(force-closing when it elapses); a programmatic caller with its own SIGTERM handling should race
+`close()` against its own timer and fall back to `worker.close({ force: true })`.
 
 ## Options
 
