@@ -9,19 +9,49 @@ export type ConversionProcessor = (job: ConversionJob) => Promise<void>
 
 export interface QueueDriver {
   enqueue(job: ConversionJob): Promise<void>
-  registerProcessor(fn: ConversionProcessor): void
   close(): Promise<void>
+  /** @deprecated Use `attach` (in-process) or `work` (broker). Removed in Task 4. */
+  registerProcessor?(fn: ConversionProcessor): void
 }
 
 /**
- * Synchronous queue driver: `enqueue` awaits the processor inline, so
+ * Consumes in the same process that produces. Core attaches its processor at
+ * construction — there is no separate worker process.
+ */
+export interface InProcessQueueDriver extends QueueDriver {
+  attach(processor: ConversionProcessor): void
+}
+
+/**
+ * Backed by an external broker. Consuming requires an explicit
+ * `MediaLibrary.startWorker()` in a dedicated process.
+ */
+export interface BrokerQueueDriver extends QueueDriver {
+  work(processor: ConversionProcessor, opts?: WorkOptions): Promise<QueueWorker>
+}
+
+export interface QueueWorker {
+  /** Stops consuming. Waits for in-flight jobs to settle unless `force`. */
+  close(opts?: { force?: boolean }): Promise<void>
+}
+
+export interface WorkOptions {
+  /** Max jobs processed concurrently. Driver default applies if omitted. */
+  concurrency?: number
+}
+
+/** Any driver core accepts as configuration. */
+export type AnyQueueDriver = InProcessQueueDriver | BrokerQueueDriver
+
+/**
+ * Synchronous in-process driver: `enqueue` awaits the processor inline, so
  * processor errors propagate directly to the `enqueue` caller.
  */
-export function syncDriver(): QueueDriver {
+export function syncDriver(): InProcessQueueDriver {
   let processor: ConversionProcessor | undefined
   let closed = false
 
-  return {
+  const driver: InProcessQueueDriver = {
     async enqueue(job) {
       if (closed) {
         throw new MediaLibraryError('queue driver is closed')
@@ -32,7 +62,7 @@ export function syncDriver(): QueueDriver {
       await processor(job)
     },
 
-    registerProcessor(fn) {
+    attach(fn) {
       processor = fn
     },
 
@@ -40,20 +70,27 @@ export function syncDriver(): QueueDriver {
       closed = true
     },
   }
+
+  driver.registerProcessor = driver.attach
+  return driver
 }
 
 /**
- * Deferred queue driver: `enqueue` resolves immediately and the processor
+ * Deferred in-process driver: `enqueue` resolves immediately and the processor
  * runs on a later tick via `setImmediate`. Processor errors are caught and
- * logged (never surfaced as unhandled rejections) — the engine is
- * responsible for emitting `conversion:failed` itself.
- * @internal
+ * logged (never surfaced as unhandled rejections) — the engine is responsible
+ * for emitting `conversion:failed` itself.
+ *
+ * `close()` waits for every already-scheduled callback to settle before
+ * resolving, so a caller that awaits it observes no further processor side
+ * effects.
  */
-export function deferDriver(): QueueDriver {
+export function deferDriver(): InProcessQueueDriver {
   let processor: ConversionProcessor | undefined
   let closed = false
+  const pending = new Set<Promise<void>>()
 
-  return {
+  const driver: InProcessQueueDriver = {
     async enqueue(job) {
       if (closed) {
         throw new MediaLibraryError('queue driver is closed')
@@ -62,28 +99,30 @@ export function deferDriver(): QueueDriver {
         throw new MediaLibraryError('no processor registered')
       }
       const currentProcessor = processor
-      setImmediate(() => {
-        Promise.resolve()
-          .then(() => currentProcessor(job))
-          .catch((err) => {
-            console.error('Error processing conversion job:', err)
-          })
+      const settled = new Promise<void>((resolve) => {
+        setImmediate(() => {
+          Promise.resolve()
+            .then(() => currentProcessor(job))
+            .catch((err) => {
+              console.error('Error processing conversion job:', err)
+            })
+            .finally(resolve)
+        })
       })
+      pending.add(settled)
+      void settled.finally(() => pending.delete(settled))
     },
 
-    registerProcessor(fn) {
+    attach(fn) {
       processor = fn
     },
 
-    // Honesty note: close() only flips `closed` (so future enqueue() calls
-    // reject) — it does not wait for, or cancel, setImmediate callbacks
-    // already scheduled by prior enqueue() calls. Those still fire on a
-    // later tick and still run the processor; a caller that awaits close()
-    // expecting all in-flight work to have stopped will observe processor
-    // side effects (or the console.error from a rejected processor) after
-    // close() has already resolved.
     async close() {
       closed = true
+      await Promise.all([...pending])
     },
   }
+
+  driver.registerProcessor = driver.attach
+  return driver
 }

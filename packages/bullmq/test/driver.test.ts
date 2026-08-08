@@ -25,7 +25,7 @@ it('constructs without touching redis', () => {
 it('registerProcessor after close() throws without touching redis', async () => {
   const d = bullmqDriver({ connection: { host: 'localhost' } })
   await d.close()
-  expect(() => d.registerProcessor(async () => {})).toThrow('queue driver is closed')
+  expect(() => d.registerProcessor?.(async () => {})).toThrow('queue driver is closed')
 })
 
 describe('exports', () => {

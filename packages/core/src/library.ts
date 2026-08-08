@@ -67,7 +67,7 @@ export class MediaLibrary {
       responsivePlaceholders: this.resolved.responsivePlaceholders,
       optimizers: this.resolved.optimizers,
     })
-    this.resolved.queue.registerProcessor((job) =>
+    this.resolved.queue.registerProcessor?.((job) =>
       this.engine.perform(job.mediaId, job.conversionNames),
     )
 
