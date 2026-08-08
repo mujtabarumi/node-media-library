@@ -18,7 +18,7 @@ import type { UrlGenerator } from './storage/url-generator.js'
 import { DefaultUrlGenerator } from './storage/url-generator.js'
 import { ConversionEngine, RegenerateOptions } from './conversions/engine.js'
 import { conversionFileName } from './conversions/naming.js'
-import type { QueueDriver } from './queue.js'
+import type { QueueDriver, QueueWorker, WorkOptions } from './queue.js'
 import { Readable } from 'node:stream'
 import { contentDisposition } from './downloads/response.js'
 import { zipEntryName } from './downloads/zip.js'
@@ -67,9 +67,12 @@ export class MediaLibrary {
       responsivePlaceholders: this.resolved.responsivePlaceholders,
       optimizers: this.resolved.optimizers,
     })
-    this.resolved.queue.registerProcessor?.((job) =>
-      this.engine.perform(job.mediaId, job.conversionNames),
-    )
+    // Only in-process drivers attach here. A broker driver is left untouched,
+    // so a process that merely constructs a MediaLibrary is a pure producer —
+    // consuming requires an explicit startWorker() in a worker process.
+    if ('attach' in this.resolved.queue) {
+      this.resolved.queue.attach((job) => this.engine.perform(job.mediaId, job.conversionNames))
+    }
 
     // Built here (after `this.engine` exists) rather than reused from
     // `resolveConfig()`'s own default, since the `conversionFileNameFor` dep
@@ -103,6 +106,29 @@ export class MediaLibrary {
   /** Runs `names` (or all applicable) conversions for `mediaId` inline. */
   async performConversions(mediaId: string, names?: string[]): Promise<void> {
     return this.engine.perform(mediaId, names)
+  }
+
+  /**
+   * Starts consuming conversion jobs from the configured broker driver.
+   * Call this only in a dedicated worker process — a web process should
+   * construct the library and never call it.
+   *
+   * Throws when the configured driver is in-process, since those run
+   * conversions inline and have no separate worker to start.
+   */
+  async startWorker(opts?: WorkOptions): Promise<QueueWorker> {
+    const driver = this.resolved.queue
+    if (!('work' in driver)) {
+      throw new MediaLibraryError(
+        'configured queue driver is in-process: conversions already run in this process, so there is no worker to start',
+      )
+    }
+    return driver.work((job) => this.engine.perform(job.mediaId, job.conversionNames), opts)
+  }
+
+  /** Releases the configured queue driver's resources. */
+  async close(): Promise<void> {
+    await this.resolved.queue.close()
   }
 
   /**
