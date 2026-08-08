@@ -21,6 +21,9 @@ export function runInProcessQueueDriverContract(
       await expect(driver.enqueue({ mediaId: 'm1', conversionNames: ['thumb'] })).rejects.toThrow(
         MediaLibraryError,
       )
+      await expect(driver.enqueue({ mediaId: 'm1', conversionNames: ['thumb'] })).rejects.toThrow(
+        'no processor registered',
+      )
     })
 
     it('processor receives the exact job payload', async () => {
