@@ -27,6 +27,7 @@ packages/
   core/        engine: storage, collections, conversions, responsive images, downloads/zip, CLI
   prisma/      MediaRepository adapter + cascading-delete extension
   bullmq/      QueueDriver adapter
+  rabbitmq/    QueueDriver adapter (amqplib)
   pdf/         pdftoppm-backed ImageGenerator
   video/       ffmpeg-backed ImageGenerator
   optimizers/  jpegoptim/pngquant-backed ImageOptimizers
@@ -61,8 +62,8 @@ TypeScript source consumers can't load. `packages/core` has two entries (`.` and
 **Binary-gated tests.** `pdftoppm`, `ffmpeg`, `jpegoptim`, and `pngquant` are optional locally; their
 suites gate on availability with `describe.runIf(...)` and pair with an ungated companion test
 covering the binary-missing path. Follow `packages/optimizers/test/optimizers.test.ts`. BullMQ's
-suite gates on `REDIS_URL` instead. Local skips are expected — CI installs everything and runs them
-for real, so let CI be the authority on those paths.
+suite gates on `REDIS_URL` instead, and RabbitMQ's on `AMQP_URL`. Local skips are expected — CI
+installs everything and runs them for real, so let CI be the authority on those paths.
 
 **Tests hit real boundaries.** Real temp files, a real SQLite database, real subprocess invocations —
 not mocks of those seams. Keep it that way.

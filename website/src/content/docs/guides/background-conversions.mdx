@@ -82,22 +82,38 @@ import { createMediaLibrary } from '@node-media-library/core'
 import { bullmqDriver } from '@node-media-library/bullmq'
 import { config, connection } from './media.config.js'
 
-createMediaLibrary({
+const media = createMediaLibrary({
   ...config,
   queue: bullmqDriver({ connection, workerConcurrency: 4 }),
 })
 
-// Keep the process alive. The Worker created above processes jobs.
+const worker = await media.startWorker()
+process.on('SIGTERM', () => worker.close()) // waits for in-flight jobs; { force: true } to abandon them
 ```
 
-Registering the processor happens inside the `MediaLibrary` constructor, so simply constructing it is
-what starts consuming. There is no `.start()` to call.
+Constructing a `MediaLibrary` with `bullmqDriver` never starts consuming — only producing (`enqueue`)
+works out of the box. A process that just builds `config` and constructs the library, without calling
+`startWorker()`, enqueues jobs that sit on the BullMQ queue forever; nothing picks them up. Consuming
+requires the explicit `await media.startWorker()` call above, made from a dedicated process, or the
+equivalent CLI command:
+
+```bash
+node-media-library worker --config media.config.ts --concurrency 4
+```
+
+`startWorker()` resolves as soon as the worker is subscribed — it is not what keeps the process
+running. What keeps it alive is the broker connection the worker holds open: an active socket is a
+live handle, so Node's event loop never drains and the process stays up until you close the worker (or
+the connection dies). Don't reach for a `setInterval` or a never-resolving promise to "hold it open";
+do make sure nothing else calls `process.exit()` on you.
 
 </TabItem>
 </Tabs>
 
 `Queue` and `Worker` instances are created lazily on first use, so constructing the driver never
 touches Redis — importing the config in a script that only reads URLs won't open a connection.
+Constructing the library with it doesn't touch Redis either, for the same reason: it's `startWorker()`
+that makes the connection.
 
 ## Choosing what stays inline
 
@@ -117,7 +133,9 @@ bullmqDriver({
 })
 ```
 
-`connection` is passed straight through to BullMQ, so anything ioredis accepts works.
+`connection` is passed straight through to BullMQ, so anything ioredis accepts works. `workerConcurrency`
+is the driver-level default; pass `{ concurrency }` to `startWorker()` (or `--concurrency` to the CLI) to
+override it for a specific worker without changing the driver config.
 
 ## Watching what happens
 
@@ -154,6 +172,14 @@ worker's conversion events — they're in-process emitters, not a distributed bu
   memory scales with it — be conservative with large sources.
 - Deploy both processes from the same commit. A worker running an older config generates the older
   conversion set.
+- Trap `SIGTERM`/`SIGINT` and call `worker.close()` before exiting, so in-flight jobs finish instead of
+  being abandoned mid-conversion. The `worker` CLI command already does this, then attempts a forced
+  close after `--shutdown-timeout` seconds (default 30). That forced close only bounds shutdown with
+  `rabbitmqDriver` — with `bullmqDriver`, BullMQ's own `Worker.close()` memoizes its close promise on
+  the first call, so the later forced call returns the same graceful close already in progress and
+  shutdown keeps waiting for in-flight jobs regardless of the timeout. Set `--shutdown-timeout` below
+  whatever grace period your orchestrator gives you before `SIGKILL` either way; that's the only
+  backstop `bullmqDriver` gets. See [the CLI reference](/reference/cli/) for the full caveat.
 
 ## Next
 

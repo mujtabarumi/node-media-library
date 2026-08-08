@@ -71,7 +71,7 @@ await library.for('User', user.id).firstUrl('avatar', 'thumb')
 Storage is [flydrive](https://flydrive.dev) — filesystem, S3, or GCS. Persistence is a
 `MediaRepository` interface with a Prisma adapter included, so your media table is a table like any
 other rather than an ORM you have to adopt. Queueing is a `QueueDriver` — synchronous by default,
-BullMQ when you're ready. Image work is [sharp](https://sharp.pixelplumbing.com).
+BullMQ or RabbitMQ when you're ready. Image work is [sharp](https://sharp.pixelplumbing.com).
 
 Nothing auto-registers. Installing a package enables nothing until you wire it in, which is why you
 can read a config file and know exactly what will happen to an upload.

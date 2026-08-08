@@ -6,13 +6,18 @@ editUrl: false
 
 Defined in: [packages/core/src/queue.ts:10](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/queue.ts#L10)
 
+## Extended by
+
+- [`InProcessQueueDriver`](/api/interfaces/InProcessQueueDriver/)
+- [`BrokerQueueDriver`](/api/interfaces/BrokerQueueDriver/)
+
 ## Methods
 
 ### close()
 
 > **close**(): `Promise`\<`void`\>
 
-Defined in: [packages/core/src/queue.ts:13](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/queue.ts#L13)
+Defined in: [packages/core/src/queue.ts:12](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/queue.ts#L12)
 
 #### Returns
 
@@ -35,21 +40,3 @@ Defined in: [packages/core/src/queue.ts:11](https://github.com/mujtabarumi/node-
 #### Returns
 
 `Promise`\<`void`\>
-
-***
-
-### registerProcessor()
-
-> **registerProcessor**(`fn`): `void`
-
-Defined in: [packages/core/src/queue.ts:12](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/queue.ts#L12)
-
-#### Parameters
-
-##### fn
-
-[`ConversionProcessor`](/api/type-aliases/ConversionProcessor/)
-
-#### Returns
-
-`void`

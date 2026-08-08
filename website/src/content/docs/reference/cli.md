@@ -1,15 +1,18 @@
 ---
 title: CLI
-description: regenerate and clean — backfilling conversions and removing stale files, from the command line or in code.
+description: regenerate, clean, and worker — backfilling conversions, removing stale files, and consuming a broker queue, from the command line or in code.
 ---
 
-Two commands, both also available as methods on `MediaLibrary`. They exist for the operations that act
-across many records at once: backfilling a conversion you just added, and removing files that config
-changes have orphaned.
+Three commands. `regenerate` and `clean` are also available as methods on `MediaLibrary`; `worker` is a
+thin wrapper around `MediaLibrary.startWorker()`. They exist for the operations that act across many
+records at once — or, for `worker`, run indefinitely — rather than fitting neatly into a single request:
+backfilling a conversion you just added, removing files that config changes have orphaned, and consuming
+conversion jobs from a broker.
 
 ## Pointing it at your library
 
-Both commands need `--config`, a path to a module that **default-exports a `MediaLibrary` instance**:
+Every command needs a config module that **default-exports a `MediaLibrary` instance**. Point `--config`
+at it explicitly:
 
 ```ts title="media.config.mjs"
 import { createMediaLibrary } from '@node-media-library/core'
@@ -21,6 +24,13 @@ export default createMediaLibrary({/* the same config your app uses */})
 node-media-library regenerate --config media.config.mjs
 ```
 
+...or omit `--config` and let the CLI resolve `medialibrary.config.{ts,mts,js,mjs}` from the current
+directory instead — the same convention `vitest.config.ts`/`drizzle.config.ts` use:
+
+```bash
+node-media-library regenerate   # resolves ./medialibrary.config.{ts,mts,js,mjs}
+```
+
 The module is loaded with a plain dynamic `import()`, so a `.ts` config needs a TypeScript loader:
 
 ```bash
@@ -30,8 +40,9 @@ node --import tsx ./node_modules/.bin/node-media-library regenerate --config med
 Running from a checkout of this repository rather than an installed package needs `pnpm build` first —
 the bin points at `dist/cli.js`, which the build produces.
 
-Give it your **full** config, not a trimmed-down one. Both commands reason about what _should_ exist by
-reading your model and collection definitions; a partial config makes real files look unexpected.
+Give it your **full** config, not a trimmed-down one. All three commands reason about what _should_
+exist (or, for `worker`, run the actual conversion pipeline) by reading your model and collection
+definitions; a partial config makes real files look unexpected.
 
 ## `regenerate`
 
@@ -142,6 +153,44 @@ In code:
 ```ts
 const result = await library.clean({ dryRun: true, deleteOrphaned: true, rateLimit: 10 })
 ```
+
+## `worker`
+
+Consumes conversion jobs from a broker-backed queue driver (`bullmqDriver`, `rabbitmqDriver`) until
+`SIGTERM`/`SIGINT`, then drains in-flight jobs before exiting.
+
+```bash
+node-media-library worker --config <path> [--concurrency <n>] [--shutdown-timeout <seconds>]
+```
+
+| Flag                     | Effect                                                         |
+| ------------------------ | -------------------------------------------------------------- |
+| `--concurrency <n>`      | Max jobs processed at once. Driver default applies if omitted. |
+| `--shutdown-timeout <s>` | Seconds to wait for in-flight jobs on shutdown. Default `30`.  |
+
+On `SIGTERM`/`SIGINT` it stops accepting new jobs and waits for in-flight ones to finish. If they
+haven't settled within `--shutdown-timeout` seconds, it logs the timeout and attempts a forced close.
+Whether that bounds shutdown depends on the driver: with `rabbitmqDriver` the forced close cuts the
+drain short and abandons the in-flight jobs, so shutdown stays bounded. With `bullmqDriver` it does
+not — BullMQ's own `Worker.close()` memoizes its close promise on the first call, so the later forced
+call just returns the graceful close already in progress, and the process keeps waiting for those jobs
+regardless of `--shutdown-timeout`. Set the timeout below whatever grace period your process manager
+gives you before `SIGKILL` either way; that's the only backstop `bullmqDriver` gets.
+
+It exits `1` if the configured driver has no `work()` — an in-process driver (`syncDriver()`,
+`deferDriver()`) runs conversions inline and has no separate worker to start.
+
+In code, this is `MediaLibrary.startWorker(opts?)`:
+
+```ts
+const worker = await library.startWorker({ concurrency: 4 })
+process.on('SIGTERM', () => worker.close()) // { force: true } to abandon in-flight jobs instead
+```
+
+Constructing a `MediaLibrary` with a broker driver never starts consuming on its own — `startWorker()`
+(or this command) is what does. See [background conversions](/guides/background-conversions/) for the
+full picture, including why that split exists and how to share one config between a web process and a
+worker.
 
 ## Exit codes
 

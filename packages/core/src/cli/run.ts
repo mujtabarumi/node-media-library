@@ -1,6 +1,7 @@
 import { parseArgs } from 'node:util'
 import { pathToFileURL } from 'node:url'
 import { resolve } from 'node:path'
+import { existsSync } from 'node:fs'
 import { MediaLibraryError } from '../errors.js'
 import type { RegenerateOptions } from '../conversions/engine.js'
 import type { CleanOptions, CleanResult } from '../maintenance/clean.js'
@@ -12,6 +13,10 @@ import type { CleanOptions, CleanResult } from '../maintenance/clean.js'
 export interface CliLibrary {
   regenerate(opts: RegenerateOptions): Promise<{ enqueued: number }>
   clean(opts?: CleanOptions): Promise<CleanResult>
+  startWorker(opts?: { concurrency?: number }): Promise<{
+    close(opts?: { force?: boolean }): Promise<void>
+  }>
+  close(): Promise<void>
 }
 
 /** @internal */
@@ -20,6 +25,13 @@ export interface CliDeps {
   log(line: string): void
   error(line: string): void
 }
+
+const CONFIG_BASENAMES = [
+  'medialibrary.config.ts',
+  'medialibrary.config.mts',
+  'medialibrary.config.js',
+  'medialibrary.config.mjs',
+] as const
 
 const USAGE = `Usage: node-media-library <command> --config <path> [options]
 
@@ -30,8 +42,12 @@ Commands:
   clean --config <path> [--dry-run] [--delete-orphaned] [--rate-limit <n>]
       Delete orphaned media and stale conversion files.
 
+  worker --config <path> [--concurrency <n>] [--shutdown-timeout <seconds>]
+      Consume conversion jobs from the configured broker driver until SIGTERM/SIGINT.
+
 Options:
-  --config <path>          Path to a module that default-exports a MediaLibrary instance (required)
+  --config <path>          Path to a module that default-exports a MediaLibrary instance
+                            (required unless one of ${CONFIG_BASENAMES.join(' / ')} exists in the current directory)
   --model <type>            regenerate: restrict to this model type
   --ids <id,id,...>         regenerate: restrict to these media ids
   --only <name,name,...>    regenerate: restrict to these conversion names
@@ -40,6 +56,8 @@ Options:
   --dry-run                  clean: report what would happen without deleting anything
   --delete-orphaned          clean: delete media whose owning model no longer exists
   --rate-limit <n>           clean: max deletions per second
+  --concurrency <n>          worker: max jobs processed at once
+  --shutdown-timeout <s>     worker: seconds to wait for in-flight jobs on shutdown (default 30)
 `
 
 function splitList(value: string): string[] {
@@ -58,9 +76,21 @@ function splitList(value: string): string[] {
  * flags it actually reads, so `runCli` can reject anything outside that set
  * with a clear error instead of accepting-and-ignoring it.
  */
-const FLAGS_BY_COMMAND: Record<'regenerate' | 'clean', readonly string[]> = {
+const FLAGS_BY_COMMAND: Record<'regenerate' | 'clean' | 'worker', readonly string[]> = {
   regenerate: ['model', 'ids', 'only', 'only-missing', 'with-responsive'],
   clean: ['dry-run', 'delete-orphaned', 'rate-limit'],
+  worker: ['concurrency', 'shutdown-timeout'],
+}
+
+/**
+ * Resolves the config module path. An explicit `--config` always wins;
+ * otherwise the conventional filenames are probed in cwd, matching how
+ * vitest/drizzle/playwright resolve theirs.
+ * @internal
+ */
+export function resolveConfigPath(explicit?: string): string | undefined {
+  if (explicit) return explicit
+  return CONFIG_BASENAMES.map((name) => resolve(name)).find((path) => existsSync(path))
 }
 
 /** @internal */
@@ -81,6 +111,8 @@ export async function runCli(argv: string[], deps: CliDeps): Promise<number> {
         'dry-run': { type: 'boolean' },
         'delete-orphaned': { type: 'boolean' },
         'rate-limit': { type: 'string' },
+        concurrency: { type: 'string' },
+        'shutdown-timeout': { type: 'string' },
       },
     })
   } catch (err) {
@@ -100,16 +132,21 @@ export async function runCli(argv: string[], deps: CliDeps): Promise<number> {
     'dry-run'?: boolean
     'delete-orphaned'?: boolean
     'rate-limit'?: string
+    concurrency?: string
+    'shutdown-timeout'?: string
   }
 
-  if (command !== 'regenerate' && command !== 'clean') {
+  if (command !== 'regenerate' && command !== 'clean' && command !== 'worker') {
     deps.error(`Unknown command: ${command ?? '(none)'}`)
     deps.error(USAGE)
     return 1
   }
 
-  if (!values.config) {
-    deps.error('Missing required --config <path>.')
+  const configPath = resolveConfigPath(values.config)
+  if (!configPath) {
+    deps.error(
+      `Missing --config <path>, and no ${CONFIG_BASENAMES.join(' / ')} found in the current directory.`,
+    )
     deps.error(USAGE)
     return 1
   }
@@ -137,13 +174,74 @@ export async function runCli(argv: string[], deps: CliDeps): Promise<number> {
 
   let library: CliLibrary
   try {
-    library = await deps.loadLibrary(values.config)
+    library = await deps.loadLibrary(configPath)
   } catch (err) {
     deps.error(err instanceof Error ? err.message : String(err))
     return 1
   }
 
   try {
+    if (command === 'worker') {
+      const concurrency = values.concurrency === undefined ? undefined : Number(values.concurrency)
+      if (concurrency !== undefined && (!Number.isFinite(concurrency) || concurrency <= 0)) {
+        deps.error('--concurrency must be a positive number.')
+        return 1
+      }
+      const timeoutSeconds =
+        values['shutdown-timeout'] === undefined ? 30 : Number(values['shutdown-timeout'])
+      if (!Number.isFinite(timeoutSeconds) || timeoutSeconds <= 0) {
+        deps.error('--shutdown-timeout must be a positive number.')
+        return 1
+      }
+
+      const worker = await library.startWorker(
+        concurrency === undefined ? undefined : { concurrency },
+      )
+      deps.log('Worker started. Press Ctrl+C to stop.')
+
+      await new Promise<void>((resolve) => {
+        const stop = () => {
+          process.off('SIGTERM', stop)
+          process.off('SIGINT', stop)
+          resolve()
+        }
+        process.once('SIGTERM', stop)
+        process.once('SIGINT', stop)
+      })
+
+      deps.log('Shutting down; waiting for in-flight jobs...')
+      // Kubernetes SIGKILLs after its grace period, so an unbounded drain is
+      // killed mid-job anyway — bound it and report the outcome honestly.
+      let timer: ReturnType<typeof setTimeout> | undefined
+      const drain = worker.close()
+      // Promise.race already keeps `drain`'s rejection handled (it attaches
+      // its own reaction to every raced promise, winner or loser), so this
+      // catch isn't averting a live crash — it's defensive insurance in case
+      // a future refactor stops chaining directly off `drain` here. Kept
+      // separate from the raced `.then(() => false)` chain below so a
+      // rejection that arrives *before* the timeout still fails the race for
+      // real and is reported as an actual error, instead of being silently
+      // downgraded to "timed out".
+      drain.catch(() => {})
+      const timedOut = await Promise.race([
+        drain.then(() => false),
+        new Promise<boolean>((r) => {
+          timer = setTimeout(() => r(true), timeoutSeconds * 1000)
+        }),
+      ])
+      if (timer !== undefined) clearTimeout(timer)
+      if (timedOut) {
+        deps.error(
+          `Shutdown timed out after ${timeoutSeconds}s; attempting a forced close. Some drivers ` +
+            'may not honor it and continue waiting on in-flight jobs regardless.',
+        )
+        await worker.close({ force: true })
+      }
+      await library.close()
+      deps.log('Worker stopped.')
+      return 0
+    }
+
     if (command === 'regenerate') {
       const opts: RegenerateOptions = {}
       if (values.model) opts.modelType = values.model

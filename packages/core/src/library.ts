@@ -18,7 +18,7 @@ import type { UrlGenerator } from './storage/url-generator.js'
 import { DefaultUrlGenerator } from './storage/url-generator.js'
 import { ConversionEngine, RegenerateOptions } from './conversions/engine.js'
 import { conversionFileName } from './conversions/naming.js'
-import type { QueueDriver } from './queue.js'
+import type { QueueDriver, QueueWorker, WorkOptions } from './queue.js'
 import { Readable } from 'node:stream'
 import { contentDisposition } from './downloads/response.js'
 import { zipEntryName } from './downloads/zip.js'
@@ -52,6 +52,15 @@ export class MediaLibrary {
   private readonly engine: ConversionEngine
   private readonly urlGeneratorInstance: UrlGenerator
 
+  /**
+   * Attaches the conversion processor when `config.queue` is an
+   * `InProcessQueueDriver`, and leaves a `BrokerQueueDriver` untouched — see
+   * {@link MediaLibrary.startWorker}.
+   *
+   * @throws MediaLibraryError if the configured queue driver implements both
+   * `attach()` and `work()`. That shape would consume inline here *and* from
+   * the broker under `startWorker()`, which is what the split exists to stop.
+   */
   constructor(config: MediaLibraryConfig) {
     this.resolved = resolveConfig(config)
     this.engine = new ConversionEngine({
@@ -67,9 +76,27 @@ export class MediaLibrary {
       responsivePlaceholders: this.resolved.responsivePlaceholders,
       optimizers: this.resolved.optimizers,
     })
-    this.resolved.queue.registerProcessor((job) =>
-      this.engine.perform(job.mediaId, job.conversionNames),
-    )
+    // `AnyQueueDriver` is a union of two structurally-discriminated shapes, but
+    // a union type does not stop an object from carrying BOTH members — an
+    // in-house wrapper offering an inline fallback alongside a broker mode is a
+    // natural way to end up here. That shape defeats the whole point of the
+    // split: the attach below would make this process consume inline while a
+    // separate startWorker() also consumes from the broker. Reject it before
+    // anything is wired, rather than silently reinstating the defect.
+    if ('attach' in this.resolved.queue && 'work' in this.resolved.queue) {
+      throw new MediaLibraryError(
+        'queue driver implements both attach() and work(): a driver must be either in-process ' +
+          '(attach) or broker-backed (work), never both — otherwise constructing a MediaLibrary ' +
+          'would consume inline while startWorker() consumes from the broker. Split it into two ' +
+          'drivers and configure the one this process should use.',
+      )
+    }
+    // Only in-process drivers attach here. A broker driver is left untouched,
+    // so a process that merely constructs a MediaLibrary is a pure producer —
+    // consuming requires an explicit startWorker() in a worker process.
+    if ('attach' in this.resolved.queue) {
+      this.resolved.queue.attach((job) => this.engine.perform(job.mediaId, job.conversionNames))
+    }
 
     // Built here (after `this.engine` exists) rather than reused from
     // `resolveConfig()`'s own default, since the `conversionFileNameFor` dep
@@ -103,6 +130,29 @@ export class MediaLibrary {
   /** Runs `names` (or all applicable) conversions for `mediaId` inline. */
   async performConversions(mediaId: string, names?: string[]): Promise<void> {
     return this.engine.perform(mediaId, names)
+  }
+
+  /**
+   * Starts consuming conversion jobs from the configured broker driver.
+   * Call this only in a dedicated worker process — a web process should
+   * construct the library and never call it.
+   *
+   * Throws when the configured driver is in-process, since those run
+   * conversions inline and have no separate worker to start.
+   */
+  async startWorker(opts?: WorkOptions): Promise<QueueWorker> {
+    const driver = this.resolved.queue
+    if (!('work' in driver)) {
+      throw new MediaLibraryError(
+        'configured queue driver is in-process: conversions already run in this process, so there is no worker to start',
+      )
+    }
+    return driver.work((job) => this.engine.perform(job.mediaId, job.conversionNames), opts)
+  }
+
+  /** Releases the configured queue driver's resources. */
+  async close(): Promise<void> {
+    await this.resolved.queue.close()
   }
 
   /**

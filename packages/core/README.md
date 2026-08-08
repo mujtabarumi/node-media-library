@@ -202,6 +202,87 @@ If a media file's MIME type isn't `supports()`-ed by any configured generator, c
 images for that file are skipped silently — the upload itself still succeeds and the file remains usable as a
 plain (attachment-only) piece of media.
 
+## Queue drivers
+
+Every `MediaLibrary` is configured with exactly one queue driver, and every driver is one of two kinds:
+
+- **In-process** (`syncDriver()`, `deferDriver()`) — conversions run inline, in the same process that
+  called `add()`. `MediaLibrary`'s constructor attaches its processor to these automatically; there is
+  no separate worker.
+- **Broker-backed** (`bullmqDriver()` from `@node-media-library/bullmq`, `rabbitmqDriver()` from
+  `@node-media-library/rabbitmq`) — jobs are handed to an external broker. **Constructing a
+  `MediaLibrary` with a broker driver does not start consuming.** A web process, a serverless handler,
+  or a script that just needs to read/write media can hold a `MediaLibrary` configured with
+  `bullmqDriver`/`rabbitmqDriver` and never touch the broker as a consumer.
+
+Consuming from a broker requires an explicit worker, started with `MediaLibrary.startWorker()`:
+
+```typescript
+// worker.ts — a dedicated process, never the web process
+const worker = await library.startWorker({ concurrency: 4 })
+process.on('SIGTERM', () => worker.close()) // waits for in-flight jobs; { force: true } to abandon them
+```
+
+`startWorker()` throws a `MediaLibraryError` if the configured driver is in-process — those run
+conversions inline and have no separate worker to start. Separately, the `MediaLibrary` constructor
+itself throws if the configured driver implements _both_ `attach()` and `work()`, before `startWorker()`
+is ever reached: that shape would consume inline in every process that constructs a `MediaLibrary`
+while `startWorker()` consumes from the broker too, which is exactly the accident the two interfaces
+exist to prevent.
+
+Call `library.close()` when you're done with a `MediaLibrary` (worker or producer) to release the
+driver's underlying connections/channels. **`close()` drains in-flight jobs with no timeout** — a
+wedged processor hangs shutdown forever. If your process has its own `SIGTERM` handling, race it
+against your own timer rather than awaiting it unbounded.
+
+The package also ships a `worker` CLI command, a convenience wrapper around the same call that traps
+`SIGTERM`/`SIGINT`, drains in-flight jobs, and escalates to a forced close after `--shutdown-timeout`
+elapses (the escalation cuts a wedged drain short with `rabbitmqDriver`; with `bullmqDriver` it does
+not — BullMQ's own `Worker.close()` memoizes its close promise on the first call, so the forced call
+just returns the still-pending graceful close instead of skipping the drain, and shutdown keeps
+blocking on the in-flight jobs past `--shutdown-timeout`):
+
+```bash
+node-media-library worker --config ./medialibrary.config.ts [--concurrency 4] [--shutdown-timeout 30]
+```
+
+`--config` can be omitted if a `medialibrary.config.ts` / `.mts` / `.js` / `.mjs` file (default-exporting
+a `MediaLibrary` instance) exists in the current directory — the same convention `regenerate` and
+`clean` follow (see [CLI](#cli) below).
+
+### Choosing a driver from an environment variable
+
+Selecting a backend by environment variable is a pattern you write yourself, not a helper this package
+ships (see the [design rationale](../../docs/superpowers/specs/2026-08-08-queue-driver-redesign-design.md)
+for why). Fail closed on an unrecognized value — a typo'd environment variable should crash loudly, not
+silently fall back to `syncDriver()` and run heavy image conversions inline inside HTTP requests:
+
+```typescript
+function resolveQueue() {
+  switch (process.env.MEDIA_QUEUE ?? 'sync') {
+    case 'sync':
+      return syncDriver()
+    case 'bullmq':
+      return bullmqDriver({ connection: { url: process.env.REDIS_URL! } })
+    case 'rabbitmq':
+      return rabbitmqDriver({ url: process.env.AMQP_URL! })
+    default:
+      throw new Error(`unknown MEDIA_QUEUE: ${process.env.MEDIA_QUEUE}`)
+  }
+}
+```
+
+This only validates `MEDIA_QUEUE`. For fail-fast validation of your app's _other_ environment variables
+too, reach for a dedicated library (`envalid`, `zod`, `t3-env`) rather than hand-rolling checks per
+variable.
+
+### Writing your own driver
+
+See [`packages/core/docs/writing-a-queue-driver.md`](docs/writing-a-queue-driver.md) for the full
+`InProcessQueueDriver`/`BrokerQueueDriver` contract, `close()` semantics, the at-least-once delivery
+guarantee (processors must be idempotent), and how to validate a new driver against the exported
+contract-test suites.
+
 ## Storage disks
 
 `storage.disks` accepts `fs`, `s3`, and `gcs` driver configs. Without explicit config, the default disk is

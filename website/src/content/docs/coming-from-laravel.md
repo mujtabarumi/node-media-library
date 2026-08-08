@@ -29,8 +29,9 @@ through `add()` so conversions regenerate under the new config.
 | `->preservingOriginal()`                    | `.preservingOriginal()`                                         |
 | `->withCustomProperties([...])`             | `.withCustomProperties({ … })`                                  |
 | `media:regenerate` / `media:clean`          | `node-media-library regenerate` / `clean`                       |
+| `php artisan queue:work`                    | `node-media-library worker` / `MediaLibrary.startWorker()`      |
 | Laravel filesystem disks                    | flydrive disks (`fs` / `s3` / `gcs`)                            |
-| Laravel queues                              | `QueueDriver` — `syncDriver()` by default, or BullMQ            |
+| Laravel queues                              | `QueueDriver` — `syncDriver()` by default, or BullMQ/RabbitMQ   |
 | Eloquent `Media` model                      | `MediaRepository` interface — Prisma adapter, or bring your own |
 
 Collection and conversion builders carry over almost verbatim: `singleFile()`, `onlyKeepLatest(n)`,

@@ -30,6 +30,7 @@ banner:
 
 ## Interfaces
 
+- [BrokerQueueDriver](/api/interfaces/BrokerQueueDriver/)
 - [CleanOptions](/api/interfaces/CleanOptions/)
 - [CleanResult](/api/interfaces/CleanResult/)
 - [CollectionDefinition](/api/interfaces/CollectionDefinition/)
@@ -39,6 +40,7 @@ banner:
 - [ImageGenerator](/api/interfaces/ImageGenerator/)
 - [ImageOptimizer](/api/interfaces/ImageOptimizer/)
 - [IncomingFile](/api/interfaces/IncomingFile/)
+- [InProcessQueueDriver](/api/interfaces/InProcessQueueDriver/)
 - [MediaEventMap](/api/interfaces/MediaEventMap/)
 - [MediaFilter](/api/interfaces/MediaFilter/)
 - [MediaLibraryConfig](/api/interfaces/MediaLibraryConfig/)
@@ -47,6 +49,7 @@ banner:
 - [OptimizeContext](/api/interfaces/OptimizeContext/)
 - [PathGenerator](/api/interfaces/PathGenerator/)
 - [QueueDriver](/api/interfaces/QueueDriver/)
+- [QueueWorker](/api/interfaces/QueueWorker/)
 - [RegenerateOptions](/api/interfaces/RegenerateOptions/)
 - [ResponsiveImagesEntry](/api/interfaces/ResponsiveImagesEntry/)
 - [ResponsiveVariant](/api/interfaces/ResponsiveVariant/)
@@ -55,9 +58,11 @@ banner:
 - [UrlGenerator](/api/interfaces/UrlGenerator/)
 - [UrlGeneratorOptions](/api/interfaces/UrlGeneratorOptions/)
 - [WidthCalculator](/api/interfaces/WidthCalculator/)
+- [WorkOptions](/api/interfaces/WorkOptions/)
 
 ## Type Aliases
 
+- [AnyQueueDriver](/api/type-aliases/AnyQueueDriver/)
 - [ConversionProcessor](/api/type-aliases/ConversionProcessor/)
 - [DiskConfig](/api/type-aliases/DiskConfig/)
 - [FileNameSanitizer](/api/type-aliases/FileNameSanitizer/)
@@ -78,6 +83,7 @@ banner:
 - [contentDisposition](/api/functions/contentDisposition/)
 - [conversion](/api/functions/conversion/)
 - [createMediaLibrary](/api/functions/createMediaLibrary/)
+- [deferDriver](/api/functions/deferDriver/)
 - [sanitizeFileName](/api/functions/sanitizeFileName/)
 - [sharpImageGenerator](/api/functions/sharpImageGenerator/)
 - [syncDriver](/api/functions/syncDriver/)

@@ -30,29 +30,44 @@ const media = createMediaLibrary({
 })
 ```
 
-`Queue`/`Worker` instances are created lazily on first `enqueue`/`registerProcessor` call, so constructing the driver never touches Redis.
+`Queue`/`Worker` instances are created lazily on first `enqueue`/`work` call, so constructing the driver never touches Redis.
 
 ## Worker process
 
-Conversion processing registration happens inside the `MediaLibrary` constructor, so run a separate process with the _same_ config and keep it alive:
+`bullmqDriver` is a `BrokerQueueDriver`: constructing a `MediaLibrary` with it never starts consuming —
+only producing (`enqueue`) works out of the box. A process that constructs the library and enqueues jobs
+without ever calling `startWorker()` pushes those jobs onto the BullMQ queue and leaves them there —
+nothing in that process (or any other, unless a worker is started separately) ever picks them up.
+Consuming requires an explicit `startWorker()` call, made from a dedicated process with the _same_
+config, kept alive:
 
 ```ts
 // worker.ts
 import { createMediaLibrary } from '@node-media-library/core'
 import { bullmqDriver } from '@node-media-library/bullmq'
 
-createMediaLibrary({
+const media = createMediaLibrary({
   repository,
   storage: { disks: { default: { driver: 'fs', root: './storage' } } },
   models: { User: {} },
   queue: bullmqDriver({ connection: { url: process.env.REDIS_URL! }, workerConcurrency: 4 }),
 })
-// keep the process alive; the Worker created above processes jobs.
+
+const worker = await media.startWorker() // workerConcurrency above is the default; pass { concurrency }
+// to override it per call
+process.on('SIGTERM', () => worker.close()) // waits for in-flight jobs; { force: true } to abandon them
+// keep the process alive; the worker above processes jobs until closed.
+```
+
+Or via the CLI, given a `medialibrary.config.ts` that default-exports the same configuration:
+
+```bash
+node-media-library worker --config medialibrary.config.ts --concurrency 4
 ```
 
 ## Options
 
-`bullmqDriver({ connection, queueName, workerConcurrency })`: `connection` is passed straight through to BullMQ's `Queue`/`Worker` (ioredis options, an `{ url }` object, or an ioredis instance). `queueName` defaults to `'media-conversions'`, `workerConcurrency` defaults to `2`.
+`bullmqDriver({ connection, queueName, workerConcurrency })`: `connection` is passed straight through to BullMQ's `Queue`/`Worker` (ioredis options, an `{ url }` object, or an ioredis instance). `queueName` defaults to `'media-conversions'`. `workerConcurrency` is the driver-level default for `Worker` concurrency (defaults to `2`), overridden per call by `startWorker({ concurrency })`'s `WorkOptions.concurrency` — pass `workerConcurrency` when you want every worker started from this driver to share a default, and `{ concurrency }` when a specific `startWorker()` call needs to differ from it.
 
 ## Tests
 

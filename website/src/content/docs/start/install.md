@@ -22,7 +22,8 @@ Add the adapters you actually need — nothing is pulled in for you:
 
 ```bash
 pnpm add @node-media-library/prisma      # database-backed repository
-pnpm add @node-media-library/bullmq      # queued conversions
+pnpm add @node-media-library/bullmq      # queued conversions via Redis
+pnpm add @node-media-library/rabbitmq    # queued conversions via RabbitMQ
 pnpm add @node-media-library/pdf         # PDF page thumbnails
 pnpm add @node-media-library/video       # video frame thumbnails
 pnpm add @node-media-library/optimizers  # jpegoptim / pngquant
@@ -51,11 +52,12 @@ thumbnail.
 
 ## Peer dependencies
 
-| Package  | Peer                    | Required?                                       |
-| -------- | ----------------------- | ----------------------------------------------- |
-| `core`   | `@google-cloud/storage` | Optional — only for the `gcs` storage driver.   |
-| `prisma` | `@prisma/client`        | Optional — bring your own version (`>=6.2 <8`). |
-| `bullmq` | `bullmq`                | Required (`^5`).                                |
+| Package    | Peer                    | Required?                                       |
+| ---------- | ----------------------- | ----------------------------------------------- |
+| `core`     | `@google-cloud/storage` | Optional — only for the `gcs` storage driver.   |
+| `prisma`   | `@prisma/client`        | Optional — bring your own version (`>=6.2 <8`). |
+| `bullmq`   | `bullmq`                | Required (`^5 \|\| ^6`).                        |
+| `rabbitmq` | `amqplib`               | Required (`^0.10`).                             |
 
 ## Nothing auto-registers
 

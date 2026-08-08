@@ -82,7 +82,7 @@ Defined in: [packages/core/src/config.ts:34](https://github.com/mujtabarumi/node
 
 ### queue?
 
-> `optional` **queue?**: [`QueueDriver`](/api/interfaces/QueueDriver/)
+> `optional` **queue?**: [`AnyQueueDriver`](/api/type-aliases/AnyQueueDriver/)
 
 Defined in: [packages/core/src/config.ts:37](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/config.ts#L37)
 
