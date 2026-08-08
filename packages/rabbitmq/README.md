@@ -52,7 +52,8 @@ const media = createMediaLibrary({
   queue: rabbitmqDriver({ url: process.env.AMQP_URL! }),
 })
 
-await media.startWorker({ concurrency: 4 })
+const worker = await media.startWorker({ concurrency: 4 })
+process.on('SIGTERM', () => worker.close()) // waits for in-flight jobs; { force: true } to abandon them
 // keep the process alive; the worker above processes jobs until closed.
 ```
 

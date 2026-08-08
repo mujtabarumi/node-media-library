@@ -86,10 +86,14 @@ Two different `close()`s exist, and they mean different things:
   gets to finish. Pass `{ force: true }` to abandon in-flight jobs instead (used by the `worker` CLI
   command after its shutdown timeout elapses, since Kubernetes sends `SIGKILL` after its own grace
   period regardless of whether your drain finished).
-- **`QueueDriver.close()`** releases producer resources — connections, channels, timers — and closes
-  any workers the driver itself created that are still open. It does not imply a graceful drain of
-  those workers; if you want jobs to finish first, close the `QueueWorker` returned by `work()`
-  yourself, then call `driver.close()`.
+- **`QueueDriver.close()`** releases producer resources — connections, channels, timers — **and**
+  gracefully closes any workers the driver itself created that are still open, the same way calling
+  `QueueWorker.close()` on each of them would: it awaits their in-flight jobs before tearing down the
+  resources those workers depend on. If you want to abandon in-flight work instead of waiting for it,
+  close the worker yourself with `{ force: true }` first, then call `driver.close()`. Calling
+  `QueueWorker.close()` again afterward — on a worker `driver.close()` already closed — is safe and
+  resolves immediately; both shipped drivers guard for that ordering, and the contract suite asserts it
+  (`driver.close() closes workers it created and does not hang`).
 
 `deferDriver()` is a concrete example worth reading
 ([`packages/core/src/queue.ts`](../src/queue.ts)): its `enqueue()` resolves immediately and schedules
