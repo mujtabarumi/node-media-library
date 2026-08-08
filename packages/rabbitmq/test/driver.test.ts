@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { describe, it, expect } from 'vitest'
+import type amqp from 'amqplib'
+import type { ConversionJob } from '@node-media-library/core'
 import { runBrokerQueueDriverContract } from '@node-media-library/core/testing'
 import { rabbitmqDriver } from '../src/driver.js'
 
@@ -89,6 +91,134 @@ it('does not close a caller-supplied connection', async () => {
   })
   await d.close()
   expect(connectionClosed).toBe(false)
+})
+
+/**
+ * A caller-owned `AmqpLikeConnection` backed by a hand-rolled channel. These
+ * cases are about this driver's own teardown bookkeeping — how many times it
+ * cancels/closes a channel, whether a rejected in-flight settle escapes,
+ * whether a failed consumer setup leaks a channel — and a real broker can
+ * neither be made to produce those states on demand nor report the counts.
+ * The behaviors these guard are all ungated so CI runs them without RabbitMQ.
+ */
+function fakeAmqp(hooks: { onAssertQueue?: () => Promise<void>; onSettle?: () => void } = {}) {
+  const calls = { assertQueue: 0, cancel: 0, close: 0 }
+  let deliver: ((msg: { content: Buffer }) => void) | undefined
+  const channel = {
+    async assertQueue() {
+      calls.assertQueue++
+      await hooks.onAssertQueue?.()
+    },
+    async prefetch() {},
+    async consume(_queue: string, onMessage: (msg: { content: Buffer }) => void) {
+      deliver = onMessage
+      return { consumerTag: 'ct-1' }
+    },
+    async cancel() {
+      calls.cancel++
+    },
+    async close() {
+      calls.close++
+    },
+    ack() {
+      hooks.onSettle?.()
+    },
+    nack() {
+      hooks.onSettle?.()
+    },
+  }
+  return {
+    connection: {
+      createChannel: async () => channel as unknown as amqp.Channel,
+      close: async () => {},
+    },
+    calls,
+    deliverJob: (job: ConversionJob) => deliver!({ content: Buffer.from(JSON.stringify(job)) }),
+  }
+}
+
+describe('teardown bookkeeping', () => {
+  it('worker.close() resolves even when a job’s ack and its fallback nack both throw', async () => {
+    const f = fakeAmqp({
+      onSettle: () => {
+        throw new Error('IllegalOperationError: Channel closed')
+      },
+    })
+    const d = rabbitmqDriver({ connection: f.connection })
+    let release!: () => void
+    const gate = new Promise<void>((r) => (release = r))
+    const w = await d.work(async () => gate)
+    f.deliverJob({ mediaId: 'm1', conversionNames: ['thumb'] })
+    release()
+    // The in-flight settle rejects (ack throws, then the nack in its catch
+    // throws too). Draining with Promise.all would propagate that into
+    // worker.close(), driver.close(), and a CLI exit code of 1 — on a
+    // shutdown that otherwise succeeded.
+    await expect(w.close()).resolves.toBeUndefined()
+    await expect(d.close()).resolves.toBeUndefined()
+  })
+
+  it('concurrent worker.close() and driver.close() cancel and close the channel once', async () => {
+    const f = fakeAmqp()
+    const d = rabbitmqDriver({ connection: f.connection })
+    const w = await d.work(async () => {})
+    await Promise.all([w.close(), w.close(), d.close()])
+    expect(f.calls.cancel).toBe(1)
+    expect(f.calls.close).toBe(1)
+  })
+
+  it('a concurrent second driver.close() does not resolve before the first drain finishes', async () => {
+    const f = fakeAmqp()
+    const d = rabbitmqDriver({ connection: f.connection })
+    let finished = false
+    await d.work(async () => {
+      await new Promise((r) => setTimeout(r, 50))
+      finished = true
+    })
+    f.deliverJob({ mediaId: 'm1', conversionNames: ['thumb'] })
+    const first = d.close()
+    const second = d.close()
+    // A bare `if (closed) return` would let this one resolve immediately,
+    // handing the caller a "closed" driver whose drain is still running.
+    await second
+    expect(finished).toBe(true)
+    await first
+  })
+
+  it('closes the consumer channel when consumer setup fails', async () => {
+    const f = fakeAmqp({
+      onAssertQueue: async () => {
+        throw new Error('PRECONDITION_FAILED')
+      },
+    })
+    const d = rabbitmqDriver({ connection: f.connection })
+    await expect(d.work(async () => {})).rejects.toThrow('PRECONDITION_FAILED')
+    // No QueueWorker was created, and driver.close() only reaches consumer
+    // channels through the workers it created — so if work() didn't close
+    // this channel itself, nothing ever would.
+    expect(f.calls.close).toBe(1)
+    await d.close()
+  })
+
+  it('worker.close({ force: true }) cuts short a graceful close that is still draining', async () => {
+    const f = fakeAmqp()
+    const d = rabbitmqDriver({ connection: f.connection })
+    let finished = false
+    const w = await d.work(async () => {
+      await new Promise<void>(() => {}) // a wedged job: never settles
+      finished = true
+    })
+    f.deliverJob({ mediaId: 'm1', conversionNames: ['thumb'] })
+    const graceful = w.close()
+    graceful.catch(() => {})
+    // This is the escalation the `worker` CLI performs once
+    // --shutdown-timeout elapses. Memoizing close() as a whole promise would
+    // hand back the very drain we just timed out of, and hang forever.
+    await w.close({ force: true })
+    expect(finished).toBe(false)
+    expect(f.calls.cancel).toBe(1)
+    expect(f.calls.close).toBe(1)
+  })
 })
 
 describe('exports', () => {
