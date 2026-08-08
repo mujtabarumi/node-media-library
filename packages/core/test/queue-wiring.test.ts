@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { rm } from 'node:fs/promises'
-import { createMediaLibrary, syncDriver } from '../src/index.js'
+import { createMediaLibrary, MediaLibraryError, syncDriver } from '../src/index.js'
 import type { BrokerQueueDriver, ConversionProcessor, QueueWorker } from '../src/index.js'
 import { InMemoryMediaRepository } from '../src/repository/in-memory.js'
 
@@ -78,6 +78,29 @@ describe('queue wiring', () => {
   it('startWorker() on an in-process driver throws a clear error', async () => {
     const library = makeLibrary(syncDriver())
     await expect(library.startWorker()).rejects.toThrow(/in-process/)
+  })
+
+  it('rejects a driver implementing both attach() and work()', () => {
+    const attached: ConversionProcessor[] = []
+    // The shape the union type admits but the split exists to forbid: an
+    // in-house wrapper with an inline fallback *and* a broker mode. Without
+    // the guard the constructor attaches (consuming inline in this process)
+    // while startWorker() would also succeed, consuming from the broker too.
+    const hybrid = {
+      attach(fn: ConversionProcessor) {
+        attached.push(fn)
+      },
+      async enqueue() {},
+      async work(fn: ConversionProcessor): Promise<QueueWorker> {
+        attached.push(fn)
+        return { async close() {} }
+      },
+      async close() {},
+    }
+    expect(() => makeLibrary(hybrid)).toThrow(MediaLibraryError)
+    expect(() => makeLibrary(hybrid)).toThrow(/both attach\(\) and work\(\)/)
+    // The guard runs before the attach, so the bad driver is never wired.
+    expect(attached).toEqual([])
   })
 
   it('close() closes the configured driver', async () => {

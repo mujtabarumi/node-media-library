@@ -52,6 +52,15 @@ export class MediaLibrary {
   private readonly engine: ConversionEngine
   private readonly urlGeneratorInstance: UrlGenerator
 
+  /**
+   * Attaches the conversion processor when `config.queue` is an
+   * `InProcessQueueDriver`, and leaves a `BrokerQueueDriver` untouched — see
+   * {@link MediaLibrary.startWorker}.
+   *
+   * @throws MediaLibraryError if the configured queue driver implements both
+   * `attach()` and `work()`. That shape would consume inline here *and* from
+   * the broker under `startWorker()`, which is what the split exists to stop.
+   */
   constructor(config: MediaLibraryConfig) {
     this.resolved = resolveConfig(config)
     this.engine = new ConversionEngine({
@@ -67,6 +76,21 @@ export class MediaLibrary {
       responsivePlaceholders: this.resolved.responsivePlaceholders,
       optimizers: this.resolved.optimizers,
     })
+    // `AnyQueueDriver` is a union of two structurally-discriminated shapes, but
+    // a union type does not stop an object from carrying BOTH members — an
+    // in-house wrapper offering an inline fallback alongside a broker mode is a
+    // natural way to end up here. That shape defeats the whole point of the
+    // split: the attach below would make this process consume inline while a
+    // separate startWorker() also consumes from the broker. Reject it before
+    // anything is wired, rather than silently reinstating the defect.
+    if ('attach' in this.resolved.queue && 'work' in this.resolved.queue) {
+      throw new MediaLibraryError(
+        'queue driver implements both attach() and work(): a driver must be either in-process ' +
+          '(attach) or broker-backed (work), never both — otherwise constructing a MediaLibrary ' +
+          'would consume inline while startWorker() consumes from the broker. Split it into two ' +
+          'drivers and configure the one this process should use.',
+      )
+    }
     // Only in-process drivers attach here. A broker driver is left untouched,
     // so a process that merely constructs a MediaLibrary is a pure producer —
     // consuming requires an explicit startWorker() in a worker process.
