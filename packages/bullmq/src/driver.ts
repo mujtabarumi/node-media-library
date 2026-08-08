@@ -2,9 +2,11 @@ import { Queue, Worker } from 'bullmq'
 import type { ConnectionOptions } from 'bullmq'
 import {
   MediaLibraryError,
+  type BrokerQueueDriver,
   type ConversionJob,
   type ConversionProcessor,
-  type QueueDriver,
+  type QueueWorker,
+  type WorkOptions,
 } from '@node-media-library/core'
 
 const DEFAULT_QUEUE_NAME = 'media-conversions'
@@ -15,27 +17,23 @@ export interface BullmqDriverOptions {
   connection: unknown
   /** @defaultValue 'media-conversions' */
   queueName?: string
-  /** @defaultValue 2 */
+  /** Default concurrency, overridden per-call by `WorkOptions.concurrency`. @defaultValue 2 */
   workerConcurrency?: number
 }
 
 /**
- * BullMQ-backed queue driver. `Queue` and `Worker` instances are created
- * lazily (on first `enqueue`/`registerProcessor` call) so constructing the
- * driver never touches Redis.
+ * BullMQ-backed broker driver. The `Queue` is created lazily on first
+ * `enqueue`, and a `Worker` only ever on an explicit `work()` call — so
+ * constructing the driver, or holding one in a web process, never consumes.
  */
-export function bullmqDriver(opts: BullmqDriverOptions): QueueDriver {
+export function bullmqDriver(opts: BullmqDriverOptions): BrokerQueueDriver {
   const connection = opts.connection as ConnectionOptions
   const queueName = opts.queueName ?? DEFAULT_QUEUE_NAME
-  const workerConcurrency = opts.workerConcurrency ?? DEFAULT_WORKER_CONCURRENCY
+  const defaultConcurrency = opts.workerConcurrency ?? DEFAULT_WORKER_CONCURRENCY
 
   let queue: Queue<ConversionJob> | undefined
-  let worker: Worker<ConversionJob> | undefined
+  const workers = new Set<Worker<ConversionJob>>()
   let closed = false
-  // Bumped on every registerProcessor()/close() call so a superseded
-  // in-flight worker-close → worker-create chain (see registerProcessor
-  // below) can detect it's stale and bail out instead of racing.
-  let generation = 0
 
   function getQueue(): Queue<ConversionJob> {
     if (!queue) {
@@ -52,36 +50,31 @@ export function bullmqDriver(opts: BullmqDriverOptions): QueueDriver {
       await getQueue().add('convert', job)
     },
 
-    registerProcessor(fn: ConversionProcessor) {
+    async work(fn: ConversionProcessor, workOpts?: WorkOptions): Promise<QueueWorker> {
       if (closed) {
         throw new MediaLibraryError('queue driver is closed')
       }
-      const myGeneration = ++generation
-      const oldWorker = worker
-      worker = undefined
-      const createWorker = () => {
-        // Superseded by a later registerProcessor()/close() — don't create
-        // a worker nobody asked for anymore.
-        if (closed || myGeneration !== generation) return
-        worker = new Worker<ConversionJob>(queueName, async (j) => fn(j.data), {
-          connection,
-          concurrency: workerConcurrency,
-        })
-      }
-      // Wait for the old worker to fully close before starting the new one,
-      // so the two never process the same queue concurrently.
-      if (oldWorker) {
-        oldWorker.close().finally(createWorker)
-      } else {
-        createWorker()
+      const worker = new Worker<ConversionJob>(queueName, async (j) => fn(j.data), {
+        connection,
+        concurrency: workOpts?.concurrency ?? defaultConcurrency,
+      })
+      workers.add(worker)
+      await worker.waitUntilReady()
+
+      return {
+        async close(closeOpts?: { force?: boolean }) {
+          workers.delete(worker)
+          // BullMQ's close(force) skips waiting for active jobs.
+          await worker.close(closeOpts?.force ?? false)
+        },
       }
     },
 
     async close() {
       if (closed) return
       closed = true
-      generation++
-      await worker?.close()
+      await Promise.all([...workers].map((w) => w.close()))
+      workers.clear()
       await queue?.close()
     },
   }

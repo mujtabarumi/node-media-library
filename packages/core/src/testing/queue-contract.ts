@@ -1,6 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { MediaLibraryError } from '../errors.js'
-import type { ConversionJob, InProcessQueueDriver, QueueDriver } from '../queue.js'
+import type {
+  BrokerQueueDriver,
+  ConversionJob,
+  InProcessQueueDriver,
+  QueueDriver,
+} from '../queue.js'
 
 export function runQueueDriverContract(
   name: string,
@@ -183,6 +188,92 @@ export function runInProcessQueueDriverContract(
 
     it('enqueue rejects after close()', async () => {
       driver.attach(async () => {})
+      await driver.close()
+      await expect(driver.enqueue({ mediaId: 'm1', conversionNames: ['thumb'] })).rejects.toThrow()
+    })
+  })
+}
+
+export function runBrokerQueueDriverContract(
+  name: string,
+  factory: () => Promise<BrokerQueueDriver>,
+  opts?: { waitForAsync?: () => Promise<void> },
+): void {
+  const waitForAsync = opts?.waitForAsync ?? (() => Promise.resolve())
+
+  describe(`BrokerQueueDriver contract: ${name}`, () => {
+    let driver: BrokerQueueDriver
+
+    beforeEach(async () => {
+      driver = await factory()
+    })
+
+    it('accepts jobs with no worker running', async () => {
+      await expect(
+        driver.enqueue({ mediaId: 'm1', conversionNames: ['thumb'] }),
+      ).resolves.toBeUndefined()
+      await driver.close()
+    })
+
+    it('a worker receives the exact job payload', async () => {
+      const received: ConversionJob[] = []
+      const worker = await driver.work(async (job) => {
+        received.push(job)
+      })
+      const job: ConversionJob = { mediaId: 'm1', conversionNames: ['thumb', 'large'] }
+      await driver.enqueue(job)
+      await waitForAsync()
+      await worker.close()
+      await driver.close()
+      expect(received).toEqual([job])
+    })
+
+    it('multiple enqueued jobs are all processed', async () => {
+      const received: ConversionJob[] = []
+      const worker = await driver.work(async (job) => {
+        received.push(job)
+      })
+      const jobs: ConversionJob[] = [
+        { mediaId: 'm1', conversionNames: ['thumb'] },
+        { mediaId: 'm2', conversionNames: ['large'] },
+        { mediaId: 'm3', conversionNames: ['thumb', 'large'] },
+      ]
+      for (const job of jobs) {
+        await driver.enqueue(job)
+      }
+      await waitForAsync()
+      await worker.close()
+      await driver.close()
+      const byMediaId = (a: ConversionJob, b: ConversionJob) => a.mediaId.localeCompare(b.mediaId)
+      expect([...received].sort(byMediaId)).toEqual([...jobs].sort(byMediaId))
+    })
+
+    it('worker.close() stops delivery', async () => {
+      const received: ConversionJob[] = []
+      const worker = await driver.work(async (job) => {
+        received.push(job)
+      })
+      await worker.close()
+      await driver.enqueue({ mediaId: 'm1', conversionNames: ['thumb'] })
+      await waitForAsync()
+      await driver.close()
+      expect(received).toEqual([])
+    })
+
+    it('driver.close() closes workers it created and does not hang', async () => {
+      const worker = await driver.work(async () => {})
+      // Must resolve even though the worker was never closed by the caller.
+      await expect(driver.close()).resolves.toBeUndefined()
+      // Teardown must stay safe in either order.
+      await expect(worker.close()).resolves.toBeUndefined()
+    })
+
+    it('close() is idempotent', async () => {
+      await driver.close()
+      await expect(driver.close()).resolves.toBeUndefined()
+    })
+
+    it('enqueue rejects after close()', async () => {
       await driver.close()
       await expect(driver.enqueue({ mediaId: 'm1', conversionNames: ['thumb'] })).rejects.toThrow()
     })
