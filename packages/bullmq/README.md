@@ -30,7 +30,7 @@ const media = createMediaLibrary({
 })
 ```
 
-`Queue`/`Worker` instances are created lazily on first `enqueue`/`registerProcessor` call, so constructing the driver never touches Redis.
+`Queue`/`Worker` instances are created lazily on first `enqueue`/`work` call, so constructing the driver never touches Redis.
 
 ## Worker process
 

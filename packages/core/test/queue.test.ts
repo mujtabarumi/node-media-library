@@ -1,15 +1,6 @@
 import { it, expect, vi } from 'vitest'
-import {
-  runQueueDriverContract,
-  runInProcessQueueDriverContract,
-} from '../src/testing/queue-contract.js'
+import { runInProcessQueueDriverContract } from '../src/testing/queue-contract.js'
 import { syncDriver, deferDriver } from '../src/queue.js'
-
-runQueueDriverContract('syncDriver', async () => syncDriver())
-runQueueDriverContract('deferDriver', async () => deferDriver(), {
-  waitForAsync: () => new Promise((r) => setImmediate(r)),
-  assertOrder: false,
-})
 
 runInProcessQueueDriverContract('syncDriver', async () => syncDriver())
 runInProcessQueueDriverContract('deferDriver', async () => deferDriver(), {
@@ -18,7 +9,7 @@ runInProcessQueueDriverContract('deferDriver', async () => deferDriver(), {
 
 it('syncDriver propagates processor errors to enqueue', async () => {
   const d = syncDriver()
-  d.registerProcessor?.(async () => {
+  d.attach(async () => {
     throw new Error('boom')
   })
   await expect(d.enqueue({ mediaId: 'm', conversionNames: ['t'] })).rejects.toThrow('boom')
@@ -27,7 +18,7 @@ it('syncDriver propagates processor errors to enqueue', async () => {
 it('deferDriver swallows processor errors after logging', async () => {
   const warn = vi.spyOn(console, 'error').mockImplementation(() => {})
   const d = deferDriver()
-  d.registerProcessor?.(async () => {
+  d.attach(async () => {
     throw new Error('boom')
   })
   await d.enqueue({ mediaId: 'm', conversionNames: ['t'] })

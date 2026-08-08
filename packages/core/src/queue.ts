@@ -10,8 +10,6 @@ export type ConversionProcessor = (job: ConversionJob) => Promise<void>
 export interface QueueDriver {
   enqueue(job: ConversionJob): Promise<void>
   close(): Promise<void>
-  /** @deprecated Use `attach` (in-process) or `work` (broker). Removed in Task 4. */
-  registerProcessor?(fn: ConversionProcessor): void
 }
 
 /**
@@ -71,7 +69,6 @@ export function syncDriver(): InProcessQueueDriver {
     },
   }
 
-  driver.registerProcessor = driver.attach
   return driver
 }
 
@@ -123,6 +120,5 @@ export function deferDriver(): InProcessQueueDriver {
     },
   }
 
-  driver.registerProcessor = driver.attach
   return driver
 }

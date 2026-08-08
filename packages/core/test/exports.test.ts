@@ -129,20 +129,13 @@ describe('public exports', () => {
   })
 
   // Queue driver exports
-  it('exports syncDriver', async () => {
-    const { syncDriver } = await import('../src/index.js')
-    expect(syncDriver).toBeDefined()
-  })
-
-  it('exports deferDriver', async () => {
-    const { deferDriver } = await import('../src/index.js')
-    expect(deferDriver).toBeDefined()
-  })
-
-  it('exports QueueDriver type', async () => {
-    const { syncDriver } = await import('../src/index.js')
-    const driver: import('../src/index.js').QueueDriver = syncDriver()
-    expect(driver).toBeDefined()
+  it('exports the queue driver factories and types', async () => {
+    const mod = await import('../src/index.js')
+    expect(mod.syncDriver).toBeDefined()
+    expect(mod.deferDriver).toBeDefined()
+    const driver: import('../src/index.js').InProcessQueueDriver = mod.syncDriver()
+    expect(typeof driver.attach).toBe('function')
+    expect('registerProcessor' in driver).toBe(false)
   })
 
   it('exports ConversionJob type', async () => {
@@ -252,9 +245,14 @@ describe('public exports', () => {
     expect(runMediaRepositoryContract).toBeDefined()
   })
 
-  it('exports runQueueDriverContract from testing subpath', async () => {
-    const { runQueueDriverContract } = await import('../src/testing/index.js')
-    expect(runQueueDriverContract).toBeDefined()
+  it('exports runInProcessQueueDriverContract from testing subpath', async () => {
+    const { runInProcessQueueDriverContract } = await import('../src/testing/index.js')
+    expect(runInProcessQueueDriverContract).toBeDefined()
+  })
+
+  it('exports runBrokerQueueDriverContract from testing subpath', async () => {
+    const { runBrokerQueueDriverContract } = await import('../src/testing/index.js')
+    expect(runBrokerQueueDriverContract).toBeDefined()
   })
 
   // Maintenance
