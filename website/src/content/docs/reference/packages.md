@@ -1,6 +1,6 @@
 ---
 title: Packages
-description: The six packages, what each needs, and every option they take.
+description: The packages, what each needs, and every option they take.
 ---
 
 Each package is independently publishable and depends only on `@node-media-library/core` — never on a
@@ -10,7 +10,8 @@ sibling. Install what you use.
 | -------------------------------- | -------------------------------------------------------- |
 | `@node-media-library/core`       | The engine. Storage, collections, conversions, CLI.      |
 | `@node-media-library/prisma`     | `MediaRepository` backed by Prisma, plus cascade delete. |
-| `@node-media-library/bullmq`     | `QueueDriver` dispatching conversions to BullMQ workers. |
+| `@node-media-library/bullmq`     | `BrokerQueueDriver` dispatching conversions to BullMQ.   |
+| `@node-media-library/rabbitmq`   | `BrokerQueueDriver` dispatching conversions to RabbitMQ. |
 | `@node-media-library/pdf`        | `ImageGenerator` rasterising PDF pages.                  |
 | `@node-media-library/video`      | `ImageGenerator` extracting video frames.                |
 | `@node-media-library/optimizers` | `jpegoptim`/`pngquant` optimizers for derived files.     |
@@ -23,6 +24,7 @@ Installing a package enables nothing. Each has to be wired into `createMediaLibr
 | ------------ | ----------------------------------------------- |
 | `prisma`     | `repository: prismaAdapter(prisma)`             |
 | `bullmq`     | `queue: bullmqDriver({ connection })`           |
+| `rabbitmq`   | `queue: rabbitmqDriver({ url })`                |
 | `pdf`        | `imageGenerators: [..., pdfImageGenerator()]`   |
 | `video`      | `imageGenerators: [..., videoImageGenerator()]` |
 | `optimizers` | `optimizers: [jpegoptimOptimizer()]`            |
@@ -31,13 +33,18 @@ The upside is that a config file tells you exactly what will happen to an upload
 discovery step. The downside is that "I installed it and nothing changed" is a real experience — this
 is the reason.
 
+`bullmq` and `rabbitmq` are both `BrokerQueueDriver`s: constructing `MediaLibrary` with either one only
+enables producing (`enqueue`). Consuming needs an explicit `await media.startWorker()` call, or the
+`worker` CLI command — see [background conversions](/guides/background-conversions/).
+
 ## Peer dependencies
 
-| Package  | Peer                    | Required?                                     |
-| -------- | ----------------------- | --------------------------------------------- |
-| `core`   | `@google-cloud/storage` | Optional — only for the `gcs` storage driver. |
-| `prisma` | `@prisma/client`        | Optional — bring your own (`>=6.2 <8`).       |
-| `bullmq` | `bullmq`                | Required (`^5 \|\| ^6`).                      |
+| Package    | Peer                    | Required?                                     |
+| ---------- | ----------------------- | --------------------------------------------- |
+| `core`     | `@google-cloud/storage` | Optional — only for the `gcs` storage driver. |
+| `prisma`   | `@prisma/client`        | Optional — bring your own (`>=6.2 <8`).       |
+| `bullmq`   | `bullmq`                | Required (`^5 \|\| ^6`).                      |
+| `rabbitmq` | `amqplib`               | Required (`^0.10`).                           |
 
 ## System binaries
 
@@ -65,13 +72,32 @@ Also exports `withMediaCascade(client, library, { models? })` and `MEDIA_MODEL_S
 
 ### `bullmqDriver(options)`
 
-| Option              | Default               | Meaning                                               |
-| ------------------- | --------------------- | ----------------------------------------------------- |
-| `connection`        | — (required)          | ioredis options, an `{ url }` object, or an instance. |
-| `queueName`         | `'media-conversions'` | BullMQ queue name.                                    |
-| `workerConcurrency` | `2`                   | Jobs processed in parallel per worker process.        |
+| Option              | Default               | Meaning                                                                              |
+| ------------------- | --------------------- | ------------------------------------------------------------------------------------ |
+| `connection`        | — (required)          | ioredis options, an `{ url }` object, or an instance.                                |
+| `queueName`         | `'media-conversions'` | BullMQ queue name.                                                                   |
+| `workerConcurrency` | `2`                   | Default `Worker` concurrency, overridden per call by `startWorker({ concurrency })`. |
 
 See [background conversions](/guides/background-conversions/).
+
+### `rabbitmqDriver(options)`
+
+`url` and `connection` are mutually exclusive — pass exactly one.
+
+| Option               | Default                         | Meaning                                                                                                                 |
+| -------------------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `url`                | — (required if no `connection`) | AMQP connection string; the driver opens and owns this connection.                                                      |
+| `connection`         | — (required if no `url`)        | An already-open connection (or compatible wrapper, e.g. `amqp-connection-manager`) you own; the driver never closes it. |
+| `queueName`          | `'media-conversions'`           | RabbitMQ queue name.                                                                                                    |
+| `prefetch`           | `2`                             | Default unacked-message window per worker, overridden per call by `startWorker({ concurrency })`.                       |
+| `deadLetterExchange` | — (none)                        | Exchange rejected messages are routed to. Setting up the exchange/bindings is your responsibility.                      |
+
+Delivery is **at-least-once**: a crash between a processor's side effects and the broker receiving the
+ack can redeliver the same job, so processors must be idempotent — see the core package's
+[queue driver guide](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/docs/writing-a-queue-driver.md)
+for why that's already safe for the shipped conversion pipeline. A processor that rejects has its
+message `nack`'d without requeue, so a poison message is dead-lettered (or dropped) rather than looping
+forever.
 
 ### `pdfImageGenerator(options?)`
 
