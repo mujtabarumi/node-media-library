@@ -306,6 +306,8 @@ describe('public exports', () => {
         skippedWithoutGenerator: 0,
         dryRun: false,
       }),
+      startWorker: async () => ({ close: async () => {} }),
+      close: async () => {},
     }
     expect(lib).toBeDefined()
   })
@@ -323,6 +325,8 @@ describe('public exports', () => {
           skippedWithoutGenerator: 0,
           dryRun: false,
         }),
+        startWorker: async () => ({ close: async () => {} }),
+        close: async () => {},
       }),
       log: () => {},
       error: () => {},
