@@ -1,8 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { runCli } from '../src/cli/run.js'
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { runCli, resolveConfigPath } from '../src/cli/run.js'
 import type { CliDeps, CliLibrary } from '../src/cli/run.js'
 import type { RegenerateOptions } from '../src/conversions/engine.js'
 import type { CleanOptions, CleanResult } from '../src/maintenance/clean.js'
+import { MediaLibraryError } from '../src/errors.js'
 
 interface Recorder {
   configPaths: string[]
@@ -17,6 +21,8 @@ function makeDeps(
     regenerate?: (opts: RegenerateOptions) => Promise<{ enqueued: number }>
     clean?: (opts?: CleanOptions) => Promise<CleanResult>
     loadLibrary?: (configPath: string) => Promise<CliLibrary>
+    startWorker?: CliLibrary['startWorker']
+    close?: CliLibrary['close']
   } = {},
 ): { deps: CliDeps; recorder: Recorder } {
   const recorder: Recorder = {
@@ -46,6 +52,9 @@ function makeDeps(
             dryRun: false,
           }
     },
+    startWorker: async (opts) =>
+      overrides.startWorker ? overrides.startWorker(opts) : { close: async () => {} },
+    close: async () => (overrides.close ? overrides.close() : undefined),
   }
 
   const deps: CliDeps = {
@@ -267,5 +276,297 @@ describe('runCli', () => {
 
     expect(code).toBe(1)
     expect(recorder.errors.some((l) => l.includes('queue is down'))).toBe(true)
+  })
+})
+
+describe('worker command', () => {
+  it('starts a worker and returns 0 on SIGTERM', async () => {
+    let workerClosed = false
+    let libraryClosed = false
+    const order: string[] = []
+    const { deps, recorder } = makeDeps({
+      startWorker: async () => ({
+        close: async () => {
+          // A real async gap before the push is what makes this test able
+          // to distinguish sequential awaits from Promise.all: with no gap,
+          // both mocks push synchronously at call time, and array-literal
+          // evaluation order (left to right) makes worker.close() get called
+          // - and push - first under Promise.all too, so the assertion below
+          // would pass under both the correct code and the regression it's
+          // meant to catch.
+          await new Promise((r) => setTimeout(r, 10))
+          workerClosed = true
+          order.push('worker')
+        },
+      }),
+      close: async () => {
+        libraryClosed = true
+        order.push('library')
+      },
+    })
+    const run = runCli(['worker', '--config', './x.js'], deps)
+    setImmediate(() => process.emit('SIGTERM'))
+    expect(await run).toBe(0)
+    expect(workerClosed).toBe(true)
+    expect(libraryClosed).toBe(true)
+    // Proves the drain-then-close ordering, not just that both eventually
+    // ran - e.g. a regression to Promise.all([worker.close(), library.close()])
+    // would let the library push land first, since worker.close()'s push is
+    // delayed by the setTimeout above while library.close()'s is immediate.
+    expect(order).toEqual(['worker', 'library'])
+    expect(recorder.logs.join('\n')).toContain('Worker started')
+  })
+
+  it('reports a clear error when the driver has no worker', async () => {
+    const { deps, recorder } = makeDeps({
+      startWorker: async () => {
+        throw new MediaLibraryError('configured queue driver is in-process')
+      },
+    })
+    expect(await runCli(['worker', '--config', './x.js'], deps)).toBe(1)
+    expect(recorder.errors.join('\n')).toContain('in-process')
+  })
+
+  it('rejects a non-numeric --concurrency before loading the library', async () => {
+    const { deps, recorder } = makeDeps()
+    expect(await runCli(['worker', '--config', './x.js', '--concurrency', 'abc'], deps)).toBe(1)
+    expect(recorder.errors.join('\n')).toContain('--concurrency')
+    // The point of the ordering: loading the config constructs the library,
+    // which for a broker driver opens a Redis/AMQP connection. A typo'd flag
+    // must not get that far.
+    expect(recorder.configPaths).toEqual([])
+  })
+
+  it('rejects a fractional --concurrency', async () => {
+    const { deps, recorder } = makeDeps()
+    // Forwarded verbatim to BullMQ's `concurrency` / amqplib's `prefetch`,
+    // neither of which accepts a fraction — and Number('4.5') is finite.
+    expect(await runCli(['worker', '--config', './x.js', '--concurrency', '4.5'], deps)).toBe(1)
+    expect(recorder.errors.join('\n')).toContain('positive integer')
+    expect(recorder.configPaths).toEqual([])
+  })
+
+  it('accepts an integer --concurrency and forwards it to startWorker()', async () => {
+    let seen: number | undefined
+    const { deps } = makeDeps({
+      startWorker: async (opts) => {
+        seen = opts?.concurrency
+        return { close: async () => {} }
+      },
+    })
+    const run = runCli(['worker', '--config', './x.js', '--concurrency', '4'], deps)
+    setImmediate(() => process.emit('SIGTERM'))
+    expect(await run).toBe(0)
+    expect(seen).toBe(4)
+  })
+
+  it('rejects a non-numeric --shutdown-timeout before loading the library', async () => {
+    const { deps, recorder } = makeDeps()
+    expect(await runCli(['worker', '--config', './x.js', '--shutdown-timeout', 'abc'], deps)).toBe(
+      1,
+    )
+    expect(recorder.errors.join('\n')).toContain('--shutdown-timeout')
+    expect(recorder.configPaths).toEqual([])
+  })
+
+  it('rejects --dry-run on the worker command', async () => {
+    const { deps } = makeDeps()
+    expect(await runCli(['worker', '--config', './x.js', '--dry-run'], deps)).toBe(1)
+  })
+
+  it('does not leak SIGTERM/SIGINT listeners on process after finishing', async () => {
+    const before = process.listenerCount('SIGTERM') + process.listenerCount('SIGINT')
+    const { deps } = makeDeps({ startWorker: async () => ({ close: async () => {} }) })
+    const run = runCli(['worker', '--config', './x.js'], deps)
+    setImmediate(() => process.emit('SIGTERM'))
+    await run
+    const after = process.listenerCount('SIGTERM') + process.listenerCount('SIGINT')
+    expect(after).toBe(before)
+  })
+
+  it('force-closes and reports a timeout when close() does not resolve in time', async () => {
+    let forceClosed = false
+    const { deps, recorder } = makeDeps({
+      startWorker: async () => ({
+        close: async (opts?: { force?: boolean }) => {
+          if (opts?.force) {
+            forceClosed = true
+            return
+          }
+          // Simulate a drain that never finishes on its own.
+          await new Promise<void>(() => {})
+        },
+      }),
+    })
+    const start = Date.now()
+    const run = runCli(['worker', '--config', './x.js', '--shutdown-timeout', '0.05'], deps)
+    setImmediate(() => process.emit('SIGTERM'))
+    const code = await run
+    expect(code).toBe(0)
+    expect(forceClosed).toBe(true)
+    expect(recorder.errors.join('\n')).toContain('timed out')
+    // Proves the CLI doesn't hang for the unresolved close() call once the
+    // shutdown-timeout elapses, and that the leftover timer is cleared.
+    expect(Date.now() - start).toBeLessThan(2000)
+  })
+
+  it('does not crash when the abandoned close() rejects after the shutdown timeout already elapsed', async () => {
+    let unhandled: unknown
+    const onUnhandledRejection = (err: unknown) => {
+      unhandled = err
+    }
+    process.on('unhandledRejection', onUnhandledRejection)
+
+    try {
+      const { deps, recorder } = makeDeps({
+        startWorker: async () => ({
+          close: async (opts?: { force?: boolean }) => {
+            if (opts?.force) return // the forced close succeeds immediately
+            // The un-forced drain rejects well after the 0.05s shutdown-timeout
+            // has already fired and lost the race - e.g. the broker connection
+            // dropping mid-drain, after we've already moved on to force-close.
+            await new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('broker gone')), 200),
+            )
+          },
+        }),
+      })
+      const run = runCli(['worker', '--config', './x.js', '--shutdown-timeout', '0.05'], deps)
+      setImmediate(() => process.emit('SIGTERM'))
+      const code = await run
+      expect(code).toBe(0)
+      expect(recorder.errors.join('\n')).toContain('timed out')
+      // Give the abandoned close() promise time to reject in the background,
+      // proving it doesn't escape as an unhandled rejection once it does.
+      await new Promise((r) => setTimeout(r, 300))
+      expect(unhandled).toBeUndefined()
+    } finally {
+      // try/finally so a thrown assertion above can't leak this listener
+      // onto the shared `process` object for the rest of the suite.
+      process.off('unhandledRejection', onUnhandledRejection)
+    }
+  })
+})
+
+describe('library lifecycle', () => {
+  /**
+   * `cli.ts` sets `process.exitCode` and returns, so Node only exits once the
+   * event loop drains. A broker driver holds a live socket, so every command —
+   * not just `worker` — has to close the library or the process hangs forever
+   * (`exit=124` under `timeout`), including when the command itself failed.
+   */
+  function closeCounter(overrides: Parameters<typeof makeDeps>[0] = {}) {
+    let closes = 0
+    const { deps, recorder } = makeDeps({
+      ...overrides,
+      close: async () => {
+        closes += 1
+        await overrides.close?.()
+      },
+    })
+    return { deps, recorder, closes: () => closes }
+  }
+
+  it('closes the library after a successful regenerate', async () => {
+    const { deps, closes } = closeCounter({ regenerate: async () => ({ enqueued: 1 }) })
+    expect(await runCli(['regenerate', '--config', './x.js'], deps)).toBe(0)
+    expect(closes()).toBe(1)
+  })
+
+  it('closes the library after a successful clean', async () => {
+    const { deps, closes } = closeCounter()
+    expect(await runCli(['clean', '--config', './x.js'], deps)).toBe(0)
+    expect(closes()).toBe(1)
+  })
+
+  it('closes the library when the command throws', async () => {
+    const { deps, recorder, closes } = closeCounter({
+      regenerate: async () => {
+        throw new Error('queue is down')
+      },
+    })
+    expect(await runCli(['regenerate', '--config', './x.js'], deps)).toBe(1)
+    expect(recorder.errors.join('\n')).toContain('queue is down')
+    expect(closes()).toBe(1)
+  })
+
+  it('closes the library when startWorker() throws', async () => {
+    const { deps, recorder, closes } = closeCounter({
+      startWorker: async () => {
+        throw new MediaLibraryError('PRECONDITION_FAILED: queue arg mismatch')
+      },
+    })
+    expect(await runCli(['worker', '--config', './x.js'], deps)).toBe(1)
+    expect(recorder.errors.join('\n')).toContain('PRECONDITION_FAILED')
+    expect(closes()).toBe(1)
+  })
+
+  it('closes the library exactly once on the worker happy path', async () => {
+    const { deps, closes } = closeCounter()
+    const run = runCli(['worker', '--config', './x.js'], deps)
+    setImmediate(() => process.emit('SIGTERM'))
+    expect(await run).toBe(0)
+    expect(closes()).toBe(1)
+  })
+
+  it('reports a close() failure without masking the command error', async () => {
+    const { deps, recorder } = closeCounter({
+      regenerate: async () => {
+        throw new Error('queue is down')
+      },
+      close: async () => {
+        throw new Error('socket refused to close')
+      },
+    })
+    expect(await runCli(['regenerate', '--config', './x.js'], deps)).toBe(1)
+    const errors = recorder.errors.join('\n')
+    expect(errors).toContain('queue is down')
+    expect(errors).toContain('socket refused to close')
+  })
+
+  it('does not turn a successful run into a failure when close() throws', async () => {
+    const { deps, recorder } = closeCounter({
+      close: async () => {
+        throw new Error('socket refused to close')
+      },
+    })
+    expect(await runCli(['clean', '--config', './x.js'], deps)).toBe(0)
+    expect(recorder.errors.join('\n')).toContain('socket refused to close')
+  })
+})
+
+describe('resolveConfigPath', () => {
+  it('returns the explicit path unchanged, without touching the filesystem', () => {
+    expect(resolveConfigPath('./somewhere/else.mjs')).toBe('./somewhere/else.mjs')
+  })
+
+  it('returns undefined when no explicit path is given and no conventional file exists', () => {
+    // realpath'd because process.cwd() (which resolveConfigPath resolves
+    // against) reports the real path, while os.tmpdir() on macOS is a
+    // symlink (/var/folders/... -> /private/var/folders/...) - without this
+    // the two would disagree on a string that is otherwise the same directory.
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'nml-cli-config-')))
+    const originalCwd = process.cwd()
+    try {
+      process.chdir(dir)
+      expect(resolveConfigPath(undefined)).toBeUndefined()
+    } finally {
+      process.chdir(originalCwd)
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('falls back to a conventional medialibrary.config file in the current directory', () => {
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'nml-cli-config-')))
+    const originalCwd = process.cwd()
+    try {
+      const configPath = join(dir, 'medialibrary.config.mjs')
+      writeFileSync(configPath, 'export default {}\n')
+      process.chdir(dir)
+      expect(resolveConfigPath(undefined)).toBe(configPath)
+    } finally {
+      process.chdir(originalCwd)
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 })

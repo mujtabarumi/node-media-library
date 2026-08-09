@@ -28,15 +28,16 @@ of these — but you won't be exercising those code paths locally.
 | `pngquant`  | `@node-media-library/optimizers` | `brew install pngquant`  | `apt-get install pngquant`      |
 
 `@node-media-library/bullmq`'s integration suite is gated on a `REDIS_URL` environment variable rather
-than a binary:
+than a binary, and `@node-media-library/rabbitmq`'s on an `AMQP_URL` one:
 
 ```bash
 REDIS_URL=redis://localhost:6379 pnpm --filter @node-media-library/bullmq test
+AMQP_URL=amqp://guest:guest@localhost:5672 pnpm --filter @node-media-library/rabbitmq test
 ```
 
-CI installs every binary above and runs a Redis service, so **the gated suites always run for real on
-pull requests** even when they skip on your machine. A green local run with skips is expected; let CI be
-the authority on those paths.
+CI installs every binary above and runs Redis and RabbitMQ services, so **the gated suites always run
+for real on pull requests** even when they skip on your machine. A green local run with skips is
+expected; let CI be the authority on those paths.
 
 ## Getting started
 
@@ -57,6 +58,7 @@ packages/
                responsive images, downloads/zip, CLI, maintenance
   prisma/      MediaRepository adapter + cascading-delete extension
   bullmq/      QueueDriver adapter
+  rabbitmq/    QueueDriver adapter (amqplib)
   pdf/         pdftoppm-backed ImageGenerator
   video/       ffmpeg-backed ImageGenerator
   optimizers/  jpegoptim/pngquant-backed ImageOptimizers

@@ -9,7 +9,7 @@ import type { CollectionBuilder, CollectionDefinition } from './definitions/coll
 import { DEFAULT_DISALLOWED_EXTENSIONS } from './pipeline/validate.js'
 import type { FileNameSanitizer } from './pipeline/sanitize.js'
 import { sanitizeFileName } from './pipeline/sanitize.js'
-import type { QueueDriver } from './queue.js'
+import type { AnyQueueDriver } from './queue.js'
 import { syncDriver } from './queue.js'
 import type { ImageGenerator } from './conversions/image-generator.js'
 import { sharpImageGenerator } from './conversions/image-generator.js'
@@ -34,7 +34,7 @@ export interface MediaLibraryConfig {
   pathGenerator?: PathGenerator
   urlGenerator?: UrlGenerator
   /** Default `syncDriver()` (conversions run inline, synchronously). */
-  queue?: QueueDriver
+  queue?: AnyQueueDriver
   /** Default `[sharpImageGenerator()]`. */
   imageGenerators?: ImageGenerator[]
   /** Default `new FileSizeOptimizedWidthCalculator()`. */
@@ -62,7 +62,7 @@ export interface ResolvedConfig {
   readonly allowedExtensions: readonly string[] | null
   readonly fileNameSanitizer: FileNameSanitizer
   readonly models: Readonly<Record<string, Readonly<Record<string, CollectionDefinition>>>>
-  readonly queue: QueueDriver
+  readonly queue: AnyQueueDriver
   readonly imageGenerators: readonly ImageGenerator[]
   readonly responsiveWidthCalculator: WidthCalculator
   readonly responsivePlaceholders: boolean

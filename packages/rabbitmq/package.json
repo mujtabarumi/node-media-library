@@ -1,0 +1,63 @@
+{
+  "name": "@node-media-library/rabbitmq",
+  "version": "0.0.0",
+  "type": "module",
+  "description": "RabbitMQ (amqplib) queue adapter for @node-media-library/core conversion jobs.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mujtabarumi/node-media-library.git",
+    "directory": "packages/rabbitmq"
+  },
+  "homepage": "https://github.com/mujtabarumi/node-media-library/tree/main/packages/rabbitmq#readme",
+  "bugs": {
+    "url": "https://github.com/mujtabarumi/node-media-library/issues"
+  },
+  "keywords": [
+    "media-library",
+    "uploads",
+    "conversions",
+    "rabbitmq",
+    "amqp",
+    "queue"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "pnpm build",
+    "prepack": "node ../../scripts/ensure-pnpm-pack.mjs"
+  },
+  "dependencies": {
+    "@node-media-library/core": "workspace:*"
+  },
+  "peerDependencies": {
+    "amqplib": "^0.10"
+  },
+  "devDependencies": {
+    "@types/amqplib": "^0.10.7",
+    "@types/node": "^22.20.1",
+    "amqplib": "^0.10.5",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.10"
+  }
+}

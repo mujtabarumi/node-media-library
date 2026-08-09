@@ -1,15 +1,18 @@
 ---
 title: CLI
-description: regenerate and clean — backfilling conversions and removing stale files, from the command line or in code.
+description: regenerate, clean, and worker — backfilling conversions, removing stale files, and consuming a broker queue, from the command line or in code.
 ---
 
-Two commands, both also available as methods on `MediaLibrary`. They exist for the operations that act
-across many records at once: backfilling a conversion you just added, and removing files that config
-changes have orphaned.
+Three commands. `regenerate` and `clean` are also available as methods on `MediaLibrary`; `worker` is a
+thin wrapper around `MediaLibrary.startWorker()`. They exist for the operations that act across many
+records at once — or, for `worker`, run indefinitely — rather than fitting neatly into a single request:
+backfilling a conversion you just added, removing files that config changes have orphaned, and consuming
+conversion jobs from a broker.
 
 ## Pointing it at your library
 
-Both commands need `--config`, a path to a module that **default-exports a `MediaLibrary` instance**:
+Every command needs a config module that **default-exports a `MediaLibrary` instance**. Point `--config`
+at it explicitly:
 
 ```ts title="media.config.mjs"
 import { createMediaLibrary } from '@node-media-library/core'
@@ -21,6 +24,13 @@ export default createMediaLibrary({/* the same config your app uses */})
 node-media-library regenerate --config media.config.mjs
 ```
 
+...or omit `--config` and let the CLI resolve `medialibrary.config.{ts,mts,js,mjs}` from the current
+directory instead — the same convention `vitest.config.ts`/`drizzle.config.ts` use:
+
+```bash
+node-media-library regenerate   # resolves ./medialibrary.config.{ts,mts,js,mjs}
+```
+
 The module is loaded with a plain dynamic `import()`, so a `.ts` config needs a TypeScript loader:
 
 ```bash
@@ -30,8 +40,9 @@ node --import tsx ./node_modules/.bin/node-media-library regenerate --config med
 Running from a checkout of this repository rather than an installed package needs `pnpm build` first —
 the bin points at `dist/cli.js`, which the build produces.
 
-Give it your **full** config, not a trimmed-down one. Both commands reason about what _should_ exist by
-reading your model and collection definitions; a partial config makes real files look unexpected.
+Give it your **full** config, not a trimmed-down one. All three commands reason about what _should_
+exist (or, for `worker`, run the actual conversion pipeline) by reading your model and collection
+definitions; a partial config makes real files look unexpected.
 
 ## `regenerate`
 
@@ -143,6 +154,50 @@ In code:
 const result = await library.clean({ dryRun: true, deleteOrphaned: true, rateLimit: 10 })
 ```
 
+## `worker`
+
+Consumes conversion jobs from a broker-backed queue driver (`bullmqDriver`, `rabbitmqDriver`) until
+`SIGTERM`/`SIGINT`, then drains in-flight jobs before exiting.
+
+```bash
+node-media-library worker --config <path> [--concurrency <n>] [--shutdown-timeout <seconds>]
+```
+
+| Flag                     | Effect                                                                                |
+| ------------------------ | ------------------------------------------------------------------------------------- |
+| `--concurrency <n>`      | Max jobs processed at once, as a positive integer. Driver default applies if omitted. |
+| `--shutdown-timeout <s>` | Seconds (may be fractional) to wait for in-flight jobs on shutdown. Default `30`.     |
+
+Both flags are validated before the config even loads, so a typo'd number fails fast instead of opening
+a broker connection first.
+
+On `SIGTERM`/`SIGINT` it stops accepting new jobs and waits for in-flight ones to finish. If they
+haven't settled within `--shutdown-timeout` seconds, it logs the timeout and attempts a forced close.
+Whether that bounds shutdown depends on the driver: with `rabbitmqDriver` the forced close cuts the
+drain short and abandons the in-flight jobs, so shutdown stays bounded. With `bullmqDriver` it does
+not — BullMQ's own `Worker.close()` memoizes its close promise on the first call, so the later forced
+call just returns the graceful close already in progress, and the process keeps waiting for those jobs
+regardless of `--shutdown-timeout`. Set the timeout below whatever grace period your process manager
+gives you before `SIGKILL` either way; that's the only backstop `bullmqDriver` gets.
+
+It exits `1` if the configured driver has no `work()` — an in-process driver (`syncDriver()`,
+`deferDriver()`) runs conversions inline and has no separate worker to start. Every job the driver
+delivers is shape-checked before it reaches the conversion engine — a payload without a string
+`mediaId`, or a `conversionNames` that isn't absent or an array of strings, is rejected with a
+`MediaLibraryError` and travels the driver's own nack/dead-letter path rather than crashing the worker.
+
+In code, this is `MediaLibrary.startWorker(opts?)`:
+
+```ts
+const worker = await library.startWorker({ concurrency: 4 })
+process.on('SIGTERM', () => worker.close()) // { force: true } to abandon in-flight jobs instead
+```
+
+Constructing a `MediaLibrary` with a broker driver never starts consuming on its own — `startWorker()`
+(or this command) is what does. See [background conversions](/guides/background-conversions/) for the
+full picture, including why that split exists and how to share one config between a web process and a
+worker.
+
 ## Exit codes
 
 `0` on success, `1` on any failure — bad flags, a config that doesn't default-export a library, or an
@@ -151,3 +206,9 @@ safe to run from cron with output captured.
 
 Flags are validated per command: passing `--rate-limit` to `regenerate` is an error rather than being
 silently ignored.
+
+Every command closes the `MediaLibrary` (and so the queue driver's underlying connections/channels) on
+its way out, whether it succeeded, failed, or a `worker` run's `startWorker()` itself threw — so a
+broker driver's open Redis/AMQP socket never keeps the process alive after the command has finished. A
+failure to close cleanly is reported on stderr but doesn't change the exit code, since it isn't the
+command's own verdict.

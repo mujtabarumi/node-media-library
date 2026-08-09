@@ -2,9 +2,11 @@ import { Queue, Worker } from 'bullmq'
 import type { ConnectionOptions } from 'bullmq'
 import {
   MediaLibraryError,
+  type BrokerQueueDriver,
   type ConversionJob,
   type ConversionProcessor,
-  type QueueDriver,
+  type QueueWorker,
+  type WorkOptions,
 } from '@node-media-library/core'
 
 const DEFAULT_QUEUE_NAME = 'media-conversions'
@@ -15,31 +17,45 @@ export interface BullmqDriverOptions {
   connection: unknown
   /** @defaultValue 'media-conversions' */
   queueName?: string
-  /** @defaultValue 2 */
+  /** Default concurrency, overridden per-call by `WorkOptions.concurrency`. @defaultValue 2 */
   workerConcurrency?: number
+  /**
+   * Called whenever the underlying `Queue` or a `Worker` emits an `'error'`
+   * event — a Redis disconnect, a dropped connection, a failed command. Both
+   * are Node `EventEmitter`s, and Node throws on an unhandled `'error'`
+   * event, so this driver always attaches a listener; omitting this option
+   * does not mean errors go unhandled, only that they are reported with
+   * `console.error` instead of your own logger. Pass your own to log through
+   * your own logger, alert, or exit deliberately (e.g. under a supervisor
+   * that restarts the process). @defaultValue logs via `console.error`
+   */
+  onError?: (err: Error) => void
 }
 
 /**
- * BullMQ-backed queue driver. `Queue` and `Worker` instances are created
- * lazily (on first `enqueue`/`registerProcessor` call) so constructing the
- * driver never touches Redis.
+ * BullMQ-backed broker driver. The `Queue` is created lazily on first
+ * `enqueue`, and a `Worker` only ever on an explicit `work()` call — so
+ * constructing the driver, or holding one in a web process, never consumes.
  */
-export function bullmqDriver(opts: BullmqDriverOptions): QueueDriver {
+export function bullmqDriver(opts: BullmqDriverOptions): BrokerQueueDriver {
   const connection = opts.connection as ConnectionOptions
   const queueName = opts.queueName ?? DEFAULT_QUEUE_NAME
-  const workerConcurrency = opts.workerConcurrency ?? DEFAULT_WORKER_CONCURRENCY
+  const defaultConcurrency = opts.workerConcurrency ?? DEFAULT_WORKER_CONCURRENCY
+  const onError =
+    opts.onError ?? ((err: Error) => console.error('[bullmqDriver] broker error:', err))
 
   let queue: Queue<ConversionJob> | undefined
-  let worker: Worker<ConversionJob> | undefined
+  const workers = new Set<Worker<ConversionJob>>()
   let closed = false
-  // Bumped on every registerProcessor()/close() call so a superseded
-  // in-flight worker-close → worker-create chain (see registerProcessor
-  // below) can detect it's stale and bail out instead of racing.
-  let generation = 0
+  let driverClosing: Promise<void> | undefined
 
   function getQueue(): Queue<ConversionJob> {
     if (!queue) {
       queue = new Queue<ConversionJob>(queueName, { connection })
+      // Queue is an EventEmitter; Node throws on an unhandled 'error' event
+      // (a Redis disconnect, a failed command), which would otherwise crash
+      // the process instead of surfacing as a rejected call.
+      queue.on('error', onError)
     }
     return queue
   }
@@ -52,37 +68,42 @@ export function bullmqDriver(opts: BullmqDriverOptions): QueueDriver {
       await getQueue().add('convert', job)
     },
 
-    registerProcessor(fn: ConversionProcessor) {
+    async work(fn: ConversionProcessor, workOpts?: WorkOptions): Promise<QueueWorker> {
       if (closed) {
         throw new MediaLibraryError('queue driver is closed')
       }
-      const myGeneration = ++generation
-      const oldWorker = worker
-      worker = undefined
-      const createWorker = () => {
-        // Superseded by a later registerProcessor()/close() — don't create
-        // a worker nobody asked for anymore.
-        if (closed || myGeneration !== generation) return
-        worker = new Worker<ConversionJob>(queueName, async (j) => fn(j.data), {
-          connection,
-          concurrency: workerConcurrency,
-        })
-      }
-      // Wait for the old worker to fully close before starting the new one,
-      // so the two never process the same queue concurrently.
-      if (oldWorker) {
-        oldWorker.close().finally(createWorker)
-      } else {
-        createWorker()
+      const worker = new Worker<ConversionJob>(queueName, async (j) => fn(j.data), {
+        connection,
+        concurrency: workOpts?.concurrency ?? defaultConcurrency,
+      })
+      // Worker is an EventEmitter too — same unhandled-'error'-crashes-the-
+      // process hazard as the Queue above.
+      worker.on('error', onError)
+      workers.add(worker)
+      await worker.waitUntilReady()
+
+      return {
+        async close(closeOpts?: { force?: boolean }) {
+          workers.delete(worker)
+          // BullMQ's close(force) skips waiting for active jobs.
+          await worker.close(closeOpts?.force ?? false)
+        },
       }
     },
 
     async close() {
-      if (closed) return
       closed = true
-      generation++
-      await worker?.close()
-      await queue?.close()
+      // Memoized rather than `if (closed) return`: that early return let a
+      // concurrent second close() resolve while the first one was still
+      // draining workers, so a caller awaiting it observed a "closed" driver
+      // whose drain — and, on rejection, the `queue?.close()` below — hadn't
+      // actually run yet. Every caller now awaits the same drain instead.
+      driverClosing ??= (async () => {
+        await Promise.all([...workers].map((w) => w.close()))
+        workers.clear()
+        await queue?.close()
+      })()
+      return driverClosing
     },
   }
 }

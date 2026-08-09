@@ -140,7 +140,13 @@ Media-level API: `url(conversion?)`, `signedUrl(...)`, `srcset(conversion?)`, `d
 - Fluent definition (v1 surface): `width`, `height`, `fit` (sharp's cover/contain/fill/inside/outside + `position`, incl. `attention` smart-crop), `format` (jpeg/png/webp/avif) / `keepOriginalFormat()`, `quality`, `sharpen`, `blur`, `greyscale`, `autoOrient` (default on), `pdfPageNumber(n)`, `videoFrameAtSecond(n)`, `performOnCollections(...)`, `queued()` / `nonQueued()`, `withResponsiveImages()`. Default output format: keep original unless `format()` given.
 - Per-media `manipulations` JSON merges over the definition; changing it triggers regeneration.
 - Derived files: `{mediaId}/conversions/{fileNameSansExt}-{conversion}.{ext}`, written to `conversionsDisk ?? disk`. `generatedConversions` updated per conversion; URLs gracefully fall back to the original until generated.
-- **Queue driver interface:** `enqueue(job)`, `registerProcessor(fn)`, `close()`. Job payload: `{ mediaId, conversionNames }` only — workers reload record + config. Core ships `syncDriver` (default, inline) and `deferDriver` (in-process, post-response). `bullmq` package provides persistence/retries/concurrency. Failed conversions emit `conversion:failed` and leave `generatedConversions[name]` false; retry policy is the driver's concern.
+- **Queue driver interface:** superseded by the `InProcessQueueDriver`/`BrokerQueueDriver` split — see
+  [`2026-08-08-queue-driver-redesign-design.md`](./2026-08-08-queue-driver-redesign-design.md). Job
+  payload remains `{ mediaId, conversionNames }` only — workers reload record + config. Core ships
+  `syncDriver` (default, inline) and `deferDriver` (in-process, post-response); `bullmq` and `rabbitmq`
+  packages provide broker-backed persistence/retries/concurrency, consumed via an explicit
+  `startWorker()` rather than at construction. Failed conversions emit `conversion:failed` and leave
+  `generatedConversions[name]` false; retry policy is the driver's concern.
 
 ## 9. Image generators & responsive images
 

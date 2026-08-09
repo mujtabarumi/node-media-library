@@ -16,6 +16,12 @@ jobs:
       redis:
         image: redis:7
         ports: ['6379:6379']
+      rabbitmq:
+        image: rabbitmq:4
+        ports: ['5672:5672']
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v7
       - run: sudo apt-get update && sudo apt-get install -y poppler-utils ffmpeg jpegoptim pngquant
@@ -27,7 +33,9 @@ jobs:
       - run: pnpm -r typecheck
       - run: pnpm -r build
       - run: pnpm -r test
-        env: { REDIS_URL: 'redis://localhost:6379' }
+        env:
+          REDIS_URL: 'redis://localhost:6379'
+          AMQP_URL: 'amqp://guest:guest@localhost:5672'
 
   # The API reference under website/src/content/docs/api is generated and
   # committed, so Cloudflare can publish the site without installing the

@@ -202,6 +202,101 @@ If a media file's MIME type isn't `supports()`-ed by any configured generator, c
 images for that file are skipped silently — the upload itself still succeeds and the file remains usable as a
 plain (attachment-only) piece of media.
 
+## Queue drivers
+
+Every `MediaLibrary` is configured with exactly one queue driver, and every driver is one of two kinds:
+
+- **In-process** (`syncDriver()`, `deferDriver()`) — conversions run inline, in the same process that
+  called `add()`. `MediaLibrary`'s constructor attaches its processor to these automatically; there is
+  no separate worker.
+- **Broker-backed** (`bullmqDriver()` from `@node-media-library/bullmq`, `rabbitmqDriver()` from
+  `@node-media-library/rabbitmq`) — jobs are handed to an external broker. **Constructing a
+  `MediaLibrary` with a broker driver does not start consuming.** A web process, a serverless handler,
+  or a script that just needs to read/write media can hold a `MediaLibrary` configured with
+  `bullmqDriver`/`rabbitmqDriver` and never touch the broker as a consumer.
+
+Consuming from a broker requires an explicit worker, started with `MediaLibrary.startWorker()`:
+
+```typescript
+// worker.ts — a dedicated process, never the web process
+const worker = await library.startWorker({ concurrency: 4 })
+process.on('SIGTERM', () => worker.close()) // waits for in-flight jobs; { force: true } to abandon them
+```
+
+`startWorker()` throws a `MediaLibraryError` if the configured driver is in-process — those run
+conversions inline and have no separate worker to start. Separately, the `MediaLibrary` constructor
+itself throws if the configured driver implements _both_ `attach()` and `work()`, before `startWorker()`
+is ever reached: that shape would consume inline in every process that constructs a `MediaLibrary`
+while `startWorker()` consumes from the broker too, which is exactly the accident the two interfaces
+exist to prevent. Both checks probe for a _callable_ member (`typeof driver.attach === 'function'`),
+not merely a present one, so a driver object that merely declares the property (e.g. `attach:
+undefined` from an unused optional field) is correctly treated as not implementing it.
+
+Every job a broker driver delivers is shape-checked before it reaches the conversion engine: a payload
+without a string `mediaId`, or with a `conversionNames` that is neither absent nor an array of strings,
+is rejected with a `MediaLibraryError` right at the `startWorker()` choke point. Third-party drivers
+inherit this for free, and the rejection travels whatever nack/dead-letter path the driver already
+uses for a failed job — a driver author does not need to validate the payload itself.
+
+Call `library.close()` when you're done with a `MediaLibrary` (worker or producer) to release the
+driver's underlying connections/channels. **`close()` drains in-flight jobs with no timeout** — a
+wedged processor hangs shutdown forever. If your process has its own `SIGTERM` handling, race it
+against your own timer rather than awaiting it unbounded.
+
+The package also ships a `worker` CLI command, a convenience wrapper around the same call that traps
+`SIGTERM`/`SIGINT`, drains in-flight jobs, and escalates to a forced close after `--shutdown-timeout`
+elapses (the escalation cuts a wedged drain short with `rabbitmqDriver`; with `bullmqDriver` it does
+not — BullMQ's own `Worker.close()` memoizes its close promise on the first call, so the forced call
+just returns the still-pending graceful close instead of skipping the drain, and shutdown keeps
+blocking on the in-flight jobs past `--shutdown-timeout`):
+
+```bash
+node-media-library worker --config ./medialibrary.config.ts [--concurrency 4] [--shutdown-timeout 30]
+```
+
+`--config` can be omitted if a `medialibrary.config.ts` / `.mts` / `.js` / `.mjs` file (default-exporting
+a `MediaLibrary` instance) exists in the current directory — the same convention `regenerate` and
+`clean` follow (see [CLI](#cli) below). `--concurrency` must be a positive integer (it's forwarded
+verbatim to BullMQ's `concurrency` and amqplib's `prefetch`, neither of which accepts a fraction) and
+`--shutdown-timeout` a positive number; both are validated before the config is even loaded, so a typo'd
+flag never opens a broker connection just to immediately tear it down. `library.close()` is called on
+every exit path of every command — `regenerate`, `clean`, and `worker` (including a failed
+`startWorker()`) — so a broker driver's open connection can no longer keep the process alive after the
+command has finished.
+
+### Choosing a driver from an environment variable
+
+Selecting a backend by environment variable is a pattern you write yourself, not a helper this package
+ships (see the [design rationale](../../docs/superpowers/specs/2026-08-08-queue-driver-redesign-design.md)
+for why). Fail closed on an unrecognized value — a typo'd environment variable should crash loudly, not
+silently fall back to `syncDriver()` and run heavy image conversions inline inside HTTP requests:
+
+```typescript
+function resolveQueue() {
+  switch (process.env.MEDIA_QUEUE ?? 'sync') {
+    case 'sync':
+      return syncDriver()
+    case 'bullmq':
+      return bullmqDriver({ connection: { url: process.env.REDIS_URL! } })
+    case 'rabbitmq':
+      return rabbitmqDriver({ url: process.env.AMQP_URL! })
+    default:
+      throw new Error(`unknown MEDIA_QUEUE: ${process.env.MEDIA_QUEUE}`)
+  }
+}
+```
+
+This only validates `MEDIA_QUEUE`. For fail-fast validation of your app's _other_ environment variables
+too, reach for a dedicated library (`envalid`, `zod`, `t3-env`) rather than hand-rolling checks per
+variable.
+
+### Writing your own driver
+
+See [`packages/core/docs/writing-a-queue-driver.md`](docs/writing-a-queue-driver.md) for the full
+`InProcessQueueDriver`/`BrokerQueueDriver` contract, `close()` semantics, the at-least-once delivery
+guarantee (processors must be idempotent), and how to validate a new driver against the exported
+contract-test suites.
+
 ## Storage disks
 
 `storage.disks` accepts `fs`, `s3`, and `gcs` driver configs. Without explicit config, the default disk is
@@ -272,8 +367,9 @@ use the `gcs` driver.
 
 ## CLI
 
-The package ships a `node-media-library` bin with `regenerate` and `clean` commands. It expects a config module
-that default-exports a `MediaLibrary` instance:
+The package ships a `node-media-library` bin with `regenerate`, `clean`, and `worker` commands (the
+latter documented above, under "Queue drivers"). It expects a config module that default-exports a
+`MediaLibrary` instance:
 
 ```bash
 node-media-library regenerate --config media.config.mjs --model User --only-missing --with-responsive
@@ -286,7 +382,7 @@ need to be executed with a TypeScript loader such as `tsx`.
 
 ## Roadmap
 
-**Current**: File upload, storage (fs/s3/gcs), retrieval, collections, image conversions, responsive images, queue-backed dispatch (sync and BullMQ), Prisma adapter, PDF/video image generators, downloads/ZIP, CLI, offline maintenance (`clean()`), `copyMedia`/`moveMedia`, atomic custom-property updates, and an image optimizer seam (`@node-media-library/optimizers`).
+**Current**: File upload, storage (fs/s3/gcs), retrieval, collections, image conversions, responsive images, queue-backed dispatch (sync, BullMQ, and RabbitMQ), Prisma adapter, PDF/video image generators, downloads/ZIP, CLI, offline maintenance (`clean()`), `copyMedia`/`moveMedia`, atomic custom-property updates, and an image optimizer seam (`@node-media-library/optimizers`).
 
 **Known limitations** (architectural, not scheduled for v1):
 
