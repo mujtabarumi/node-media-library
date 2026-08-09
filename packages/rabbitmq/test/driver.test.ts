@@ -79,11 +79,13 @@ it('work() after close() rejects without connecting', async () => {
 
 it('does not close a caller-supplied connection', async () => {
   let connectionClosed = false
+  const unused = async () => {
+    throw new Error('not used in this test')
+  }
   const d = rabbitmqDriver({
     connection: {
-      createChannel: async () => {
-        throw new Error('not used in this test')
-      },
+      createChannel: unused,
+      createConfirmChannel: unused,
       close: async () => {
         connectionClosed = true
       },
@@ -135,10 +137,15 @@ function fakeAmqp(
     nack() {
       hooks.onSettle?.()
     },
+    sendToQueue(_q: string, _content: Buffer, _opts?: unknown, cb?: (err: unknown) => void) {
+      cb?.(null)
+      return true
+    },
   }
   return {
     connection: {
       createChannel: async () => channel as unknown as amqp.Channel,
+      createConfirmChannel: async () => channel as unknown as amqp.ConfirmChannel,
       close: async () => {},
     },
     calls,

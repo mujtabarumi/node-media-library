@@ -14,10 +14,15 @@ const DEFAULT_PREFETCH = 2
 /**
  * The subset of an amqplib connection this driver uses. Structural rather than
  * nominal, so an in-house wrapper or connection pool satisfies it without
- * importing our types — as long as its `createChannel()` *resolves to* a real
- * amqplib `Channel`. That is the whole bar, and it is a narrow one: the driver
- * calls `assertQueue`/`prefetch`/`consume`/`ack`/`nack`/`sendToQueue`/`cancel`
- * on whatever comes back.
+ * importing our types — as long as its `createChannel()`/`createConfirmChannel()`
+ * *resolve to* real amqplib `Channel`/`ConfirmChannel` objects. That is the
+ * whole bar, and it is a narrow one: the driver calls
+ * `assertQueue`/`prefetch`/`consume`/`ack`/`nack`/`sendToQueue`/`cancel` on
+ * whatever comes back.
+ *
+ * `createConfirmChannel()` is required, not optional: `enqueue()` publishes on
+ * a confirm channel so it can resolve only once the broker has acknowledged
+ * the message (see the README's "Delivery guarantee").
  *
  * `on` is optional and duck-typed. amqplib's `ChannelModel` and `Channel` are
  * both `EventEmitter`s, and this driver subscribes to their `'error'` events
@@ -32,6 +37,7 @@ const DEFAULT_PREFETCH = 2
  */
 export interface AmqpLikeConnection {
   createChannel(): Promise<amqp.Channel>
+  createConfirmChannel(): Promise<amqp.ConfirmChannel>
   close(): Promise<void>
   on?(event: 'error', listener: (err: Error) => void): unknown
 }
@@ -96,7 +102,7 @@ export function rabbitmqDriver(opts: RabbitmqDriverOptions): BrokerQueueDriver {
   // keeps the process alive. Two parallel requests both reaching enqueue() on
   // a cold web process is exactly that race.
   let connecting: Promise<AmqpLikeConnection> | undefined
-  let producerChannelReady: Promise<amqp.Channel> | undefined
+  let producerChannelReady: Promise<amqp.ConfirmChannel> | undefined
   const workers = new Set<QueueWorker>()
   let closed = false
   let driverClosing: Promise<void> | undefined
@@ -142,14 +148,14 @@ export function rabbitmqDriver(opts: RabbitmqDriverOptions): BrokerQueueDriver {
     // poisoned memo would leave a process that happened to start while the
     // broker was down unable to publish for the rest of its life. Nothing
     // here retries on its own — the retry is the *next* caller's.
-    //
-    // amqplib 0.10.4+ resolves `connect()` to a `ChannelModel`, not the older
-    // `Connection` type some `@types/amqplib` versions still export under that
-    // name. `ChannelModel` already exposes exactly `createChannel()`/`close()`
-    // with matching signatures, so it satisfies `AmqpLikeConnection`
-    // structurally — no cast required.
     connecting ??= amqp.connect(opts.url!).then(
       (conn) => {
+        // amqplib 0.10.4+ resolves `connect()` to a `ChannelModel`, not the
+        // older `Connection` type some `@types/amqplib` versions still export
+        // under that name. `ChannelModel` already exposes exactly
+        // `createChannel()`/`createConfirmChannel()`/`close()` with matching
+        // signatures, so it satisfies `AmqpLikeConnection` structurally — no
+        // cast required.
         watchErrors(conn)
         return conn
       },
@@ -161,9 +167,9 @@ export function rabbitmqDriver(opts: RabbitmqDriverOptions): BrokerQueueDriver {
     return connecting
   }
 
-  function getProducerChannel(): Promise<amqp.Channel> {
+  function getProducerChannel(): Promise<amqp.ConfirmChannel> {
     producerChannelReady ??= (async () => {
-      const channel = await (await getConnection()).createChannel()
+      const channel = await (await getConnection()).createConfirmChannel()
       watchErrors(channel)
       await channel.assertQueue(queueName, queueArgs)
       return channel
@@ -184,9 +190,30 @@ export function rabbitmqDriver(opts: RabbitmqDriverOptions): BrokerQueueDriver {
         throw new MediaLibraryError('queue driver is closed')
       }
       const channel = await getProducerChannel()
-      // `persistent` must be paired with the durable queue above: a durable
-      // queue holding non-persistent messages still loses them on restart.
-      channel.sendToQueue(queueName, Buffer.from(JSON.stringify(job)), { persistent: true })
+      const body = Buffer.from(JSON.stringify(job))
+      await new Promise<void>((resolve, reject) => {
+        // A confirm channel, and the callback form: `sendToQueue` on a plain
+        // channel is fire-and-forget, so `await enqueue(job)` would only mean
+        // "the bytes reached a socket buffer", not "the broker has the job" —
+        // a connection drop in between loses it silently, which the queue's
+        // `durable: true` plus `persistent: true` reads as a promise it will
+        // not.
+        //
+        // This is also the backpressure handling: `sendToQueue`'s boolean
+        // return says the write buffer is above its high-water mark, and the
+        // broker cannot confirm a message it has not received, so a caller
+        // awaiting the confirm is already waiting for the flush. There is no
+        // separate `'drain'` wait left to add.
+        channel.sendToQueue(queueName, body, { persistent: true }, (err) =>
+          err
+            ? reject(
+                new MediaLibraryError(
+                  `RabbitMQ did not confirm the message: ${toError(err).message}`,
+                ),
+              )
+            : resolve(),
+        )
+      })
     },
 
     async work(fn: ConversionProcessor, workOpts?: WorkOptions): Promise<QueueWorker> {

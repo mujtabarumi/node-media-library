@@ -31,10 +31,11 @@ const media = createMediaLibrary({
 - **`url`** — the driver opens its own connection on first `enqueue`/`work` call and closes it on
   `close()`.
 - **`connection`** — pass an already-open connection you own, or any structurally compatible wrapper
-  (an in-house wrapper, a connection pool) whose `createChannel()` **resolves to** an amqplib
-  `Channel`. The driver only ever closes the channels it created; `close()` never touches a connection
-  it didn't open, so tearing down a `MediaLibrary` never breaks other consumers sharing that
-  connection in the same process.
+  (an in-house wrapper, a connection pool) whose `createChannel()` and `createConfirmChannel()`
+  **resolve to** amqplib `Channel`/`ConfirmChannel` objects. Both are required: producing uses a
+  confirm channel (see "Delivery guarantee"), consuming a plain one. The driver only ever closes the
+  channels it created; `close()` never touches a connection it didn't open, so tearing down a
+  `MediaLibrary` never breaks other consumers sharing that connection in the same process.
 
 The connection/channel are created lazily on first `enqueue`/`work` call, so constructing the driver
 never touches RabbitMQ. Setup is memoized on the in-flight promise, not the resolved handle, so
@@ -73,11 +74,22 @@ node-media-library worker --config medialibrary.config.ts --concurrency 4
 
 ## Delivery guarantee
 
-Delivery is **at-least-once**. A job is acked only after the processor resolves; if the process
-crashes mid-job, or the processor throws, the message is not silently lost — but a crash after the
-processor's side effects landed and before the ack reaches the broker can cause the same job to be
-redelivered. **Processors must be idempotent**: re-running a conversion job for the same media and
-conversion names must be safe to repeat.
+Delivery is **at-least-once**, on both sides of the queue.
+
+**Producing.** `enqueue()` publishes on a **confirm channel** and resolves only once the broker has
+acknowledged the message. On a plain channel `sendToQueue()` is fire-and-forget, so an awaited
+`enqueue()` would mean no more than "the bytes reached a socket buffer" — and a connection drop
+between that and the broker would lose the job silently, which the `durable: true` queue and
+`persistent: true` messages read as a promise not to. If the broker `nack`s the publish, `enqueue()`
+rejects with a `MediaLibraryError`. Awaiting the confirm doubles as the backpressure wait: the
+broker cannot confirm a message it has not received, so a caller awaiting `enqueue()` is already
+waiting for the write buffer to flush.
+
+**Consuming.** A job is acked only after the processor resolves; if the process crashes mid-job, or
+the processor throws, the message is not lost — but a crash after the processor's side effects landed
+and before the ack reaches the broker can cause the same job to be redelivered. **Processors must be
+idempotent**: re-running a conversion job for the same media and conversion names must be safe to
+repeat.
 
 A processor that rejects has its message `nack`'d without requeue (`nack(msg, false, false)`), so a
 poison message is dead-lettered (or dropped) rather than looping redelivery forever. Retry policy —
