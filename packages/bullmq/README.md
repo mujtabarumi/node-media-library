@@ -32,6 +32,25 @@ const media = createMediaLibrary({
 
 `Queue`/`Worker` instances are created lazily on first `enqueue`/`work` call, so constructing the driver never touches Redis.
 
+## Error handling
+
+`Queue` and `Worker` are both Node `EventEmitter`s, and Node throws on an unhandled `'error'` event —
+a Redis restart, a dropped connection, or a failed command would otherwise crash the process outright
+rather than surfacing as a rejected call. This driver always attaches an `'error'` listener to both, so
+that can't happen. By default the listener reports the error with `console.error` and does nothing
+else — the connection is not retried and the driver does not close itself. Pass `onError` to route
+errors through your own logger, or to exit deliberately (e.g. under a supervisor that restarts the
+process):
+
+```ts
+bullmqDriver({
+  connection: { url: process.env.REDIS_URL! },
+  onError: (err) => {
+    logger.error({ err }, 'bullmq broker error')
+  },
+})
+```
+
 ## Worker process
 
 `bullmqDriver` is a `BrokerQueueDriver`: constructing a `MediaLibrary` with it never starts consuming —
@@ -67,7 +86,7 @@ node-media-library worker --config medialibrary.config.ts --concurrency 4
 
 ## Options
 
-`bullmqDriver({ connection, queueName, workerConcurrency })`: `connection` is passed straight through to BullMQ's `Queue`/`Worker` (ioredis options, an `{ url }` object, or an ioredis instance). `queueName` defaults to `'media-conversions'`. `workerConcurrency` is the driver-level default for `Worker` concurrency (defaults to `2`), overridden per call by `startWorker({ concurrency })`'s `WorkOptions.concurrency` — pass `workerConcurrency` when you want every worker started from this driver to share a default, and `{ concurrency }` when a specific `startWorker()` call needs to differ from it.
+`bullmqDriver({ connection, queueName, workerConcurrency, onError })`: `connection` is passed straight through to BullMQ's `Queue`/`Worker` (ioredis options, an `{ url }` object, or an ioredis instance). `queueName` defaults to `'media-conversions'`. `workerConcurrency` is the driver-level default for `Worker` concurrency (defaults to `2`), overridden per call by `startWorker({ concurrency })`'s `WorkOptions.concurrency` — pass `workerConcurrency` when you want every worker started from this driver to share a default, and `{ concurrency }` when a specific `startWorker()` call needs to differ from it. `onError` receives `'error'` events from the underlying `Queue`/`Worker`; see "Error handling" above. Defaults to logging via `console.error`.
 
 ## Tests
 
