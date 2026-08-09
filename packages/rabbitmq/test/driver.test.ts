@@ -111,7 +111,7 @@ function fakeAmqp(
     onClose?: () => void
   } = {},
 ) {
-  const calls = { assertQueue: 0, cancel: 0, close: 0 }
+  const calls = { assertQueue: 0, cancel: 0, close: 0, nack: 0 }
   let deliver: ((msg: { content: Buffer }) => void) | undefined
   const channel = {
     async assertQueue() {
@@ -135,6 +135,7 @@ function fakeAmqp(
       hooks.onSettle?.()
     },
     nack() {
+      calls.nack++
       hooks.onSettle?.()
     },
     sendToQueue(_q: string, _content: Buffer, _opts?: unknown, cb?: (err: unknown) => void) {
@@ -150,6 +151,7 @@ function fakeAmqp(
     },
     calls,
     deliverJob: (job: ConversionJob) => deliver!({ content: Buffer.from(JSON.stringify(job)) }),
+    deliverRaw: (content: Buffer) => deliver!({ content }),
   }
 }
 
@@ -270,6 +272,44 @@ describe('teardown after the broker already closed the channel', () => {
     // Reported through onError, not swallowed: an operator still learns the
     // channel was already gone.
     expect(seen.length).toBeGreaterThan(0)
+  })
+})
+
+describe('message size ceiling', () => {
+  it('rejects an oversized body without parsing it', async () => {
+    const seen: Error[] = []
+    const f = fakeAmqp()
+    const processed: ConversionJob[] = []
+    const d = rabbitmqDriver({ connection: f.connection, onError: (e) => seen.push(e) })
+    const w = await d.work(async (job) => {
+      processed.push(job)
+    })
+
+    // Valid JSON, so this is not about parse failure — it is about never
+    // handing a 128 MB-capable broker's message to JSON.parse in the first
+    // place. `prefetch` multiplies whatever a single message costs.
+    f.deliverRaw(Buffer.from(JSON.stringify({ mediaId: 'x'.repeat(70_000), conversionNames: [] })))
+
+    expect(processed).toEqual([])
+    expect(f.calls.nack).toBe(1)
+    expect(seen.map((e) => e.message).join()).toMatch(/limit is 65536 bytes/)
+
+    await w.close()
+    await d.close()
+  })
+
+  it('still processes a normal-sized body', async () => {
+    const f = fakeAmqp()
+    const processed: ConversionJob[] = []
+    const d = rabbitmqDriver({ connection: f.connection, onError: () => {} })
+    const w = await d.work(async (job) => {
+      processed.push(job)
+    })
+    const job: ConversionJob = { mediaId: 'm1', conversionNames: ['thumb'] }
+    f.deliverJob(job)
+    await w.close()
+    await d.close()
+    expect(processed).toEqual([job])
   })
 })
 

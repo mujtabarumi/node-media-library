@@ -12,6 +12,15 @@ const DEFAULT_QUEUE_NAME = 'media-conversions'
 const DEFAULT_PREFETCH = 2
 
 /**
+ * Hard ceiling on a consumed message body, in bytes. A `ConversionJob` is a
+ * media id plus a handful of conversion names — kilobytes at the very most —
+ * so anything past this is malformed by definition and gets rejected before
+ * `JSON.parse` ever sees it. RabbitMQ's own server-side `max_message_size`
+ * defaults to 128 MB, and `prefetch` multiplies whatever that allows.
+ */
+const MAX_MESSAGE_BYTES = 64 * 1024
+
+/**
  * The subset of an amqplib connection this driver uses. Structural rather than
  * nominal, so an in-house wrapper or connection pool satisfies it without
  * importing our types — as long as its `createChannel()`/`createConfirmChannel()`
@@ -60,7 +69,8 @@ interface SharedOptions {
    *
    * Teardown failures land here too: a `cancel()`/`close()` against a channel
    * the broker already tore down is reported here rather than rejecting
-   * `close()`, so a shutdown *after* a lost connection still completes.
+   * `close()`, so a shutdown *after* a lost connection still completes. So do
+   * messages rejected for exceeding the size ceiling.
    *
    * The driver does not reconnect. Pass your own handler to log through your
    * own logger, alert, or exit deliberately (e.g. under a supervisor that
@@ -231,6 +241,24 @@ export function rabbitmqDriver(opts: RabbitmqDriverOptions): BrokerQueueDriver {
 
         const consumer = await channel.consume(queueName, (msg) => {
           if (!msg) return
+          if (msg.content.byteLength > MAX_MESSAGE_BYTES) {
+            // Rejected before parsing: a ConversionJob is tiny, so an
+            // oversized body is malformed by definition and there is nothing
+            // to gain from decoding it. Dead-lettered like any poison message.
+            onError(
+              new MediaLibraryError(
+                `rejected a ${msg.content.byteLength}-byte message; the limit is ${MAX_MESSAGE_BYTES} bytes`,
+              ),
+            )
+            try {
+              channel.nack(msg, false, false)
+            } catch (err) {
+              // Synchronous, inside amqplib's own callback — a throw escaping
+              // here is an uncaught exception, not a rejection.
+              reportTeardownFailure(err)
+            }
+            return
+          }
           const settled = (async () => {
             try {
               await fn(JSON.parse(msg.content.toString()) as ConversionJob)
@@ -304,6 +332,7 @@ export function rabbitmqDriver(opts: RabbitmqDriverOptions): BrokerQueueDriver {
           return closingChannel
         },
       }
+
       if (closed) {
         // driver.close() ran while this channel was being set up, so its
         // snapshot of `workers` could not contain this one — leaving a live

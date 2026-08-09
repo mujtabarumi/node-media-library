@@ -96,6 +96,11 @@ poison message is dead-lettered (or dropped) rather than looping redelivery fore
 how many times, with what backoff, whether to alert — is intentionally left to the broker/exchange
 topology, not built into this driver.
 
+**Message size.** A consumed body larger than **64 KiB** is `nack`'d without requeue before it is
+parsed, and reported through `onError`. A `ConversionJob` is a media id and a few conversion names,
+so anything near that ceiling is malformed by definition; RabbitMQ's own server-side
+`max_message_size` defaults to 128 MB and `prefetch` multiplies it. The limit is not configurable.
+
 ## Error handling
 
 The connection and every channel this driver opens get an `'error'` listener attached. That is not
@@ -165,9 +170,10 @@ so a wedged processor hangs shutdown forever. The `worker` CLI bounds this with 
   them per the queue's default behavior. Setting this up (the exchange, its bindings, any retry/delay
   logic) is the caller's responsibility — this driver only sets the `x-dead-letter-exchange` queue
   argument when asserting the queue.
-- `onError` — called for every `'error'` event from the connection or this driver's channels, and for
-  teardown failures against an already-closed channel. Defaults to `console.error`. See "Error
-  handling" above. (`@node-media-library/bullmq` takes the same option with the same shape.)
+- `onError` — called for every `'error'` event from the connection or this driver's channels, for
+  teardown failures against an already-closed channel, and for messages rejected over the size
+  ceiling. Defaults to `console.error`. See "Error handling" above. (`@node-media-library/bullmq`
+  takes the same option with the same shape.)
 
 ## Tests
 
@@ -175,8 +181,9 @@ The contract suite (`test/driver.test.ts`) is AMQP-gated: set `AMQP_URL` to run 
 broker, e.g. `AMQP_URL=amqp://guest:guest@localhost:5672 npx vitest run`. Without `AMQP_URL` it skips
 with a printed warning, and separate unconditional tests confirm construction never touches RabbitMQ,
 that missing both `url` and `connection` throws synchronously, that `work()` rejects after `close()`
-without connecting, that a caller-supplied `connection` is never closed by this driver, and that
-teardown against an already-closed channel still resolves.
+without connecting, that a caller-supplied `connection` is never closed by this driver, that an
+oversized message is rejected unparsed, and that teardown against an already-closed channel still
+resolves.
 
 `test/lazy-setup.test.ts` is ungated and stubs the `amqplib` module itself. It covers what a real
 broker cannot report: how many connections and channels the driver opened, whether `close()` reaches

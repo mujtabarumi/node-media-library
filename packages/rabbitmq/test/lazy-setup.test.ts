@@ -118,7 +118,7 @@ describe('lazy setup under concurrency', () => {
     const [, worker] = await Promise.all([driver.enqueue(job), driver.work(async () => {})])
 
     expect(broker.connects).toBe(1)
-    // One for the producer, one for the consumer.
+    // One confirm channel for the producer, one plain channel for the consumer.
     expect(broker.channels).toBe(2)
 
     await worker.close()
