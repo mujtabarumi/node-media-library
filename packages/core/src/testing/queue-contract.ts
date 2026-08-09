@@ -133,6 +133,26 @@ export function runBrokerQueueDriverContract(
       await driver.close()
     })
 
+    it('delivers a job enqueued before any worker existed', async () => {
+      // This is the topology the whole redesign exists for: a producer
+      // publishes with nothing consuming yet, and a worker attaches later in
+      // a separate process. A driver that only binds a queue/exchange inside
+      // work() — e.g. an AMQP driver declaring `{ exclusive: true }` or
+      // `{ autoDelete: true }`, or publishing to an exchange nothing is bound
+      // to until consume() — would black-hole this and still pass every
+      // other case here, because every other case calls work() first.
+      const received: ConversionJob[] = []
+      const job: ConversionJob = { mediaId: 'm1', conversionNames: ['thumb'] }
+      await driver.enqueue(job)
+      const worker = await driver.work(async (j) => {
+        received.push(j)
+      })
+      await waitForAsync()
+      await worker.close()
+      await driver.close()
+      expect(received).toEqual([job])
+    })
+
     it('a worker receives the exact job payload', async () => {
       const received: ConversionJob[] = []
       const worker = await driver.work(async (job) => {
@@ -232,6 +252,33 @@ export function runBrokerQueueDriverContract(
     it('close() is idempotent', async () => {
       await driver.close()
       await expect(driver.close()).resolves.toBeUndefined()
+    })
+
+    it('a concurrent second close() does not resolve before the first has drained in-flight work', async () => {
+      // 'close() is idempotent' above awaits the first close before firing
+      // the second, so it can't catch a driver that only guards re-entrancy
+      // with `if (closed) return` — that shape lets a concurrent second call
+      // see `closed` already `true` and resolve immediately, handing its
+      // caller a "closed" driver whose drain (and any teardown after it) is
+      // still running underneath.
+      let notifyStarted!: () => void
+      const started = new Promise<void>((resolve) => {
+        notifyStarted = resolve
+      })
+      let finished = false
+      await driver.work(async () => {
+        notifyStarted()
+        await new Promise((r) => setTimeout(r, IN_FLIGHT_MS))
+        finished = true
+      })
+      await driver.enqueue({ mediaId: 'm1', conversionNames: ['thumb'] })
+      await started
+      expect(finished).toBe(false)
+      const first = driver.close()
+      const second = driver.close()
+      await second
+      expect(finished).toBe(true)
+      await first
     })
 
     it('enqueue rejects after close()', async () => {
