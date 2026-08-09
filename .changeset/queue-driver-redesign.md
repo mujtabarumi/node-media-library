@@ -1,7 +1,7 @@
 ---
-'@node-media-library/core': minor
-'@node-media-library/bullmq': minor
-'@node-media-library/rabbitmq': minor
+'@node-media-library/core': major
+'@node-media-library/bullmq': major
+'@node-media-library/rabbitmq': major
 ---
 
 Split `QueueDriver` into `InProcessQueueDriver` (`attach`) and `BrokerQueueDriver` (`work`), and stop
