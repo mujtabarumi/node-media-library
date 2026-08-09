@@ -327,6 +327,48 @@ describe('worker command', () => {
     expect(recorder.errors.join('\n')).toContain('in-process')
   })
 
+  it('rejects a non-numeric --concurrency before loading the library', async () => {
+    const { deps, recorder } = makeDeps()
+    expect(await runCli(['worker', '--config', './x.js', '--concurrency', 'abc'], deps)).toBe(1)
+    expect(recorder.errors.join('\n')).toContain('--concurrency')
+    // The point of the ordering: loading the config constructs the library,
+    // which for a broker driver opens a Redis/AMQP connection. A typo'd flag
+    // must not get that far.
+    expect(recorder.configPaths).toEqual([])
+  })
+
+  it('rejects a fractional --concurrency', async () => {
+    const { deps, recorder } = makeDeps()
+    // Forwarded verbatim to BullMQ's `concurrency` / amqplib's `prefetch`,
+    // neither of which accepts a fraction — and Number('4.5') is finite.
+    expect(await runCli(['worker', '--config', './x.js', '--concurrency', '4.5'], deps)).toBe(1)
+    expect(recorder.errors.join('\n')).toContain('positive integer')
+    expect(recorder.configPaths).toEqual([])
+  })
+
+  it('accepts an integer --concurrency and forwards it to startWorker()', async () => {
+    let seen: number | undefined
+    const { deps } = makeDeps({
+      startWorker: async (opts) => {
+        seen = opts?.concurrency
+        return { close: async () => {} }
+      },
+    })
+    const run = runCli(['worker', '--config', './x.js', '--concurrency', '4'], deps)
+    setImmediate(() => process.emit('SIGTERM'))
+    expect(await run).toBe(0)
+    expect(seen).toBe(4)
+  })
+
+  it('rejects a non-numeric --shutdown-timeout before loading the library', async () => {
+    const { deps, recorder } = makeDeps()
+    expect(await runCli(['worker', '--config', './x.js', '--shutdown-timeout', 'abc'], deps)).toBe(
+      1,
+    )
+    expect(recorder.errors.join('\n')).toContain('--shutdown-timeout')
+    expect(recorder.configPaths).toEqual([])
+  })
+
   it('rejects --dry-run on the worker command', async () => {
     const { deps } = makeDeps()
     expect(await runCli(['worker', '--config', './x.js', '--dry-run'], deps)).toBe(1)
@@ -403,6 +445,93 @@ describe('worker command', () => {
       // onto the shared `process` object for the rest of the suite.
       process.off('unhandledRejection', onUnhandledRejection)
     }
+  })
+})
+
+describe('library lifecycle', () => {
+  /**
+   * `cli.ts` sets `process.exitCode` and returns, so Node only exits once the
+   * event loop drains. A broker driver holds a live socket, so every command —
+   * not just `worker` — has to close the library or the process hangs forever
+   * (`exit=124` under `timeout`), including when the command itself failed.
+   */
+  function closeCounter(overrides: Parameters<typeof makeDeps>[0] = {}) {
+    let closes = 0
+    const { deps, recorder } = makeDeps({
+      ...overrides,
+      close: async () => {
+        closes += 1
+        await overrides.close?.()
+      },
+    })
+    return { deps, recorder, closes: () => closes }
+  }
+
+  it('closes the library after a successful regenerate', async () => {
+    const { deps, closes } = closeCounter({ regenerate: async () => ({ enqueued: 1 }) })
+    expect(await runCli(['regenerate', '--config', './x.js'], deps)).toBe(0)
+    expect(closes()).toBe(1)
+  })
+
+  it('closes the library after a successful clean', async () => {
+    const { deps, closes } = closeCounter()
+    expect(await runCli(['clean', '--config', './x.js'], deps)).toBe(0)
+    expect(closes()).toBe(1)
+  })
+
+  it('closes the library when the command throws', async () => {
+    const { deps, recorder, closes } = closeCounter({
+      regenerate: async () => {
+        throw new Error('queue is down')
+      },
+    })
+    expect(await runCli(['regenerate', '--config', './x.js'], deps)).toBe(1)
+    expect(recorder.errors.join('\n')).toContain('queue is down')
+    expect(closes()).toBe(1)
+  })
+
+  it('closes the library when startWorker() throws', async () => {
+    const { deps, recorder, closes } = closeCounter({
+      startWorker: async () => {
+        throw new MediaLibraryError('PRECONDITION_FAILED: queue arg mismatch')
+      },
+    })
+    expect(await runCli(['worker', '--config', './x.js'], deps)).toBe(1)
+    expect(recorder.errors.join('\n')).toContain('PRECONDITION_FAILED')
+    expect(closes()).toBe(1)
+  })
+
+  it('closes the library exactly once on the worker happy path', async () => {
+    const { deps, closes } = closeCounter()
+    const run = runCli(['worker', '--config', './x.js'], deps)
+    setImmediate(() => process.emit('SIGTERM'))
+    expect(await run).toBe(0)
+    expect(closes()).toBe(1)
+  })
+
+  it('reports a close() failure without masking the command error', async () => {
+    const { deps, recorder } = closeCounter({
+      regenerate: async () => {
+        throw new Error('queue is down')
+      },
+      close: async () => {
+        throw new Error('socket refused to close')
+      },
+    })
+    expect(await runCli(['regenerate', '--config', './x.js'], deps)).toBe(1)
+    const errors = recorder.errors.join('\n')
+    expect(errors).toContain('queue is down')
+    expect(errors).toContain('socket refused to close')
+  })
+
+  it('does not turn a successful run into a failure when close() throws', async () => {
+    const { deps, recorder } = closeCounter({
+      close: async () => {
+        throw new Error('socket refused to close')
+      },
+    })
+    expect(await runCli(['clean', '--config', './x.js'], deps)).toBe(0)
+    expect(recorder.errors.join('\n')).toContain('socket refused to close')
   })
 })
 

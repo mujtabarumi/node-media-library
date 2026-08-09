@@ -56,7 +56,7 @@ Options:
   --dry-run                  clean: report what would happen without deleting anything
   --delete-orphaned          clean: delete media whose owning model no longer exists
   --rate-limit <n>           clean: max deletions per second
-  --concurrency <n>          worker: max jobs processed at once
+  --concurrency <n>          worker: max jobs processed at once (positive integer)
   --shutdown-timeout <s>     worker: seconds to wait for in-flight jobs on shutdown (default 30)
 `
 
@@ -172,6 +172,34 @@ export async function runCli(argv: string[], deps: CliDeps): Promise<number> {
     }
   }
 
+  // Validated BEFORE loadLibrary(): loading the config constructs a
+  // MediaLibrary, which for a broker driver opens a connection. Rejecting a
+  // typo'd number afterwards would mean connecting to Redis/AMQP only to
+  // immediately tear it down.
+  let concurrency: number | undefined
+  let timeoutSeconds = 30
+  if (command === 'worker') {
+    if (values.concurrency !== undefined) {
+      concurrency = Number(values.concurrency)
+      // Integer, not merely positive-finite: this is forwarded verbatim to
+      // BullMQ's `concurrency` and amqplib's `prefetch`, neither of which
+      // accepts a fraction — and `Number('4.5')` passes a finite check.
+      if (!Number.isInteger(concurrency) || concurrency <= 0) {
+        deps.error('--concurrency must be a positive integer.')
+        return 1
+      }
+    }
+    if (values['shutdown-timeout'] !== undefined) {
+      timeoutSeconds = Number(values['shutdown-timeout'])
+      // Fractional seconds are meaningful here (and used in tests), so this
+      // stays a finite check rather than an integer one.
+      if (!Number.isFinite(timeoutSeconds) || timeoutSeconds <= 0) {
+        deps.error('--shutdown-timeout must be a positive number.')
+        return 1
+      }
+    }
+  }
+
   let library: CliLibrary
   try {
     library = await deps.loadLibrary(configPath)
@@ -180,20 +208,13 @@ export async function runCli(argv: string[], deps: CliDeps): Promise<number> {
     return 1
   }
 
+  // Everything below runs inside try/catch/finally so `library.close()` happens
+  // on EVERY exit path. `cli.ts` only sets `process.exitCode`, so Node waits for
+  // the event loop to drain — a broker driver's open Redis/AMQP socket would
+  // otherwise keep the process alive forever, turning both a successful
+  // regenerate/clean and a failed worker start into a hang instead of an exit.
   try {
     if (command === 'worker') {
-      const concurrency = values.concurrency === undefined ? undefined : Number(values.concurrency)
-      if (concurrency !== undefined && (!Number.isFinite(concurrency) || concurrency <= 0)) {
-        deps.error('--concurrency must be a positive number.')
-        return 1
-      }
-      const timeoutSeconds =
-        values['shutdown-timeout'] === undefined ? 30 : Number(values['shutdown-timeout'])
-      if (!Number.isFinite(timeoutSeconds) || timeoutSeconds <= 0) {
-        deps.error('--shutdown-timeout must be a positive number.')
-        return 1
-      }
-
       const worker = await library.startWorker(
         concurrency === undefined ? undefined : { concurrency },
       )
@@ -237,7 +258,8 @@ export async function runCli(argv: string[], deps: CliDeps): Promise<number> {
         )
         await worker.close({ force: true })
       }
-      await library.close()
+      // library.close() is NOT called here — the outer finally owns it, for
+      // this branch and every other.
       deps.log('Worker stopped.')
       return 0
     }
@@ -274,11 +296,27 @@ export async function runCli(argv: string[], deps: CliDeps): Promise<number> {
     }
     return 0
   } catch (err) {
-    // regenerate()/clean() rejections (e.g. sync-queue conversion failures,
-    // repository errors) must not escape as a raw unhandled-rejection stack
-    // from the bin — report cleanly and exit non-zero instead.
+    // regenerate()/clean()/startWorker() rejections (e.g. sync-queue conversion
+    // failures, repository errors, a broker refusing the queue declaration)
+    // must not escape as a raw unhandled-rejection stack from the bin — report
+    // cleanly and exit non-zero instead.
     deps.error(err instanceof Error ? err.message : String(err))
     return 1
+  } finally {
+    // Reported, never rethrown, and deliberately without touching the exit
+    // code: this block runs after the command has already decided its outcome,
+    // so throwing here would both mask a real command error and demote a
+    // successful run to a failure. A driver that can't release its handles is
+    // worth telling the operator about, but it isn't the run's verdict. (No
+    // `return` in this finally — that would silently override the value the
+    // try/catch above produced.)
+    try {
+      await library.close()
+    } catch (err) {
+      deps.error(
+        `Failed to close the media library cleanly: ${err instanceof Error ? err.message : String(err)}`,
+      )
+    }
   }
 }
 
