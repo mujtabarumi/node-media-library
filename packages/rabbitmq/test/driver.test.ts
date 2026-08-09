@@ -101,7 +101,14 @@ it('does not close a caller-supplied connection', async () => {
  * neither be made to produce those states on demand nor report the counts.
  * The behaviors these guard are all ungated so CI runs them without RabbitMQ.
  */
-function fakeAmqp(hooks: { onAssertQueue?: () => Promise<void>; onSettle?: () => void } = {}) {
+function fakeAmqp(
+  hooks: {
+    onAssertQueue?: () => Promise<void>
+    onSettle?: () => void
+    onCancel?: () => void
+    onClose?: () => void
+  } = {},
+) {
   const calls = { assertQueue: 0, cancel: 0, close: 0 }
   let deliver: ((msg: { content: Buffer }) => void) | undefined
   const channel = {
@@ -116,9 +123,11 @@ function fakeAmqp(hooks: { onAssertQueue?: () => Promise<void>; onSettle?: () =>
     },
     async cancel() {
       calls.cancel++
+      hooks.onCancel?.()
     },
     async close() {
       calls.close++
+      hooks.onClose?.()
     },
     ack() {
       hooks.onSettle?.()
@@ -218,6 +227,42 @@ describe('teardown bookkeeping', () => {
     expect(finished).toBe(false)
     expect(f.calls.cancel).toBe(1)
     expect(f.calls.close).toBe(1)
+  })
+})
+
+describe('teardown after the broker already closed the channel', () => {
+  it('worker.close() resolves when cancel() throws IllegalOperationError', async () => {
+    const seen: Error[] = []
+    const f = fakeAmqp({
+      onCancel: () => {
+        throw new Error('IllegalOperationError: Channel closed')
+      },
+    })
+    const d = rabbitmqDriver({ connection: f.connection, onError: (e) => seen.push(e) })
+    const w = await d.work(async () => {})
+    // A lost connection is the most likely *reason* for shutting down, and it
+    // is exactly what makes cancel() throw. Rejecting here would reject
+    // driver.close(), reject library.close(), exit the worker CLI 1 — and
+    // memoize a rejected close that every later call re-throws.
+    await expect(w.close()).resolves.toBeUndefined()
+    await expect(w.close()).resolves.toBeUndefined()
+    await expect(d.close()).resolves.toBeUndefined()
+    expect(seen.map((e) => e.message)).toContain('IllegalOperationError: Channel closed')
+  })
+
+  it('driver.close() resolves when channel.close() throws', async () => {
+    const seen: Error[] = []
+    const f = fakeAmqp({
+      onClose: () => {
+        throw new Error('IllegalOperationError: Channel closed')
+      },
+    })
+    const d = rabbitmqDriver({ connection: f.connection, onError: (e) => seen.push(e) })
+    await d.work(async () => {})
+    await expect(d.close()).resolves.toBeUndefined()
+    // Reported through onError, not swallowed: an operator still learns the
+    // channel was already gone.
+    expect(seen.length).toBeGreaterThan(0)
   })
 })
 

@@ -94,7 +94,7 @@ beforeEach(() => {
 
 describe('lazy setup under concurrency', () => {
   it('opens exactly one connection and one producer channel for concurrent enqueues', async () => {
-    const driver = rabbitmqDriver({ url: 'amqp://stub' })
+    const driver = rabbitmqDriver({ url: 'amqp://stub', onError: () => {} })
 
     // Two parallel HTTP requests both reaching FileAdder.dispatchConversions
     // before the first channel resolves — a cold-start web process. Memoizing
@@ -113,7 +113,7 @@ describe('lazy setup under concurrency', () => {
   })
 
   it('shares one connection between a concurrent enqueue() and work()', async () => {
-    const driver = rabbitmqDriver({ url: 'amqp://stub' })
+    const driver = rabbitmqDriver({ url: 'amqp://stub', onError: () => {} })
 
     const [, worker] = await Promise.all([driver.enqueue(job), driver.work(async () => {})])
 
@@ -127,7 +127,7 @@ describe('lazy setup under concurrency', () => {
   })
 
   it('closes a connection and channel still being opened when close() lands', async () => {
-    const driver = rabbitmqDriver({ url: 'amqp://stub' })
+    const driver = rabbitmqDriver({ url: 'amqp://stub', onError: () => {} })
 
     // close() arrives while the connect is still in flight. Reading a resolved
     // `connection` variable at that moment finds `undefined` and closes
@@ -145,7 +145,7 @@ describe('lazy setup under concurrency', () => {
 
   it('retries the connect after a failed one instead of poisoning the memo', async () => {
     broker.failNextConnects = 1
-    const driver = rabbitmqDriver({ url: 'amqp://stub' })
+    const driver = rabbitmqDriver({ url: 'amqp://stub', onError: () => {} })
 
     // A broker that happens to be down at the first enqueue must not leave
     // this driver unable to publish for the rest of the process's life. The
@@ -159,7 +159,7 @@ describe('lazy setup under concurrency', () => {
   })
 
   it('rejects work() that finishes connecting after close() rather than leaking a consumer', async () => {
-    const driver = rabbitmqDriver({ url: 'amqp://stub' })
+    const driver = rabbitmqDriver({ url: 'amqp://stub', onError: () => {} })
     // Warm the connection so work() below is past its own `closed` check and
     // inside channel setup when close() lands.
     await driver.enqueue(job)
@@ -171,5 +171,44 @@ describe('lazy setup under concurrency', () => {
     // The consumer channel driver.close() could not see was closed by work()
     // itself: one producer channel plus one consumer channel, both shut.
     expect(broker.closedChannels).toBe(2)
+  })
+})
+
+describe('broker error reporting', () => {
+  it('reports a connection error through onError instead of throwing at the process', async () => {
+    const errors: Error[] = []
+    const driver = rabbitmqDriver({ url: 'amqp://stub', onError: (err) => errors.push(err) })
+    await driver.enqueue(job)
+
+    // Node throws on an unhandled 'error' event. With no listener attached
+    // this line is an uncaught exception in whatever process holds the driver
+    // — the web process as much as the worker.
+    broker.lastConnection!.emit('error', new Error('CONNECTION_FORCED'))
+    expect(errors.map((e) => e.message)).toEqual(['CONNECTION_FORCED'])
+
+    await driver.close()
+  })
+
+  it('reports a producer channel error through onError', async () => {
+    const errors: Error[] = []
+    const driver = rabbitmqDriver({ url: 'amqp://stub', onError: (err) => errors.push(err) })
+    await driver.enqueue(job)
+
+    broker.lastChannel!.emit('error', new Error('PRECONDITION_FAILED'))
+    expect(errors.map((e) => e.message)).toEqual(['PRECONDITION_FAILED'])
+
+    await driver.close()
+  })
+
+  it('reports a consumer channel error through onError', async () => {
+    const errors: Error[] = []
+    const driver = rabbitmqDriver({ url: 'amqp://stub', onError: (err) => errors.push(err) })
+    const worker = await driver.work(async () => {})
+
+    broker.lastChannel!.emit('error', new Error('CHANNEL_ERROR'))
+    expect(errors.map((e) => e.message)).toEqual(['CHANNEL_ERROR'])
+
+    await worker.close()
+    await driver.close()
   })
 })

@@ -19,6 +19,12 @@ const DEFAULT_PREFETCH = 2
  * calls `assertQueue`/`prefetch`/`consume`/`ack`/`nack`/`sendToQueue`/`cancel`
  * on whatever comes back.
  *
+ * `on` is optional and duck-typed. amqplib's `ChannelModel` and `Channel` are
+ * both `EventEmitter`s, and this driver subscribes to their `'error'` events
+ * so an async broker failure is reported rather than thrown at the process
+ * (Node throws on an unhandled `'error'` event). A wrapper that is not an
+ * emitter simply gets no such reporting.
+ *
  * Notably, `amqp-connection-manager` does **not** fit: its `createChannel()` is
  * synchronous and returns a `ChannelWrapper` (an `addSetup`-based reconnect
  * abstraction), not a `Promise<Channel>`. Reconnection is the caller's problem
@@ -27,6 +33,7 @@ const DEFAULT_PREFETCH = 2
 export interface AmqpLikeConnection {
   createChannel(): Promise<amqp.Channel>
   close(): Promise<void>
+  on?(event: 'error', listener: (err: Error) => void): unknown
 }
 
 interface SharedOptions {
@@ -36,6 +43,24 @@ interface SharedOptions {
   prefetch?: number
   /** Exchange failed jobs are dead-lettered to. Omit to drop them. */
   deadLetterExchange?: string
+  /**
+   * Called whenever the connection or one of this driver's channels emits an
+   * `'error'` event — a broker restart, a dropped TCP connection, a
+   * `PRECONDITION_FAILED` on `assertQueue`, an ack against an unknown delivery
+   * tag. amqplib's connection and channels are Node `EventEmitter`s, and Node
+   * throws on an unhandled `'error'` event, so this driver always attaches a
+   * listener; omitting this option does not mean errors go unhandled, only
+   * that they are reported with `console.error` instead of your own logger.
+   *
+   * Teardown failures land here too: a `cancel()`/`close()` against a channel
+   * the broker already tore down is reported here rather than rejecting
+   * `close()`, so a shutdown *after* a lost connection still completes.
+   *
+   * The driver does not reconnect. Pass your own handler to log through your
+   * own logger, alert, or exit deliberately (e.g. under a supervisor that
+   * restarts the process). @defaultValue logs via `console.error`
+   */
+  onError?: (err: Error) => void
 }
 
 export type RabbitmqDriverOptions = SharedOptions &
@@ -61,6 +86,8 @@ export function rabbitmqDriver(opts: RabbitmqDriverOptions): BrokerQueueDriver {
   const queueName = opts.queueName ?? DEFAULT_QUEUE_NAME
   const defaultPrefetch = opts.prefetch ?? DEFAULT_PREFETCH
   const ownsConnection = !opts.connection
+  const onError =
+    opts.onError ?? ((err: Error) => console.error('[rabbitmqDriver] broker error:', err))
 
   // Memoized *promises*, not resolved values. Memoizing the value leaves a
   // window between the `if (!x)` check and the assignment in which a second
@@ -78,6 +105,37 @@ export function rabbitmqDriver(opts: RabbitmqDriverOptions): BrokerQueueDriver {
     ? { durable: true, arguments: { 'x-dead-letter-exchange': opts.deadLetterExchange } }
     : { durable: true }
 
+  function toError(value: unknown): Error {
+    return value instanceof Error ? value : new Error(String(value))
+  }
+
+  /**
+   * amqplib's `ChannelModel` re-emits connection errors, and a `Channel` emits
+   * `'error'` on a server-initiated close. Neither is delivered through an
+   * awaited promise, so without a listener Node turns them into uncaught
+   * exceptions — in the *web* process as much as the worker. The try/catch
+   * around consume() does not help: on a `ChannelClose` frame amqplib queues
+   * the promise rejection as a microtask and emits `'error'` synchronously in
+   * the same stack, so the throw escapes first.
+   */
+  function watchErrors(target: unknown): void {
+    const emitter = target as { on?: (event: string, listener: (err: unknown) => void) => unknown }
+    if (typeof emitter?.on !== 'function') return
+    emitter.on('error', (err: unknown) => onError(toError(err)))
+  }
+
+  /**
+   * Teardown steps a broker-side close has already made impossible
+   * (`cancel`/`close` on a dead channel throw `IllegalOperationError`) must not
+   * reject `close()` — a lost connection is the single most likely *reason*
+   * you are shutting down, and rejecting there exits the worker CLI non-zero
+   * and memoizes a rejected close that every later call re-throws. Same
+   * reasoning as the in-flight drain's `allSettled`. Reported, never swallowed.
+   */
+  function reportTeardownFailure(err: unknown): void {
+    onError(toError(err))
+  }
+
   function getConnection(): Promise<AmqpLikeConnection> {
     if (opts.connection) return Promise.resolve(opts.connection)
     // A rejected memo is cleared so the next call retries. A permanently
@@ -90,16 +148,23 @@ export function rabbitmqDriver(opts: RabbitmqDriverOptions): BrokerQueueDriver {
     // name. `ChannelModel` already exposes exactly `createChannel()`/`close()`
     // with matching signatures, so it satisfies `AmqpLikeConnection`
     // structurally — no cast required.
-    connecting ??= amqp.connect(opts.url!).catch((err: unknown) => {
-      connecting = undefined
-      throw err
-    })
+    connecting ??= amqp.connect(opts.url!).then(
+      (conn) => {
+        watchErrors(conn)
+        return conn
+      },
+      (err: unknown) => {
+        connecting = undefined
+        throw err
+      },
+    )
     return connecting
   }
 
   function getProducerChannel(): Promise<amqp.Channel> {
     producerChannelReady ??= (async () => {
       const channel = await (await getConnection()).createChannel()
+      watchErrors(channel)
       await channel.assertQueue(queueName, queueArgs)
       return channel
     })().catch((err: unknown) => {
@@ -129,6 +194,7 @@ export function rabbitmqDriver(opts: RabbitmqDriverOptions): BrokerQueueDriver {
         throw new MediaLibraryError('queue driver is closed')
       }
       const channel = await (await getConnection()).createChannel()
+      watchErrors(channel)
       const inFlight = new Set<Promise<void>>()
 
       let consumerTag: string
@@ -189,7 +255,10 @@ export function rabbitmqDriver(opts: RabbitmqDriverOptions): BrokerQueueDriver {
           workers.delete(worker)
           // Two concurrent closers (a caller's own worker.close() racing
           // driver.close()) must not each cancel the same consumer.
-          cancelling ??= channel.cancel(consumerTag).then(() => {})
+          cancelling ??= channel
+            .cancel(consumerTag)
+            .then(() => {})
+            .catch(reportTeardownFailure)
           await cancelling
           if (!closeOpts?.force) {
             // Drain in-flight jobs while the channel is still open, so their
@@ -204,7 +273,7 @@ export function rabbitmqDriver(opts: RabbitmqDriverOptions): BrokerQueueDriver {
             draining ??= Promise.allSettled([...inFlight]).then(() => {})
             await draining
           }
-          closingChannel ??= channel.close()
+          closingChannel ??= channel.close().catch(reportTeardownFailure)
           return closingChannel
         },
       }
@@ -244,13 +313,13 @@ export function rabbitmqDriver(opts: RabbitmqDriverOptions): BrokerQueueDriver {
         const pendingProducer = producerChannelReady
         producerChannelReady = undefined
         const producerChannel = await pendingProducer?.catch(() => undefined)
-        await producerChannel?.close()
+        await producerChannel?.close().catch(reportTeardownFailure)
 
         if (ownsConnection) {
           const pendingConnection = connecting
           connecting = undefined
           const connection = await pendingConnection?.catch(() => undefined)
-          await connection?.close()
+          await connection?.close().catch(reportTeardownFailure)
         }
       })()
       return driverClosing

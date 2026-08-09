@@ -84,11 +84,43 @@ poison message is dead-lettered (or dropped) rather than looping redelivery fore
 how many times, with what backoff, whether to alert — is intentionally left to the broker/exchange
 topology, not built into this driver.
 
+## Error handling
+
+The connection and every channel this driver opens get an `'error'` listener attached. That is not
+optional politeness: amqplib's connection and channels are Node `EventEmitter`s, an async broker
+failure (a restart, a dropped TCP connection, a `PRECONDITION_FAILED`, an ack against an unknown
+delivery tag) emits `'error'` outside any `await`, and **Node throws on an unhandled `'error'`
+event** — so with no listener it is an uncaught exception, in the web process as much as the worker.
+A `try/catch` around the consumer does not cover it: on a `ChannelClose` frame amqplib queues the
+promise rejection as a microtask and emits `'error'` synchronously in the same stack, so the throw
+escapes first.
+
+Pass `onError` to route those errors into your own logger — or to exit deliberately:
+
+```ts
+rabbitmqDriver({
+  url: process.env.AMQP_URL!,
+  onError: (err) => {
+    logger.error({ err }, 'rabbitmq driver error')
+    // The driver does not reconnect. Under a supervisor, exiting here is the
+    // reconnect strategy.
+    process.exit(1)
+  },
+})
+```
+
+Without `onError` the errors are reported with `console.error` — never swallowed. Teardown failures
+land here too: a `cancel()`/`close()` against a channel the broker already tore down is reported
+rather than rejecting `close()`, so a shutdown _after_ a lost connection — the most likely reason
+you are shutting down — still completes instead of exiting the worker CLI non-zero.
+
 ## Known limitations
 
 **Reconnection is your problem.** `amqplib` does not reconnect on its own, and neither does this
 driver: if the broker or the TCP connection goes away, the channels this driver opened are dead and
-the worker stops consuming. Nothing here retries the connect.
+the worker stops consuming. Nothing here retries the connect. (One narrow exception: a _failed_
+initial connect is not memoized, so a later `enqueue()`/`work()` will try to connect again. That is
+not reconnection — an already-established connection that drops is not re-established.)
 
 The obvious escape hatch does not fit either — `amqp-connection-manager`, the usual ecosystem answer
 for managed AMQP connections, is **not** compatible with the `connection` option. Its `createChannel()`
@@ -97,7 +129,10 @@ whereas `AmqpLikeConnection` requires a `createChannel()` that resolves to a rea
 The two models are different enough that adapting one to the other is not a type cast. So:
 
 - Under a supervisor (Kubernetes, systemd, PM2, Nomad), the practical answer is to let the process
-  exit and be restarted. Watch the connection yourself and exit non-zero on `'close'`/`'error'`.
+  exit and be restarted — from `onError`, which fires for the connection the driver opened as well as
+  for one you passed in. (Earlier revisions of this file told you to watch the connection yourself;
+  with the `url` option the driver owns the connection and never hands it back, so that advice was
+  unactionable for the common case. `onError` is the actionable version.)
 - The `connection` option is still useful for sharing one connection across several consumers in a
   process, and for in-house wrappers/pools that hand back real amqplib channels.
 
@@ -108,7 +143,7 @@ so a wedged processor hangs shutdown forever. The `worker` CLI bounds this with 
 
 ## Options
 
-`rabbitmqDriver({ url, connection, queueName, prefetch, deadLetterExchange })`:
+`rabbitmqDriver({ url, connection, queueName, prefetch, deadLetterExchange, onError })`:
 
 - `url` / `connection` — mutually exclusive; exactly one is required. See "Usage" above.
 - `queueName` — defaults to `'media-conversions'`.
@@ -118,6 +153,9 @@ so a wedged processor hangs shutdown forever. The `worker` CLI bounds this with 
   them per the queue's default behavior. Setting this up (the exchange, its bindings, any retry/delay
   logic) is the caller's responsibility — this driver only sets the `x-dead-letter-exchange` queue
   argument when asserting the queue.
+- `onError` — called for every `'error'` event from the connection or this driver's channels, and for
+  teardown failures against an already-closed channel. Defaults to `console.error`. See "Error
+  handling" above. (`@node-media-library/bullmq` takes the same option with the same shape.)
 
 ## Tests
 
@@ -125,4 +163,9 @@ The contract suite (`test/driver.test.ts`) is AMQP-gated: set `AMQP_URL` to run 
 broker, e.g. `AMQP_URL=amqp://guest:guest@localhost:5672 npx vitest run`. Without `AMQP_URL` it skips
 with a printed warning, and separate unconditional tests confirm construction never touches RabbitMQ,
 that missing both `url` and `connection` throws synchronously, that `work()` rejects after `close()`
-without connecting, and that a caller-supplied `connection` is never closed by this driver.
+without connecting, that a caller-supplied `connection` is never closed by this driver, and that
+teardown against an already-closed channel still resolves.
+
+`test/lazy-setup.test.ts` is ungated and stubs the `amqplib` module itself. It covers what a real
+broker cannot report: how many connections and channels the driver opened, whether `close()` reaches
+one still being opened, and whether an emitted `'error'` reaches `onError` instead of the process.
