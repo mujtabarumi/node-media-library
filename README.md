@@ -404,14 +404,18 @@ export const library = createMediaLibrary(config)
 ```ts
 // worker.ts — a separate long-lived process
 import { createMediaLibrary } from '@node-media-library/core'
-import { bullmqDriver } from '@node-media-library/bullmq'
 import { config } from './media.config.js'
 
-createMediaLibrary({
-  ...config,
-  queue: bullmqDriver({ connection: { url: process.env.REDIS_URL! }, workerConcurrency: 4 }),
-})
-// Registering the processor happens in the constructor. Keep the process alive.
+const library = createMediaLibrary(config)
+const worker = await library.startWorker({ concurrency: 4 })
+process.on('SIGTERM', () => worker.close()) // waits for in-flight jobs; { force: true } to abandon them
+// keep the process alive; the worker above processes jobs until closed.
+```
+
+Or via the CLI, given a config module that default-exports the same `MediaLibrary`:
+
+```bash
+node-media-library worker --config media.config.ts --concurrency 4
 ```
 
 The worker **must be built from the same model/collection config** as the web process — that's where
@@ -667,6 +671,7 @@ sibling adapter.
 | [`@node-media-library/core`](packages/core/README.md)             | The engine — storage, collections, conversions, responsive images, downloads, CLI. |
 | [`@node-media-library/prisma`](packages/prisma/README.md)         | `MediaRepository` backed by Prisma, plus an opt-in cascading-delete extension.     |
 | [`@node-media-library/bullmq`](packages/bullmq/README.md)         | `QueueDriver` that dispatches conversions to BullMQ workers.                       |
+| [`@node-media-library/rabbitmq`](packages/rabbitmq/README.md)     | `QueueDriver` that dispatches conversions to RabbitMQ workers.                     |
 | [`@node-media-library/pdf`](packages/pdf/README.md)               | `ImageGenerator` rasterizing PDF pages via `pdftoppm`.                             |
 | [`@node-media-library/video`](packages/video/README.md)           | `ImageGenerator` extracting video frames via `ffmpeg`.                             |
 | [`@node-media-library/optimizers`](packages/optimizers/README.md) | `jpegoptim`/`pngquant` optimizers that shrink conversion and responsive output.    |

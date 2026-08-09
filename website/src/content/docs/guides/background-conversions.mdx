@@ -101,6 +101,10 @@ equivalent CLI command:
 node-media-library worker --config media.config.ts --concurrency 4
 ```
 
+`--concurrency` must be a positive integer — it's forwarded verbatim to BullMQ's `concurrency` /
+amqplib's `prefetch`, and both flags are validated before the config loads, so a typo'd value fails
+before a connection is even opened. See [the CLI reference](/reference/cli/) for the full flag list.
+
 `startWorker()` resolves as soon as the worker is subscribed — it is not what keeps the process
 running. What keeps it alive is the broker connection the worker holds open: an active socket is a
 live handle, so Node's event loop never drains and the process stays up until you close the worker (or

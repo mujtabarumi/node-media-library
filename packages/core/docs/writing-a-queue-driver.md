@@ -16,7 +16,12 @@ export interface QueueDriver {
 ```
 
 It is never configured on its own — `MediaLibraryConfig.queue` requires one of the two shapes that
-extend it, discriminated structurally (`'attach' in driver`), not by a boolean flag:
+extend it, discriminated structurally by whether `attach`/`work` is a _callable_ member
+(`typeof driver.attach === 'function'`), not by a boolean flag and not by `'attach' in driver`: an `in`
+check is true even for a declared-but-`undefined` property (an unused optional field, an object spread
+that copied `attach: undefined` along), which would either trip the both-implemented guard below
+spuriously or reach `attach(...)` and throw a raw `TypeError`. "Implements the member" means "the
+member is callable."
 
 - **`InProcessQueueDriver`** consumes in the same process that produces. `attach()` is called once, by
   `MediaLibrary`'s own constructor, wiring the processor before any job can be enqueued.
@@ -184,12 +189,17 @@ implementation for a `BrokerQueueDriver` — connection lifecycle, lazy connect-
 policy, and the contract suite wiring all live there. Read them alongside this guide rather than
 starting from a blank file.
 
-The broker suite's cases, in full: enqueuing before any worker exists, a worker receiving the exact
-job payload, multiple jobs all processed, `worker.close()` stopping delivery, `worker.close()` waiting
-for an in-flight job, `worker.close({ force: true })` abandoning one, `driver.close()` closing workers
-it created without hanging, `close()` idempotence, and `enqueue()` rejecting after `close()`. The
-in-process suite additionally pins that `close()` resolves only after already-enqueued work has
-settled.
+The broker suite's cases, in full: enqueuing with no worker running, **delivering a job that was
+enqueued before any worker ever existed** (the topology the whole `attach`/`work` split exists for — a
+driver that only binds its queue/exchange inside `work()` would black-hole this while still passing
+every other case), a worker receiving the exact job payload, multiple jobs all processed,
+`worker.close()` stopping delivery, `worker.close()` waiting for an in-flight job, `worker.close({
+force: true })` abandoning one, `driver.close()` closing workers it created without hanging, `close()`
+idempotence, **a concurrent second `close()` not resolving before the first has drained in-flight
+work** (guards against the `if (closed) return` shape, which lets a racing second caller see `closed`
+already `true` and get back a "closed" driver whose drain — and any teardown after it — hasn't actually
+finished), and `enqueue()` rejecting after `close()`. The in-process suite additionally pins that
+`close()` resolves only after already-enqueued work has settled.
 
 What the suite does **not** cover is at-least-once redelivery. That guarantee is real and you must
 design for it (see above), but asserting it portably means driving each broker's own crash-recovery
@@ -197,3 +207,15 @@ machinery on wildly different timescales — RabbitMQ redelivers the moment the 
 only once its stalled-job checker fires — so it stays a documented contract rather than an executed
 one. If your driver passes the suite, `core` will drive it correctly; redelivery behavior is still
 yours to get right.
+
+## Payload validation is `core`'s job, not yours
+
+`MediaLibrary.startWorker()` shape-checks every job your `work()` callback hands it before the payload
+ever reaches the conversion engine: a payload without a string `mediaId`, or with a `conversionNames`
+that is neither absent nor an array of strings, is rejected with a `MediaLibraryError` — thrown from
+inside the processor function `startWorker()` passes to your driver's `work()`. Your driver doesn't
+need its own payload validation; whatever you deserialize off the wire and cast to `ConversionJob` gets
+checked at this single choke point, and the rejection travels your driver's existing nack/dead-letter
+path exactly like any other processor error. This guards against a malformed or hostile message on the
+broker driving the conversion engine with arbitrary values — not a defense your driver is expected to
+duplicate.

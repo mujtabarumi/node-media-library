@@ -228,7 +228,15 @@ conversions inline and have no separate worker to start. Separately, the `MediaL
 itself throws if the configured driver implements _both_ `attach()` and `work()`, before `startWorker()`
 is ever reached: that shape would consume inline in every process that constructs a `MediaLibrary`
 while `startWorker()` consumes from the broker too, which is exactly the accident the two interfaces
-exist to prevent.
+exist to prevent. Both checks probe for a _callable_ member (`typeof driver.attach === 'function'`),
+not merely a present one, so a driver object that merely declares the property (e.g. `attach:
+undefined` from an unused optional field) is correctly treated as not implementing it.
+
+Every job a broker driver delivers is shape-checked before it reaches the conversion engine: a payload
+without a string `mediaId`, or with a `conversionNames` that is neither absent nor an array of strings,
+is rejected with a `MediaLibraryError` right at the `startWorker()` choke point. Third-party drivers
+inherit this for free, and the rejection travels whatever nack/dead-letter path the driver already
+uses for a failed job — a driver author does not need to validate the payload itself.
 
 Call `library.close()` when you're done with a `MediaLibrary` (worker or producer) to release the
 driver's underlying connections/channels. **`close()` drains in-flight jobs with no timeout** — a
@@ -248,7 +256,13 @@ node-media-library worker --config ./medialibrary.config.ts [--concurrency 4] [-
 
 `--config` can be omitted if a `medialibrary.config.ts` / `.mts` / `.js` / `.mjs` file (default-exporting
 a `MediaLibrary` instance) exists in the current directory — the same convention `regenerate` and
-`clean` follow (see [CLI](#cli) below).
+`clean` follow (see [CLI](#cli) below). `--concurrency` must be a positive integer (it's forwarded
+verbatim to BullMQ's `concurrency` and amqplib's `prefetch`, neither of which accepts a fraction) and
+`--shutdown-timeout` a positive number; both are validated before the config is even loaded, so a typo'd
+flag never opens a broker connection just to immediately tear it down. `library.close()` is called on
+every exit path of every command — `regenerate`, `clean`, and `worker` (including a failed
+`startWorker()`) — so a broker driver's open connection can no longer keep the process alive after the
+command has finished.
 
 ### Choosing a driver from an environment variable
 
@@ -353,8 +367,9 @@ use the `gcs` driver.
 
 ## CLI
 
-The package ships a `node-media-library` bin with `regenerate` and `clean` commands. It expects a config module
-that default-exports a `MediaLibrary` instance:
+The package ships a `node-media-library` bin with `regenerate`, `clean`, and `worker` commands (the
+latter documented above, under "Queue drivers"). It expects a config module that default-exports a
+`MediaLibrary` instance:
 
 ```bash
 node-media-library regenerate --config media.config.mjs --model User --only-missing --with-responsive
@@ -367,7 +382,7 @@ need to be executed with a TypeScript loader such as `tsx`.
 
 ## Roadmap
 
-**Current**: File upload, storage (fs/s3/gcs), retrieval, collections, image conversions, responsive images, queue-backed dispatch (sync and BullMQ), Prisma adapter, PDF/video image generators, downloads/ZIP, CLI, offline maintenance (`clean()`), `copyMedia`/`moveMedia`, atomic custom-property updates, and an image optimizer seam (`@node-media-library/optimizers`).
+**Current**: File upload, storage (fs/s3/gcs), retrieval, collections, image conversions, responsive images, queue-backed dispatch (sync, BullMQ, and RabbitMQ), Prisma adapter, PDF/video image generators, downloads/ZIP, CLI, offline maintenance (`clean()`), `copyMedia`/`moveMedia`, atomic custom-property updates, and an image optimizer seam (`@node-media-library/optimizers`).
 
 **Known limitations** (architectural, not scheduled for v1):
 

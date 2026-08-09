@@ -163,10 +163,13 @@ Consumes conversion jobs from a broker-backed queue driver (`bullmqDriver`, `rab
 node-media-library worker --config <path> [--concurrency <n>] [--shutdown-timeout <seconds>]
 ```
 
-| Flag                     | Effect                                                         |
-| ------------------------ | -------------------------------------------------------------- |
-| `--concurrency <n>`      | Max jobs processed at once. Driver default applies if omitted. |
-| `--shutdown-timeout <s>` | Seconds to wait for in-flight jobs on shutdown. Default `30`.  |
+| Flag                     | Effect                                                                                |
+| ------------------------ | ------------------------------------------------------------------------------------- |
+| `--concurrency <n>`      | Max jobs processed at once, as a positive integer. Driver default applies if omitted. |
+| `--shutdown-timeout <s>` | Seconds (may be fractional) to wait for in-flight jobs on shutdown. Default `30`.     |
+
+Both flags are validated before the config even loads, so a typo'd number fails fast instead of opening
+a broker connection first.
 
 On `SIGTERM`/`SIGINT` it stops accepting new jobs and waits for in-flight ones to finish. If they
 haven't settled within `--shutdown-timeout` seconds, it logs the timeout and attempts a forced close.
@@ -178,7 +181,10 @@ regardless of `--shutdown-timeout`. Set the timeout below whatever grace period 
 gives you before `SIGKILL` either way; that's the only backstop `bullmqDriver` gets.
 
 It exits `1` if the configured driver has no `work()` — an in-process driver (`syncDriver()`,
-`deferDriver()`) runs conversions inline and has no separate worker to start.
+`deferDriver()`) runs conversions inline and has no separate worker to start. Every job the driver
+delivers is shape-checked before it reaches the conversion engine — a payload without a string
+`mediaId`, or a `conversionNames` that isn't absent or an array of strings, is rejected with a
+`MediaLibraryError` and travels the driver's own nack/dead-letter path rather than crashing the worker.
 
 In code, this is `MediaLibrary.startWorker(opts?)`:
 
@@ -200,3 +206,9 @@ safe to run from cron with output captured.
 
 Flags are validated per command: passing `--rate-limit` to `regenerate` is an error rather than being
 silently ignored.
+
+Every command closes the `MediaLibrary` (and so the queue driver's underlying connections/channels) on
+its way out, whether it succeeded, failed, or a `worker` run's `startWorker()` itself threw — so a
+broker driver's open Redis/AMQP socket never keeps the process alive after the command has finished. A
+failure to close cleanly is reported on stderr but doesn't change the exit code, since it isn't the
+command's own verdict.

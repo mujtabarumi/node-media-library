@@ -92,8 +92,16 @@ export interface WorkOptions {
 [shutdown semantics](#3-shutdown-semantics-pinned-by-contract). `bullmqDriver` becomes a
 `BrokerQueueDriver`.
 
-No boolean flag distinguishes them. `'attach' in driver` is the discriminator, and the type names
-document the deployment model at the point of use.
+No boolean flag distinguishes them. `typeof driver.attach === 'function'` is the discriminator, and the
+type names document the deployment model at the point of use.
+
+**Correction (post-audit).** An earlier draft of this section, and the constructor snippet in the next
+section, used `'attach' in driver`. Shipped as such initially, then found to be wrong: `in` is `true`
+for a property that merely exists and holds `undefined` — an unused optional field, an object spread
+that copied `attach: undefined` along, a declared-but-unassigned class field — which would either trip
+the both-implemented guard below spuriously or reach `attach(...)` and throw a raw `TypeError` instead
+of the intended `MediaLibraryError`. Shipped as `typeof driver.attach === 'function'` instead, which is
+what "implements the member" is supposed to mean.
 
 `MediaLibraryConfig.queue` is typed `InProcessQueueDriver | BrokerQueueDriver`, not the bare
 `QueueDriver` base. The base type describes what both kinds share; it is not itself configurable,
@@ -104,7 +112,7 @@ since a driver that can neither attach nor work can only ever enqueue jobs nothi
 The constructor becomes conditional:
 
 ```ts
-if ('attach' in this.resolved.queue) {
+if (typeof this.resolved.queue.attach === 'function') {
   this.resolved.queue.attach((job) => this.engine.perform(job.mediaId, job.conversionNames))
 }
 ```
@@ -177,6 +185,23 @@ Concurrency moves from driver construction to `work(fn, { concurrency })`, mirro
 `new Worker(name, fn, { concurrency })`. `bullmqDriver`'s existing `workerConcurrency` option remains
 as the driver-level default, overridden by `WorkOptions.concurrency`.
 
+**Correction (post-audit).** Three gaps found after this section was first written:
+
+- `startWorker()`'s processor wrapper passed whatever `work()` handed it straight into
+  `engine.perform(job.mediaId, job.conversionNames)`, and every driver deserializes off the wire with a
+  bare `as ConversionJob` cast — nothing checked the shape. `startWorker()` now shape-checks the payload
+  at that single choke point (a string `mediaId`; a `conversionNames` that is absent or an array of
+  strings) and throws `MediaLibraryError` otherwise, so third-party drivers inherit the guard for free
+  and the rejection travels whatever nack/dead-letter path the driver already has for a failed job.
+- `--concurrency` accepted any positive finite number, but it is forwarded verbatim to BullMQ's
+  `concurrency` and amqplib's `prefetch`, neither of which accepts a fraction (`Number('4.5')` passes a
+  finite check). It is now validated as a positive integer.
+- `regenerate`/`clean` and the `worker` command's error path all returned without calling
+  `driver.close()`. Since `cli.ts` only sets `process.exitCode`, Node waits for the event loop to
+  drain — a broker driver's open connection kept the process alive indefinitely, turning a successful
+  `regenerate`/`clean` run and a failed `worker` start into a hang instead of an exit. The whole command
+  dispatch now runs inside try/catch/**finally**, and the finally closes the library on every path.
+
 ### 5. Config file convention
 
 When `--config` is omitted, the CLI resolves `medialibrary.config.{ts,mts,js,mjs}` from the current
@@ -234,6 +259,7 @@ interface SharedOptions {
   queueName?: string
   prefetch?: number
   deadLetterExchange?: string
+  onError?: (err: Error) => void
 }
 ```
 
@@ -241,9 +267,12 @@ When given a `url` the driver owns the connection and closes it on `close()`. Wh
 `connection` the host app owns it, and `close()` closes only the channels the driver opened — closing
 a connection the driver did not create would break every other consumer sharing it.
 
-- **Producer:** `assertQueue(name, { durable: true })`, publish with `persistent: true`. Durability
-  and persistence must be paired — a durable queue holding non-persistent messages still loses them
-  on broker restart.
+- **Producer:** `assertQueue(name, { durable: true })`, publish with `persistent: true` on a **confirm
+  channel** (`createConfirmChannel()`), so `enqueue()` resolves only once the broker has acknowledged
+  the message and rejects with a `MediaLibraryError` on a nack. Durability and persistence must be
+  paired — a durable queue holding non-persistent messages still loses them on broker restart — and a
+  plain channel's `sendToQueue()` is fire-and-forget, so without the confirm an awaited `enqueue()`
+  would mean no more than "reached a socket buffer," not "the broker has it."
 - **Consumer:** a separate channel, `prefetch(n)` derived from `WorkOptions.concurrency`, manual ack.
   Processor resolves → `ack`. Processor rejects → `nack(msg, false, false)`, which dead-letters
   rather than requeue-looping a poison message indefinitely.
@@ -251,17 +280,22 @@ a connection the driver did not create would break every other consumer sharing 
   out of the way. Ack/nack/retry/DLQ deliberately do **not** appear in the core interface — they are
   driver policy, and the broker implements them better than we would.
 - **Bring-your-own connection, structurally typed.** Options accept either a `url` or an existing
-  connection satisfying a minimal `AmqpLikeConnection` interface — `createChannel()` and `close()`,
-  nothing more. This mirrors `packages/prisma`'s existing `PrismaLikeClient` duck typing rather than
-  inventing a second convention, and it matches how adapters across the ecosystem accept a client
-  they did not create (BullMQ takes an ioredis instance, `connect-redis` takes a client, Kysely
-  dialects take a pool).
+  connection satisfying a minimal `AmqpLikeConnection` interface. This mirrors `packages/prisma`'s
+  existing `PrismaLikeClient` duck typing rather than inventing a second convention, and it matches how
+  adapters across the ecosystem accept a client they did not create (BullMQ takes an ioredis instance,
+  `connect-redis` takes a client, Kysely dialects take a pool).
 
   What it buys is sharing one connection across several consumers in a process, and accepting an
   in-house wrapper or pool — such as `@ordaroo/queue` — without the adapter needing to know its
-  concrete shape. The bar is narrow but real: `createChannel()` must **resolve to** an amqplib
-  `Channel`, because that is the object the adapter calls
-  `assertQueue`/`prefetch`/`consume`/`ack`/`nack`/`cancel` on.
+  concrete shape. The bar is narrow but real: `createChannel()` and `createConfirmChannel()` must both
+  **resolve to** real amqplib `Channel`/`ConfirmChannel` objects, because those are the objects the
+  adapter calls `assertQueue`/`prefetch`/`consume`/`ack`/`nack`/`cancel`/`sendToQueue` on.
+
+  **Correction (post-audit).** `createConfirmChannel()` was not part of the original bar — only
+  `createChannel()` and `close()`. It was added once producing moved to a confirm channel (see the
+  producer bullet above), and is a **breaking change to the exported `AmqpLikeConnection` interface**: a
+  caller-supplied `connection` must now provide both methods. amqplib's own `ChannelModel` already has
+  both, so the `url` path is unaffected.
 
   **Correction (final review).** An earlier draft of this section justified structural typing by
   saying amqplib does not auto-reconnect, that `amqp-connection-manager` is the ecosystem answer, and
@@ -287,6 +321,14 @@ a connection the driver did not create would break every other consumer sharing 
 `runQueueDriverContract` splits into in-process and broker variants. The broker variant adds cases for
 `work()` lifecycle and graceful versus forced close. The RabbitMQ suite gates on `AMQP_URL` exactly as
 the BullMQ suite gates on `REDIS_URL`; CI gains a rabbitmq service container.
+
+**Correction (post-audit).** Two more broker cases were added after this section was first written: a
+job `enqueue()`d before any worker ever existed must still be delivered once one attaches — the
+topology this whole redesign exists for, and one every other case here happens to skip past by calling
+`work()` first — and a concurrent second `close()` must not resolve before the first has drained
+in-flight work, which a naive `if (closed) return` re-entrancy guard fails (it lets the second caller
+observe a "closed" driver whose drain, and any teardown after it, hasn't actually finished). Both
+BullMQ's and RabbitMQ's drivers needed fixes to pass the second case.
 
 **Not shipped: an at-least-once redelivery case.** This section originally listed one. Simulating the
 crash that causes redelivery portably — kill the consumer between the processor's side effects and the
