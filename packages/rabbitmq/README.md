@@ -37,7 +37,10 @@ const media = createMediaLibrary({
   connection in the same process.
 
 The connection/channel are created lazily on first `enqueue`/`work` call, so constructing the driver
-never touches RabbitMQ.
+never touches RabbitMQ. Setup is memoized on the in-flight promise, not the resolved handle, so
+concurrent first calls — two parallel requests on a cold web process both reaching `enqueue()` —
+share one connection and one producer channel rather than each opening their own. A connect that
+fails is not cached: the next call tries again.
 
 ## Worker process
 

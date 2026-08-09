@@ -62,8 +62,14 @@ export function rabbitmqDriver(opts: RabbitmqDriverOptions): BrokerQueueDriver {
   const defaultPrefetch = opts.prefetch ?? DEFAULT_PREFETCH
   const ownsConnection = !opts.connection
 
-  let connection: AmqpLikeConnection | undefined = opts.connection
-  let producerChannel: amqp.Channel | undefined
+  // Memoized *promises*, not resolved values. Memoizing the value leaves a
+  // window between the `if (!x)` check and the assignment in which a second
+  // concurrent caller starts its own connect/createChannel; the loser is then
+  // referenced by nobody, so close() cannot reach it and its ref'd socket
+  // keeps the process alive. Two parallel requests both reaching enqueue() on
+  // a cold web process is exactly that race.
+  let connecting: Promise<AmqpLikeConnection> | undefined
+  let producerChannelReady: Promise<amqp.Channel> | undefined
   const workers = new Set<QueueWorker>()
   let closed = false
   let driverClosing: Promise<void> | undefined
@@ -72,24 +78,39 @@ export function rabbitmqDriver(opts: RabbitmqDriverOptions): BrokerQueueDriver {
     ? { durable: true, arguments: { 'x-dead-letter-exchange': opts.deadLetterExchange } }
     : { durable: true }
 
-  async function getConnection(): Promise<AmqpLikeConnection> {
-    if (!connection) {
-      // amqplib 0.10.4+ resolves `connect()` to a `ChannelModel`, not the
-      // older `Connection` type some `@types/amqplib` versions still export
-      // under that name. `ChannelModel` already exposes exactly
-      // `createChannel()`/`close()` with matching signatures, so it
-      // satisfies `AmqpLikeConnection` structurally — no cast required.
-      connection = await amqp.connect(opts.url!)
-    }
-    return connection
+  function getConnection(): Promise<AmqpLikeConnection> {
+    if (opts.connection) return Promise.resolve(opts.connection)
+    // A rejected memo is cleared so the next call retries. A permanently
+    // poisoned memo would leave a process that happened to start while the
+    // broker was down unable to publish for the rest of its life. Nothing
+    // here retries on its own — the retry is the *next* caller's.
+    //
+    // amqplib 0.10.4+ resolves `connect()` to a `ChannelModel`, not the older
+    // `Connection` type some `@types/amqplib` versions still export under that
+    // name. `ChannelModel` already exposes exactly `createChannel()`/`close()`
+    // with matching signatures, so it satisfies `AmqpLikeConnection`
+    // structurally — no cast required.
+    connecting ??= amqp.connect(opts.url!).catch((err: unknown) => {
+      connecting = undefined
+      throw err
+    })
+    return connecting
   }
 
-  async function getProducerChannel(): Promise<amqp.Channel> {
-    if (!producerChannel) {
-      producerChannel = await (await getConnection()).createChannel()
-      await producerChannel.assertQueue(queueName, queueArgs)
-    }
-    return producerChannel
+  function getProducerChannel(): Promise<amqp.Channel> {
+    producerChannelReady ??= (async () => {
+      const channel = await (await getConnection()).createChannel()
+      await channel.assertQueue(queueName, queueArgs)
+      return channel
+    })().catch((err: unknown) => {
+      // Same reasoning as getConnection(): the `??=` assignment above has
+      // already happened by the time this rejection handler runs, so clearing
+      // it here lets the next enqueue() rebuild the channel rather than
+      // inherit a permanent failure.
+      producerChannelReady = undefined
+      throw err
+    })
+    return producerChannelReady
   }
 
   return {
@@ -187,6 +208,14 @@ export function rabbitmqDriver(opts: RabbitmqDriverOptions): BrokerQueueDriver {
           return closingChannel
         },
       }
+      if (closed) {
+        // driver.close() ran while this channel was being set up, so its
+        // snapshot of `workers` could not contain this one — leaving a live
+        // consumer no handle could reach. Tear it down instead of registering
+        // it against an already-closed driver.
+        await worker.close({ force: true })
+        throw new MediaLibraryError('queue driver is closed')
+      }
       workers.add(worker)
       return worker
     },
@@ -206,11 +235,22 @@ export function rabbitmqDriver(opts: RabbitmqDriverOptions): BrokerQueueDriver {
         // IllegalOperationError.
         await Promise.all([...workers].map((w) => w.close()))
         workers.clear()
+
+        // Await the *pending* setup promises rather than resolved handles: a
+        // connection or producer channel still being opened by a racing
+        // enqueue() would otherwise outlive this close() with nothing holding
+        // a reference to it, and its ref'd socket would keep the process alive
+        // after close() had already resolved.
+        const pendingProducer = producerChannelReady
+        producerChannelReady = undefined
+        const producerChannel = await pendingProducer?.catch(() => undefined)
         await producerChannel?.close()
-        producerChannel = undefined
+
         if (ownsConnection) {
+          const pendingConnection = connecting
+          connecting = undefined
+          const connection = await pendingConnection?.catch(() => undefined)
           await connection?.close()
-          connection = undefined
         }
       })()
       return driverClosing
