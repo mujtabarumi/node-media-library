@@ -67,4 +67,18 @@ PDFs until you add `pdfImageGenerator()` to the `imageGenerators` array, and the
 nothing until they're listed in `optimizers`. The upside is that a config file tells you exactly what
 will happen to an upload, with no hidden discovery step.
 
+## What to configure next
+
+Installing a package and configuring it are two separate steps here. Once the dependencies are in
+place, three decisions turn the tutorial setup into a real one:
+
+| Decision                           | Default if you skip it                      | Where                                                        |
+| ---------------------------------- | ------------------------------------------- | ------------------------------------------------------------ |
+| Where media **records** are stored | `InMemoryMediaRepository` — lost on restart | [Persistence with Prisma](/production/prisma/)               |
+| Where conversions **run**          | `syncDriver()` — inline, inside the request | [Background conversions](/guides/background-conversions/)    |
+| Where **files** are stored         | Local `fs` at `./storage/media`             | [Configuration → Storage](/reference/configuration/#storage) |
+
+The [Configuration reference](/reference/configuration/) covers all three, plus every other key
+`createMediaLibrary()` accepts, with defaults.
+
 Next: [store your first file →](/start/first-upload/)

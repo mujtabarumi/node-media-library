@@ -42,8 +42,9 @@ const library = createMediaLibrary({
       },
     },
   },
-  // Default `queue` is `syncDriver()` (inline). Swap in `bullmqDriver({ connection })`
-  // from `@node-media-library/bullmq` to dispatch queued conversions to a worker.
+  // Default `queue` is `syncDriver()` (inline). `deferDriver()` (also built in) runs
+  // them on a later tick without a broker; `bullmqDriver()` / `rabbitmqDriver()`
+  // dispatch to a separate worker process. See "Queue drivers" below.
   models: {
     User: {
       collections: {
@@ -70,6 +71,30 @@ const thumbUrl = await library.for('User', userId).firstUrl('avatar', 'thumb')
 await library.for('User', userId).reorder([mediaId2, mediaId1])
 await library.for('User', userId).clear('gallery')
 ```
+
+## Configuration reference
+
+Only `repository` and `models` are required. Everything else below has a default that works, so a
+minimal config is genuinely two keys.
+
+| Key                         | Type                  | Default                            | Notes                                                                           |
+| --------------------------- | --------------------- | ---------------------------------- | ------------------------------------------------------------------------------- |
+| `repository`                | `MediaRepository`     | **required**                       | `InMemoryMediaRepository` for tests; `@node-media-library/prisma` for real use. |
+| `models`                    | `Record<string, {…}>` | **required**                       | `for()` throws `UnknownModelError` for a type absent from this map.             |
+| `storage`                   | `StorageConfig`       | synthesized from env               | See [Storage disks](#storage-disks).                                            |
+| `queue`                     | `AnyQueueDriver`      | `syncDriver()`                     | See [Queue drivers](#queue-drivers).                                            |
+| `maxFileSize`               | `number`              | `10 * 1024 * 1024`                 | Enforced during accumulation, not after the bytes land.                         |
+| `disallowedExtensions`      | `string[]`            | `DEFAULT_DISALLOWED_EXTENSIONS`    | Checked per dot-segment.                                                        |
+| `allowedExtensions`         | `string[]`            | none                               | When set, acts as an allowlist instead.                                         |
+| `versionUrls`               | `boolean`             | `false`                            | Cache-busting version query on generated URLs.                                  |
+| `signedUrlExpiresIn`        | `string \| number`    | `'30 mins'`                        | Default `signedUrl()` expiry; the `fs` driver ignores it (it cannot sign).      |
+| `fileNameSanitizer`         | `FileNameSanitizer`   | built-in                           | A security control — see [Security model](#security-model) before replacing it. |
+| `pathGenerator`             | `PathGenerator`       | `DefaultPathGenerator`             | `{prefix}/{mediaId}/{fileName}`.                                                |
+| `urlGenerator`              | `UrlGenerator`        | `DefaultUrlGenerator`              | Required for a custom CDN hostname on s3/gcs.                                   |
+| `imageGenerators`           | `ImageGenerator[]`    | `[sharpImageGenerator()]`          | Nothing auto-registers — add pdf/video generators explicitly.                   |
+| `optimizers`                | `ImageOptimizer[]`    | `[]`                               | See [Image optimizers](#image-optimizers).                                      |
+| `responsiveWidthCalculator` | `WidthCalculator`     | `FileSizeOptimizedWidthCalculator` | See [Responsive images](#responsive-images).                                    |
+| `responsivePlaceholders`    | `boolean`             | `true`                             | LQIP generation alongside responsive variants.                                  |
 
 ## Custom properties, copy, and move
 
