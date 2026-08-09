@@ -62,6 +62,7 @@ export default defineConfig({
         {
           label: 'Reference',
           items: [
+            { label: 'Configuration', slug: 'reference/configuration' },
             { label: 'Errors', slug: 'reference/errors' },
             { label: 'CLI', slug: 'reference/cli' },
             { label: 'Packages', slug: 'reference/packages' },

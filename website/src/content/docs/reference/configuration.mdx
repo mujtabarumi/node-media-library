@@ -1,0 +1,164 @@
+---
+title: Configuration
+description: Every key createMediaLibrary() accepts, what it defaults to, and the two defaults — an in-memory repository and inline conversions — you replace first.
+---
+
+import { Aside } from '@astrojs/starlight/components'
+
+`createMediaLibrary()` takes a single object. Only **`repository`** and **`models`** are required —
+everything else has a working default, which is what lets the
+[five-minute guide](/start/first-upload/) run with no infrastructure at all.
+
+Two of those defaults are deliberately development-shaped, and they are the two a real deployment
+replaces first:
+
+| Default                   | Fine for            | Replace with                                        |
+| ------------------------- | ------------------- | --------------------------------------------------- |
+| `InMemoryMediaRepository` | Tests, the tutorial | [The Prisma adapter](#a-database-backed-repository) |
+| `syncDriver()` (inline)   | Small images, tests | [A queue driver](#a-queue-driver)                   |
+
+## A database-backed repository
+
+`InMemoryMediaRepository` holds records in memory — every media row is gone when the process exits.
+For anything real, media needs a table.
+
+```bash
+pnpm add @node-media-library/prisma
+```
+
+Add the `Media` model to your schema, then migrate:
+
+```bash
+npx prisma migrate dev --name add_media
+```
+
+```ts
+import { PrismaClient } from '@prisma/client'
+import { prismaAdapter } from '@node-media-library/prisma'
+
+const prisma = new PrismaClient()
+
+const library = createMediaLibrary({
+  repository: prismaAdapter(prisma),
+  models: {/* … */},
+})
+```
+
+The model definition to paste, the opt-in cascading delete, and the adapter's `owners` /
+`iterateBatchSize` options are on [Persistence with Prisma](/production/prisma/).
+
+Any backend works. `MediaRepository` is a plain interface — implement it against Drizzle, Kysely, or a
+raw driver, then run it against the shared contract suite exported from
+`@node-media-library/core/testing`. Every bundled adapter is held to that same suite, so a backend
+that passes it behaves like the ones that ship here.
+
+## A queue driver
+
+Conversions run inline unless you say otherwise. Resizing a 4000×3000 photo into four formats inside
+an HTTP request is how upload endpoints get slow, so this is usually the second thing to change.
+
+Drivers come in two kinds, and the distinction decides whether you need a second process:
+
+| `queue:`                   | Kind       | `add()` waits? | Survives a restart? | Worker process? |
+| -------------------------- | ---------- | -------------- | ------------------- | --------------- |
+| `syncDriver()` _(default)_ | in-process | Yes            | —                   | No              |
+| `deferDriver()`            | in-process | No             | **No**              | No              |
+| `bullmqDriver()` (Redis)   | broker     | No             | Yes                 | **Yes**         |
+| `rabbitmqDriver()` (AMQP)  | broker     | No             | Yes                 | **Yes**         |
+
+**In-process drivers** ship inside core and need no infrastructure. `MediaLibrary` attaches its
+processor to them at construction, so there is nothing to start and nothing to deploy.
+
+**Broker drivers** hand jobs to Redis or RabbitMQ:
+
+```bash
+pnpm add @node-media-library/bullmq     # Redis
+pnpm add @node-media-library/rabbitmq   # AMQP
+```
+
+Constructing a `MediaLibrary` with a broker driver does **not** start consuming. A web process, a
+serverless handler, or a one-off script can hold one and never act as a consumer. Consuming is an
+explicit `startWorker()` in a dedicated process — or the [`worker` CLI command](/reference/cli/):
+
+```ts
+// worker.ts
+const worker = await library.startWorker({ concurrency: 4 })
+process.on('SIGTERM', () => worker.close())
+```
+
+`startWorker()` throws if the configured driver is in-process — those have no separate worker to
+start. Full setup, shutdown semantics, and failure handling are on
+[Background conversions](/guides/background-conversions/).
+
+<Aside type="caution" title="deferDriver() is not durable">
+  It gets conversions off the request path by running them on a later tick, but the work still
+  happens in the web process. A job in flight when the process exits is **lost** — there is no
+  broker holding it. It buys latency, not durability. If a missing thumbnail after a deploy is
+  unacceptable, you want a broker driver.
+</Aside>
+
+## Storage
+
+`storage` is optional. Given no config at all, the default disk is synthesized from the environment at
+startup:
+
+| Environment            | Resulting default disk                |
+| ---------------------- | ------------------------------------- |
+| `MEDIA_S3_BUCKET` set  | S3 (wins if both bucket vars are set) |
+| `MEDIA_GCS_BUCKET` set | GCS                                   |
+| Neither                | Local `fs` at `MEDIA_FS_ROOT`         |
+
+`MEDIA_FS_ROOT` itself defaults to `./storage/media`. Convenient for a twelve-factor deploy; explicit
+config is clearer. Disk options, per-collection routing, and the URL-building rules per driver are on
+[Packages](/reference/packages/).
+
+<Aside type="caution" title="The fs driver needs baseUrl">
+  It has no way to derive a public URL on its own, so `url()` and `firstUrl()` throw `StorageError`
+  without one. Serve the disk's `root` statically and point `baseUrl` at that path.
+</Aside>
+
+## Every option
+
+| Key                         | Type                  | Default                            | What it does                                                                        |
+| --------------------------- | --------------------- | ---------------------------------- | ----------------------------------------------------------------------------------- |
+| `repository`                | `MediaRepository`     | **required**                       | Where media rows live.                                                              |
+| `models`                    | `Record<string, {…}>` | **required**                       | Model types and their collections. `for()` throws `UnknownModelError` off this map. |
+| `storage`                   | `StorageConfig`       | synthesized from env               | Named disks (`fs` / `s3` / `gcs`).                                                  |
+| `queue`                     | `AnyQueueDriver`      | `syncDriver()`                     | See above.                                                                          |
+| `maxFileSize`               | `number`              | `10 * 1024 * 1024`                 | Byte cap, enforced **while the bytes stream**, not after they land.                 |
+| `disallowedExtensions`      | `string[]`            | `DEFAULT_DISALLOWED_EXTENSIONS`    | Blocklist, checked per dot-segment — `evil.php.jpg` is rejected.                    |
+| `allowedExtensions`         | `string[]`            | none                               | When set, an allowlist instead — anything outside it is rejected.                   |
+| `versionUrls`               | `boolean`             | `false`                            | Append a cache-busting version query to generated URLs.                             |
+| `signedUrlExpiresIn`        | `string \| number`    | `'30 mins'`                        | Default `signedUrl()` expiry. The `fs` driver ignores it; it cannot sign.           |
+| `fileNameSanitizer`         | `FileNameSanitizer`   | built-in                           | A security control — extend the default rather than starting from scratch.          |
+| `pathGenerator`             | `PathGenerator`       | `DefaultPathGenerator`             | Where files land: `{prefix}/{mediaId}/{fileName}`.                                  |
+| `urlGenerator`              | `UrlGenerator`        | `DefaultUrlGenerator`              | How URLs are built. Needed for a custom CDN hostname on s3/gcs.                     |
+| `imageGenerators`           | `ImageGenerator[]`    | `[sharpImageGenerator()]`          | Add `pdfImageGenerator()` / `videoImageGenerator()` here — nothing auto-registers.  |
+| `optimizers`                | `ImageOptimizer[]`    | `[]`                               | `jpegoptim` / `pngquant` passes over conversion output.                             |
+| `responsiveWidthCalculator` | `WidthCalculator`     | `FileSizeOptimizedWidthCalculator` | Which widths `.withResponsiveImages()` produces.                                    |
+| `responsivePlaceholders`    | `boolean`             | `true`                             | Generate the base64 LQIP alongside responsive variants.                             |
+
+Per-key type detail is in the generated [`MediaLibraryConfig`](/api/interfaces/medialibraryconfig/)
+reference.
+
+## Sharing config between processes
+
+Once a worker enters the picture, config stops being a detail of one file. The worker **must be built
+from the same model and collection definitions** as the web process — that is where conversion
+definitions live, and a worker that doesn't know a collection cannot generate its conversions.
+
+Export it once and import it from both:
+
+```ts
+// media.config.ts — imported by web.ts AND worker.ts
+export const config = {
+  repository: prismaAdapter(prisma),
+  storage: {/* … */},
+  models: {/* … */},
+  queue: bullmqDriver({ connection: { url: process.env.REDIS_URL! } }),
+}
+```
+
+The same module, default-exporting a constructed `MediaLibrary`, is what the [CLI](/reference/cli/)
+loads via `--config` — so `regenerate`, `clean`, and `worker` all operate on the config your app
+actually runs.
