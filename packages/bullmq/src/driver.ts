@@ -34,6 +34,7 @@ export function bullmqDriver(opts: BullmqDriverOptions): BrokerQueueDriver {
   let queue: Queue<ConversionJob> | undefined
   const workers = new Set<Worker<ConversionJob>>()
   let closed = false
+  let driverClosing: Promise<void> | undefined
 
   function getQueue(): Queue<ConversionJob> {
     if (!queue) {
@@ -71,11 +72,18 @@ export function bullmqDriver(opts: BullmqDriverOptions): BrokerQueueDriver {
     },
 
     async close() {
-      if (closed) return
       closed = true
-      await Promise.all([...workers].map((w) => w.close()))
-      workers.clear()
-      await queue?.close()
+      // Memoized rather than `if (closed) return`: that early return let a
+      // concurrent second close() resolve while the first one was still
+      // draining workers, so a caller awaiting it observed a "closed" driver
+      // whose drain — and, on rejection, the `queue?.close()` below — hadn't
+      // actually run yet. Every caller now awaits the same drain instead.
+      driverClosing ??= (async () => {
+        await Promise.all([...workers].map((w) => w.close()))
+        workers.clear()
+        await queue?.close()
+      })()
+      return driverClosing
     },
   }
 }
