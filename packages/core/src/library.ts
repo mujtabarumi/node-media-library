@@ -18,7 +18,14 @@ import type { UrlGenerator } from './storage/url-generator.js'
 import { DefaultUrlGenerator } from './storage/url-generator.js'
 import { ConversionEngine, RegenerateOptions } from './conversions/engine.js'
 import { conversionFileName } from './conversions/naming.js'
-import type { QueueDriver, QueueWorker, WorkOptions } from './queue.js'
+import type {
+  BrokerQueueDriver,
+  ConversionJob,
+  InProcessQueueDriver,
+  QueueDriver,
+  QueueWorker,
+  WorkOptions,
+} from './queue.js'
 import { Readable } from 'node:stream'
 import { contentDisposition } from './downloads/response.js'
 import { zipEntryName } from './downloads/zip.js'
@@ -28,6 +35,56 @@ import { CleanOptions, CleanResult, DeleteRateGate } from './maintenance/clean.j
 
 export function createMediaLibrary(config: MediaLibraryConfig): MediaLibrary {
   return new MediaLibrary(config)
+}
+
+/**
+ * Both driver members as optional properties, so a driver can be probed for
+ * either without `in`-narrowing games. `AnyQueueDriver` is a union of two
+ * structurally-discriminated shapes; this is the "either, neither, or both"
+ * view of it that the runtime checks actually need.
+ */
+type ProbedQueueDriver = QueueDriver & Partial<InProcessQueueDriver & BrokerQueueDriver>
+
+/**
+ * Validates a job payload arriving from a broker before it reaches the
+ * conversion engine. Drivers deserialize whatever the broker hands them and
+ * cast it (`as ConversionJob`) — nothing between the wire and here checks the
+ * shape, so anyone able to publish to the queue could otherwise drive
+ * `engine.perform()` with arbitrary values.
+ *
+ * No exploitable sink is known in this repo (`mediaId` reaches Prisma's
+ * parameterized `findUnique`, and `conversionNames` is only an allow-filter
+ * over configured conversions), so this is post-authentication hardening
+ * rather than a fix for a live vulnerability. What it buys: a malformed
+ * message fails loudly at the boundary instead of crashing a worker somewhere
+ * confusing, and the `id: string` contract that third-party `MediaRepository`
+ * implementations are promised — they may interpolate it into raw SQL or a
+ * cache key — is actually enforced.
+ *
+ * Throwing `MediaLibraryError` (rather than dropping the job) is deliberate:
+ * every driver already routes a processor rejection through its own
+ * nack/dead-letter path, so a bad payload lands wherever that driver's failed
+ * jobs land instead of vanishing silently.
+ */
+function assertConversionJob(job: ConversionJob): void {
+  const candidate = job as Partial<ConversionJob> | null | undefined
+  if (candidate === null || typeof candidate !== 'object') {
+    throw new MediaLibraryError(
+      `invalid conversion job payload: expected an object, received ${candidate === null ? 'null' : typeof candidate}`,
+    )
+  }
+  if (typeof candidate.mediaId !== 'string') {
+    throw new MediaLibraryError(
+      `invalid conversion job payload: "mediaId" must be a string, received ${typeof candidate.mediaId}`,
+    )
+  }
+  const names: unknown = candidate.conversionNames
+  if (names === undefined) return
+  if (!Array.isArray(names) || names.some((name) => typeof name !== 'string')) {
+    throw new MediaLibraryError(
+      'invalid conversion job payload: "conversionNames" must be absent or an array of strings',
+    )
+  }
 }
 
 export interface CopyMediaOptions {
@@ -76,6 +133,13 @@ export class MediaLibrary {
       responsivePlaceholders: this.resolved.responsivePlaceholders,
       optimizers: this.resolved.optimizers,
     })
+    // Discriminated by `typeof x === 'function'`, not `'x' in driver`: an
+    // optional property, an object spread, or a declared-but-unassigned class
+    // field all satisfy `in` while holding `undefined`, which would either trip
+    // the hybrid guard below spuriously or reach `attach(...)` and throw a raw
+    // TypeError. "Implements the member" means "the member is callable" — which
+    // is what the docs already describe.
+    const queue: ProbedQueueDriver = this.resolved.queue
     // `AnyQueueDriver` is a union of two structurally-discriminated shapes, but
     // a union type does not stop an object from carrying BOTH members — an
     // in-house wrapper offering an inline fallback alongside a broker mode is a
@@ -83,7 +147,7 @@ export class MediaLibrary {
     // split: the attach below would make this process consume inline while a
     // separate startWorker() also consumes from the broker. Reject it before
     // anything is wired, rather than silently reinstating the defect.
-    if ('attach' in this.resolved.queue && 'work' in this.resolved.queue) {
+    if (typeof queue.attach === 'function' && typeof queue.work === 'function') {
       throw new MediaLibraryError(
         'queue driver implements both attach() and work(): a driver must be either in-process ' +
           '(attach) or broker-backed (work), never both — otherwise constructing a MediaLibrary ' +
@@ -94,8 +158,8 @@ export class MediaLibrary {
     // Only in-process drivers attach here. A broker driver is left untouched,
     // so a process that merely constructs a MediaLibrary is a pure producer —
     // consuming requires an explicit startWorker() in a worker process.
-    if ('attach' in this.resolved.queue) {
-      this.resolved.queue.attach((job) => this.engine.perform(job.mediaId, job.conversionNames))
+    if (typeof queue.attach === 'function') {
+      queue.attach((job) => this.engine.perform(job.mediaId, job.conversionNames))
     }
 
     // Built here (after `this.engine` exists) rather than reused from
@@ -138,16 +202,29 @@ export class MediaLibrary {
    * construct the library and never call it.
    *
    * Throws when the configured driver is in-process, since those run
-   * conversions inline and have no separate worker to start.
+   * conversions inline and have no separate worker to start, and when it
+   * implements neither `work()` nor `attach()`.
+   *
+   * Every job the driver delivers is shape-checked before it reaches the
+   * conversion engine — a payload without a string `mediaId`, or with a
+   * `conversionNames` that is neither absent nor an array of strings, is
+   * rejected with a `MediaLibraryError`. Doing it here rather than in each
+   * driver means third-party drivers inherit the guard for free, and the
+   * rejection travels the driver's existing nack/dead-letter path.
    */
   async startWorker(opts?: WorkOptions): Promise<QueueWorker> {
-    const driver = this.resolved.queue
-    if (!('work' in driver)) {
+    const driver: ProbedQueueDriver = this.resolved.queue
+    if (typeof driver.work !== 'function') {
       throw new MediaLibraryError(
-        'configured queue driver is in-process: conversions already run in this process, so there is no worker to start',
+        typeof driver.attach === 'function'
+          ? 'configured queue driver is in-process: conversions already run in this process, so there is no worker to start'
+          : 'configured queue driver implements neither work() nor attach(): it can be enqueued to but never consumed from. Configure a broker-backed driver (work()) in this worker process, or an in-process one (attach()) to run conversions inline.',
       )
     }
-    return driver.work((job) => this.engine.perform(job.mediaId, job.conversionNames), opts)
+    return driver.work(async (job) => {
+      assertConversionJob(job)
+      return this.engine.perform(job.mediaId, job.conversionNames)
+    }, opts)
   }
 
   /** Releases the configured queue driver's resources. */

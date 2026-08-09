@@ -6,8 +6,14 @@ import { InMemoryMediaRepository } from '../src/repository/in-memory.js'
 
 const TMP_ROOT = './.tmp-queue-wiring'
 
-/** The only members `MediaLibrary` may touch on a broker driver's `enqueue`/`work`/`close` surface. */
-const ALLOWED_KEYS = new Set<string | symbol>(['attached', 'enqueue', 'work', 'close'])
+/**
+ * The only members `MediaLibrary` may touch on a broker driver's
+ * `enqueue`/`work`/`close` surface. `attach` is allowlisted as a *read*: the
+ * driver discriminator probes `typeof driver.attach === 'function'`, so reading
+ * the (absent) property is expected — calling it never is, and this fake has no
+ * `attach` to call.
+ */
+const ALLOWED_KEYS = new Set<string | symbol>(['attached', 'attach', 'enqueue', 'work', 'close'])
 
 /**
  * Wrapped in a `Proxy` whose `get` trap throws on anything outside
@@ -16,10 +22,9 @@ const ALLOWED_KEYS = new Set<string | symbol>(['attached', 'enqueue', 'work', 'c
  * an access to a property this fake deliberately doesn't allowlist; against a
  * plain object literal that call is silently a no-op (`?.()` on `undefined`),
  * so a plain fake can't tell the old, broken constructor apart from the
- * fixed one. The `in` operator (`'attach' in driver`, `'work' in driver`)
- * goes through the `has` trap, not `get` — confirmed empirically — so it's
- * intentionally left untrapped (default forwarding) and never trips this
- * guard. Symbol-keyed access is always allowed since it's Node/vitest
+ * fixed one. The discriminator's own `typeof driver.attach`/`typeof
+ * driver.work` reads DO go through this trap, which is why both names are
+ * allowlisted. Symbol-keyed access is always allowed since it's Node/vitest
  * housekeeping (e.g. `Symbol.toPrimitive`, `util.inspect.custom`, thenable
  * probes), not queue driver consumption.
  */
@@ -101,6 +106,96 @@ describe('queue wiring', () => {
     expect(() => makeLibrary(hybrid)).toThrow(/both attach\(\) and work\(\)/)
     // The guard runs before the attach, so the bad driver is never wired.
     expect(attached).toEqual([])
+  })
+
+  it('treats a driver whose attach is undefined as broker-backed, not hybrid', async () => {
+    // `attach: undefined` satisfies `'attach' in driver` — an optional
+    // property, an object spread, or a declared-but-unassigned class field all
+    // produce it. Under the old `in` discriminator this tripped the
+    // hybrid-driver guard at construction; with `typeof === 'function'` it is
+    // correctly just a broker driver.
+    const attached: ConversionProcessor[] = []
+    const driver = {
+      attach: undefined,
+      async enqueue() {},
+      async work(fn: ConversionProcessor): Promise<QueueWorker> {
+        attached.push(fn)
+        return { async close() {} }
+      },
+      async close() {},
+    } as unknown as BrokerQueueDriver
+    const library = makeLibrary(driver)
+    await library.startWorker()
+    expect(attached).toHaveLength(1)
+  })
+
+  it('does not call an attach that is present but not callable', () => {
+    // The other half of the same bug: `in` would have reached `attach(...)`
+    // and thrown a raw TypeError instead of leaving the driver alone.
+    const driver = {
+      attach: 'not a function',
+      async enqueue() {},
+      async close() {},
+    } as unknown as BrokerQueueDriver
+    expect(() => makeLibrary(driver)).not.toThrow()
+  })
+
+  it('startWorker() on a driver with neither attach() nor work() says so accurately', async () => {
+    const driver = { async enqueue() {}, async close() {} } as unknown as BrokerQueueDriver
+    const library = makeLibrary(driver)
+    // It is emphatically NOT in-process — telling an operator that would send
+    // them looking for inline conversions that never run.
+    await expect(library.startWorker()).rejects.toThrow(/neither work\(\) nor attach\(\)/)
+    await expect(library.startWorker()).rejects.not.toThrow(/is in-process/)
+  })
+
+  describe('broker job payload validation', () => {
+    /** The processor `startWorker()` handed the driver — i.e. what a broker message reaches. */
+    async function processorFor(): Promise<ConversionProcessor> {
+      const broker = fakeBroker()
+      const library = makeLibrary(broker)
+      await library.startWorker()
+      return broker.attached[0]!
+    }
+
+    it.each([
+      ['a non-object payload', 'not a job', /expected an object/],
+      ['a null payload', null, /expected an object/],
+      ['a missing mediaId', { conversionNames: ['thumb'] }, /"mediaId" must be a string/],
+      ['a numeric mediaId', { mediaId: 42 }, /"mediaId" must be a string/],
+      [
+        'a non-array conversionNames',
+        { mediaId: 'med_01', conversionNames: 'thumb' },
+        /"conversionNames" must be absent or an array of strings/,
+      ],
+      [
+        'a conversionNames holding a non-string',
+        { mediaId: 'med_01', conversionNames: ['thumb', 7] },
+        /"conversionNames" must be absent or an array of strings/,
+      ],
+    ])('rejects %s with a MediaLibraryError', async (_label, payload, message) => {
+      const processor = await processorFor()
+      // Drivers deserialize broker bytes and cast (`as ConversionJob`), so
+      // anything publishable to the queue can arrive here. A rejection is what
+      // routes the job to the driver's nack/dead-letter path.
+      await expect(processor(payload as never)).rejects.toThrow(MediaLibraryError)
+      await expect(processor(payload as never)).rejects.toThrow(message)
+    })
+
+    it('accepts a well-formed payload with conversionNames omitted', async () => {
+      const processor = await processorFor()
+      // Passes the guard and reaches the engine, which no-ops for an unknown
+      // id — the point is that the omitted `conversionNames` is not itself
+      // rejected, since a driver may legitimately deliver a job without it.
+      await expect(processor({ mediaId: 'missing' } as never)).resolves.toBeUndefined()
+    })
+
+    it('accepts a well-formed payload with conversionNames present', async () => {
+      const processor = await processorFor()
+      await expect(
+        processor({ mediaId: 'missing', conversionNames: ['thumb'] } as never),
+      ).resolves.toBeUndefined()
+    })
   })
 
   it('close() closes the configured driver', async () => {
