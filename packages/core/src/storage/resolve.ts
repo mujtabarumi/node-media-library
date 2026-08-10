@@ -57,6 +57,27 @@ export type DiskConfig =
       baseUrl?: string
     }
   | {
+      driver: 'r2'
+      /** Cloudflare account ID. Derives the S3 API endpoint. */
+      accountId: string
+      bucket: string
+      /** Static R2 credentials. Omit to use the AWS SDK's default provider chain. */
+      credentials?: S3Credentials
+      /**
+       * Overrides the endpoint derived from `accountId`. Needed for R2's EU
+       * jurisdiction, whose host differs from the default.
+       */
+      endpoint?: string
+      visibility?: 'public' | 'private'
+      /**
+       * Public URL base — an `https://pub-….r2.dev` subdomain or a custom
+       * domain. R2 has no object ACLs, so this is the *only* way to produce
+       * working public URLs; a `.public()` collection on an r2 disk without
+       * it throws when the MediaLibrary is constructed.
+       */
+      baseUrl?: string
+    }
+  | {
       driver: 'gcs'
       bucket: string
       visibility?: 'public' | 'private'
@@ -105,6 +126,33 @@ function synthesizeDefaultDisk(env: Record<string, string | undefined>): DiskCon
   }
 }
 
+/**
+ * Normalizes an `r2` disk config into the `s3` shape the driver branch
+ * consumes, so exactly one code path constructs an S3Driver.
+ *
+ * `supportsACL` is *forced* rather than defaulted: R2 does not implement
+ * object ACLs, so there is no valid R2 configuration with them enabled, and
+ * accepting the option would only let a caller build a broken disk.
+ *
+ * `requestChecksumCalculation` is deliberately left unset — the AWS SDK's
+ * own default applies until the live R2 suite proves it needs overriding.
+ * @internal
+ */
+export function normalizeR2(
+  cfg: Extract<DiskConfig, { driver: 'r2' }>,
+): Extract<DiskConfig, { driver: 's3' }> {
+  return {
+    driver: 's3',
+    bucket: cfg.bucket,
+    region: 'auto',
+    endpoint: cfg.endpoint ?? `https://${cfg.accountId}.r2.cloudflarestorage.com`,
+    supportsACL: false,
+    visibility: cfg.visibility ?? 'private',
+    ...(cfg.credentials ? { credentials: cfg.credentials } : {}),
+    ...(cfg.baseUrl ? { baseUrl: cfg.baseUrl } : {}),
+  }
+}
+
 /** @internal */
 export function resolveStorage(
   config?: StorageConfig,
@@ -136,7 +184,11 @@ export function resolveStorage(
     const cached = cache.get(diskName)
     if (cached) return cached
 
-    const cfg = diskConfig(diskName)
+    // Normalize before the branches below: `disk()` used to treat "not fs and
+    // not s3" as gcs, so an unnormalized r2 config would have constructed a
+    // GCSDriver with no type error at all.
+    const raw = diskConfig(diskName)
+    const cfg = raw.driver === 'r2' ? normalizeR2(raw) : raw
     const { Disk: DiskCtor } = await import('flydrive')
 
     if (cfg.driver === 'fs') {
@@ -171,27 +223,33 @@ export function resolveStorage(
       return instance
     }
 
-    const { GCSDriver } = await import('flydrive/drivers/gcs')
-    const {
-      bucket,
-      visibility = 'private',
-      usingUniformAcl,
-      projectId,
-      keyFilename,
-      credentials,
-    } = cfg
-    const instance = new DiskCtor(
-      new GCSDriver({
+    if (cfg.driver === 'gcs') {
+      const { GCSDriver } = await import('flydrive/drivers/gcs')
+      const {
         bucket,
-        visibility,
-        ...(usingUniformAcl !== undefined ? { usingUniformAcl } : {}),
-        ...(projectId ? { projectId } : {}),
-        ...(keyFilename ? { keyFilename } : {}),
-        ...(credentials ? { credentials } : {}),
-      }),
+        visibility = 'private',
+        usingUniformAcl,
+        projectId,
+        keyFilename,
+        credentials,
+      } = cfg
+      const instance = new DiskCtor(
+        new GCSDriver({
+          bucket,
+          visibility,
+          ...(usingUniformAcl !== undefined ? { usingUniformAcl } : {}),
+          ...(projectId ? { projectId } : {}),
+          ...(keyFilename ? { keyFilename } : {}),
+          ...(credentials ? { credentials } : {}),
+        }),
+      )
+      cache.set(diskName, instance)
+      return instance
+    }
+
+    throw new StorageError(
+      `Unsupported disk driver "${(cfg as { driver: string }).driver}" on disk "${diskName}"`,
     )
-    cache.set(diskName, instance)
-    return instance
   }
 
   return { defaultDisk, prefix, disk, diskConfig }

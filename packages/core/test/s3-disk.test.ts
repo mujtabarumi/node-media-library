@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { resolveStorage } from '../src/storage/resolve.js'
+import { normalizeR2, resolveStorage } from '../src/storage/resolve.js'
 
 /**
  * A structurally-typed view onto flydrive's `S3Driver.options` — the public field where the
@@ -79,5 +79,76 @@ describe('s3 disk driver', () => {
       default: 'media',
     })
     expect(await storage.disk('media')).toBe(await storage.disk('media'))
+  })
+})
+
+describe('r2 disk driver', () => {
+  it('derives the R2 endpoint from accountId', async () => {
+    const storage = resolveStorage({
+      disks: { media: { driver: 'r2', accountId: 'acct123', bucket: 'my-media' } },
+      default: 'media',
+    })
+    const disk = await storage.disk('media')
+    expect(await disk.getUrl('k.png')).toBe(
+      'https://acct123.r2.cloudflarestorage.com/my-media/k.png',
+    )
+  })
+
+  it('an explicit endpoint overrides the derived one (EU jurisdiction)', async () => {
+    const storage = resolveStorage({
+      disks: {
+        media: {
+          driver: 'r2',
+          accountId: 'acct123',
+          bucket: 'my-media',
+          endpoint: 'https://acct123.eu.r2.cloudflarestorage.com',
+        },
+      },
+      default: 'media',
+    })
+    const disk = await storage.disk('media')
+    expect(await disk.getUrl('k.png')).toBe(
+      'https://acct123.eu.r2.cloudflarestorage.com/my-media/k.png',
+    )
+  })
+
+  it('diskConfig() returns the un-normalized r2 config', () => {
+    const storage = resolveStorage({
+      disks: { media: { driver: 'r2', accountId: 'a', bucket: 'b', baseUrl: 'https://cdn.x' } },
+      default: 'media',
+    })
+    // The URL generator and the visibility check both branch on `driver: 'r2'`,
+    // so normalization must not leak into what diskConfig() reports.
+    expect(storage.diskConfig('media')).toMatchObject({ driver: 'r2', accountId: 'a' })
+  })
+
+  it('normalizeR2 forces supportsACL off and region auto', () => {
+    expect(
+      normalizeR2({
+        driver: 'r2',
+        accountId: 'a',
+        bucket: 'b',
+        credentials: { accessKeyId: 'ak', secretAccessKey: 'sk' },
+        baseUrl: 'https://cdn.x',
+      }),
+    ).toEqual({
+      driver: 's3',
+      bucket: 'b',
+      region: 'auto',
+      endpoint: 'https://a.r2.cloudflarestorage.com',
+      supportsACL: false,
+      visibility: 'private',
+      credentials: { accessKeyId: 'ak', secretAccessKey: 'sk' },
+      baseUrl: 'https://cdn.x',
+    })
+  })
+
+  it('an unknown driver throws instead of silently building a GCS disk', async () => {
+    const storage = resolveStorage({
+      // Cast: the point of this test is the runtime guard behind the type.
+      disks: { media: { driver: 'nope' } as never },
+      default: 'media',
+    })
+    await expect(storage.disk('media')).rejects.toThrow(/unsupported disk driver/i)
   })
 })
