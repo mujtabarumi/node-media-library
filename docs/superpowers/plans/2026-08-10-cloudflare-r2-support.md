@@ -1189,7 +1189,7 @@ export function runStorageCycleContract(
       expect(await disk.exists(key)).toBe(false)
     })
 
-    it.runIf(opts.publicBaseUrl)('public URLs come from baseUrl', async () => {
+    it.runIf(Boolean(opts.publicBaseUrl))('public URLs come from baseUrl', async () => {
       const media = await library.for('post', '5').add(await png()).toCollection('files')
       const url = await library.urlGenerator.url(media)
       expect(url.startsWith(opts.publicBaseUrl!.replace(/\/+$/, ''))).toBe(true)
@@ -1219,17 +1219,18 @@ import { describe, it, expect } from 'vitest'
 import { runStorageCycleContract } from '../src/testing/storage-contract.js'
 
 const endpoint = process.env.S3_ENDPOINT
+if (!endpoint) console.warn('[storage tests] S3_ENDPOINT not set — MinIO cycle contract skipped')
 
 // MinIO needs path-style addressing and accepts ACLs, so this run proves the
 // generic s3 wire protocol — NOT R2's ACL suppression or checksum handling.
 // Only storage-r2.test.ts can prove those.
-if (endpoint) {
+describe.skipIf(!endpoint)('minio (requires S3_ENDPOINT)', () => {
   runStorageCycleContract('minio', {
     disk: {
       driver: 's3',
       bucket: process.env.S3_BUCKET ?? 'media-test',
       region: 'us-east-1',
-      endpoint,
+      endpoint: endpoint!,
       forcePathStyle: true,
       credentials: {
         accessKeyId: process.env.S3_ACCESS_KEY_ID ?? 'minioadmin',
@@ -1237,13 +1238,19 @@ if (endpoint) {
       },
     },
   })
-}
-
-describe.runIf(!endpoint)('minio suite (skipped)', () => {
-  it('documents why it did not run', () => {
-    expect(process.env.S3_ENDPOINT).toBeUndefined()
-  })
 })
+```
+
+Gating style matches `packages/bullmq/test/driver.test.ts` — `describe.skipIf` plus a
+`console.warn` naming the missing variable. Deliberately **no** placeholder "skipped"
+companion test: CLAUDE.md's ungated-companion rule is satisfied by the real offline
+coverage in `s3-disk.test.ts` (Tasks 1-2) and `r2-visibility.test.ts` (Task 4). A test
+whose only assertion is that an env var is unset asserts nothing.
+
+Adjust the import to what the file actually uses:
+
+```ts
+import { describe } from 'vitest'
 ```
 
 - [ ] **Step 5: Write the R2 suite**
@@ -1259,11 +1266,12 @@ const bucket = process.env.R2_BUCKET
 const accessKeyId = process.env.R2_ACCESS_KEY_ID
 const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY
 const configured = Boolean(accountId && bucket && accessKeyId && secretAccessKey)
+if (!configured) console.warn('[storage tests] R2_* not set — R2 cycle contract skipped')
 
 // The authority on R2-specific behavior: ACL suppression (every write would
 // otherwise carry x-amz-acl, which R2 rejects), checksum compatibility, and
 // r2.dev/custom-domain serving. Dormant until repository secrets are added.
-if (configured) {
+describe.skipIf(!configured)('cloudflare-r2 (requires R2_*)', () => {
   runStorageCycleContract('cloudflare-r2', {
     disk: {
       driver: 'r2',
@@ -1274,13 +1282,15 @@ if (configured) {
     },
     ...(process.env.R2_BASE_URL ? { publicBaseUrl: process.env.R2_BASE_URL } : {}),
   })
-}
-
-describe.runIf(!configured)('cloudflare r2 suite (skipped)', () => {
-  it('documents why it did not run', () => {
-    expect(configured).toBe(false)
-  })
 })
+```
+
+Same convention as the MinIO suite above, and likewise no placeholder companion.
+
+Adjust the import to what the file actually uses:
+
+```ts
+import { describe } from 'vitest'
 ```
 
 - [ ] **Step 6: Run both locally to confirm they skip cleanly**
@@ -1295,7 +1305,7 @@ Then:
 pnpm --filter @node-media-library/core test storage-r2
 ```
 
-Expected: PASS, with the contract bodies absent and the "skipped" companions green.
+Expected: PASS, with the contract suites reported as skipped and the `console.warn` naming the missing env var. Vitest exits 0 on a file whose only suite is skipped.
 
 - [ ] **Step 7: Add MinIO to CI**
 
