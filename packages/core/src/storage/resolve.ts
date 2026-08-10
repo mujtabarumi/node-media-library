@@ -107,6 +107,29 @@ const PRODUCTION_FS_WARNING =
   '[media-library] Media is stored on the local filesystem in production. Configure S3-compatible storage for durability.'
 
 function synthesizeDefaultDisk(env: Record<string, string | undefined>): DiskConfig {
+  if (env.MEDIA_R2_ACCOUNT_ID) {
+    if (!env.MEDIA_R2_BUCKET) {
+      throw new StorageError(
+        'MEDIA_R2_ACCOUNT_ID is set without MEDIA_R2_BUCKET. Set both, or unset both — falling ' +
+          'through to another driver here would silently store media somewhere you did not mean.',
+      )
+    }
+    return {
+      driver: 'r2',
+      accountId: env.MEDIA_R2_ACCOUNT_ID,
+      bucket: env.MEDIA_R2_BUCKET,
+      visibility: 'private',
+      ...(env.MEDIA_R2_BASE_URL ? { baseUrl: env.MEDIA_R2_BASE_URL } : {}),
+      ...(env.MEDIA_R2_ACCESS_KEY_ID && env.MEDIA_R2_SECRET_ACCESS_KEY
+        ? {
+            credentials: {
+              accessKeyId: env.MEDIA_R2_ACCESS_KEY_ID,
+              secretAccessKey: env.MEDIA_R2_SECRET_ACCESS_KEY,
+            },
+          }
+        : {}),
+    }
+  }
   if (env.MEDIA_S3_BUCKET) {
     return {
       driver: 's3',
