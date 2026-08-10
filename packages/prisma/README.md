@@ -14,34 +14,43 @@ Paste into `schema.prisma`, then run your own migrate flow (`prisma migrate dev`
 ```prisma
 model Media {
   id                   String   @id
-  modelType            String
-  modelId              String
+  modelType            String   @map("model_type")
+  modelId              String   @map("model_id")
   uuid                 String   @unique
-  collectionName       String
+  collectionName       String   @map("collection_name")
   name                 String
-  fileName             String
-  mimeType             String?
+  fileName             String   @map("file_name")
+  mimeType             String?  @map("mime_type")
   disk                 String
-  conversionsDisk      String?
-  // size Int supports files up to ~2GB; switch to BigInt (and adjust MediaRow) for larger files
+  conversionsDisk      String?  @map("conversions_disk")
+  // size Int caps individual files at ~2GB. Raising it is a library change, not a
+  // schema-only one: MediaRow and core's MediaRecord both type size as number.
   size                 Int
   manipulations        Json
-  customProperties     Json
-  generatedConversions Json
-  responsiveImages     Json
-  orderColumn          Int?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-  @@index([modelType, modelId])
+  customProperties     Json     @map("custom_properties")
+  generatedConversions Json     @map("generated_conversions")
+  responsiveImages     Json     @map("responsive_images")
+  orderColumn          Int?     @map("order_column")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  @@index([modelType, modelId, collectionName])
   @@map("media")
 }
 ```
 
 Also exported verbatim as `MEDIA_MODEL_SNIPPET`. Prisma 7 note: it generates the client into your own output dir — pass that instance into `prismaAdapter`, don't assume a package default.
 
-`size Int` supports files up to ~2GB; switch to `BigInt` (and adjust `MediaRow`) for larger files.
+`size Int` caps individual files at ~2GB. Raising it is a library change, not a schema-only one:
+`MediaRow` and core's `MediaRecord` both type `size` as `number`, so changing the column alone would
+hand `bigint` to code expecting `number`.
 
 Ordering for a model's media uses `orderBy: [{ orderColumn: { sort: 'asc', nulls: 'last' } }, { createdAt: 'asc' }]`. The `nulls: 'last'` behavior is verified against SQLite in this repo's test suite; run the exported contract suite against your own Postgres/MySQL before relying on it there.
+
+`iterateAll({ collectionName })` filters on `collectionName` without `modelType`, which the
+`[modelType, modelId, collectionName]` index cannot serve — each batch is a sequential scan. That is
+fine at the scale `clean` runs today; add a `[collectionName]` index if you run it against a large
+table.
 
 ## Usage
 

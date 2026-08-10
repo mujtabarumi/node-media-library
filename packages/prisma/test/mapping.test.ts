@@ -5,10 +5,18 @@ import { dirname, join } from 'node:path'
 import { toMediaRecord, toCreateData } from '../src/mapping.js'
 import { MEDIA_MODEL_SNIPPET } from '../src/schema.js'
 
-function fieldNames(modelBlock: string): string[] {
-  return [...modelBlock.matchAll(/^\s{2}(\w+)\s+/gm)]
-    .map((m) => m[1]!)
-    .filter((f) => !f.startsWith('@'))
+function normalizeModel(block: string): string {
+  return block
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0)
+    .join('\n')
+}
+
+function extractMediaModel(source: string): string {
+  const match = source.match(/model Media \{[\s\S]*?\n\}/)
+  if (!match) throw new Error('no `model Media { ... }` block found')
+  return normalizeModel(match[0])
 }
 
 describe('mapping', () => {
@@ -52,13 +60,14 @@ describe('mapping', () => {
     expect('createdAt' in data).toBe(false)
     expect('updatedAt' in data).toBe(false)
   })
-  it('MEDIA_MODEL_SNIPPET field set matches the sqlite fixture schema', () => {
-    const fixture = readFileSync(
-      join(dirname(fileURLToPath(import.meta.url)), 'prisma/schema.prisma'),
-      'utf8',
-    )
-    const fixtureMedia = fixture.match(/model Media \{[\s\S]*?\n\}/)![0]
-    expect(new Set(fieldNames(MEDIA_MODEL_SNIPPET))).toEqual(new Set(fieldNames(fixtureMedia)))
+  it('MEDIA_MODEL_SNIPPET, the sqlite fixture, and the README agree exactly', () => {
+    const here = dirname(fileURLToPath(import.meta.url))
+    const fixture = readFileSync(join(here, 'prisma/schema.prisma'), 'utf8')
+    const readme = readFileSync(join(here, '../README.md'), 'utf8')
+
+    const snippet = normalizeModel(MEDIA_MODEL_SNIPPET)
+    expect(extractMediaModel(fixture)).toBe(snippet)
+    expect(extractMediaModel(readme)).toBe(snippet)
   })
 })
 
