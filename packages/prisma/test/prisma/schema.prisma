@@ -9,25 +9,27 @@ datasource db {
 
 model Media {
   id                   String   @id
-  modelType            String
-  modelId              String
+  modelType            String   @map("model_type")
+  modelId              String   @map("model_id")
   uuid                 String   @unique
-  collectionName       String
+  collectionName       String   @map("collection_name")
   name                 String
-  fileName             String
-  mimeType             String?
+  fileName             String   @map("file_name")
+  mimeType             String?  @map("mime_type")
   disk                 String
-  conversionsDisk      String?
+  conversionsDisk      String?  @map("conversions_disk")
+  // size Int caps individual files at ~2GB. Raising it is a library change, not a
+  // schema-only one: MediaRow and core's MediaRecord both type size as number.
   size                 Int
   manipulations        Json
-  customProperties     Json
-  generatedConversions Json
-  responsiveImages     Json
-  orderColumn          Int?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  customProperties     Json     @map("custom_properties")
+  generatedConversions Json     @map("generated_conversions")
+  responsiveImages     Json     @map("responsive_images")
+  orderColumn          Int?     @map("order_column")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
 
-  @@index([modelType, modelId])
+  @@index([modelType, modelId, collectionName])
   @@map("media")
 }
 

@@ -52,12 +52,12 @@ thumbnail.
 
 ## Peer dependencies
 
-| Package    | Peer                    | Required?                                       |
-| ---------- | ----------------------- | ----------------------------------------------- |
-| `core`     | `@google-cloud/storage` | Optional — only for the `gcs` storage driver.   |
-| `prisma`   | `@prisma/client`        | Optional — bring your own version (`>=6.2 <8`). |
-| `bullmq`   | `bullmq`                | Required (`^5 \|\| ^6`).                        |
-| `rabbitmq` | `amqplib`               | Required (`^0.10`).                             |
+| Package    | Peer                    | Required?                                     |
+| ---------- | ----------------------- | --------------------------------------------- |
+| `core`     | `@google-cloud/storage` | Optional — only for the `gcs` storage driver. |
+| `prisma`   | `@prisma/client`        | Optional — bring your own version (`>=7 <8`). |
+| `bullmq`   | `bullmq`                | Required (`^5 \|\| ^6`).                      |
+| `rabbitmq` | `amqplib`               | Required (`^0.10`).                           |
 
 ## Nothing auto-registers
 

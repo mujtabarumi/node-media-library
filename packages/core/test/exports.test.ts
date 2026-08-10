@@ -52,9 +52,30 @@ describe('public exports', () => {
     expect(DefaultUrlGenerator).toBeDefined()
   })
 
-  it('exports resolveStorage', async () => {
-    const { resolveStorage } = await import('../src/index.js')
-    expect(resolveStorage).toBeDefined()
+  // The barrel deliberately does not re-export the storage resolver. It is a thin
+  // flydrive wrapper, and flydrive is pinned to ^1 (2.x needs Node >=24); making it
+  // public would freeze that pin into this package's own semver surface. Consumers
+  // wanting storage without media should depend on flydrive directly.
+  it('does not export resolveStorage, normalizeR2, or writeOptionsFor', async () => {
+    const mod = await import('../src/index.js')
+    expect('resolveStorage' in mod).toBe(false)
+    expect('normalizeR2' in mod).toBe(false)
+    expect('writeOptionsFor' in mod).toBe(false)
+  })
+
+  it('exports the storage config types', async () => {
+    // Type-only exports are invisible at runtime; `tsc --noEmit` is what proves
+    // these four still resolve through the barrel.
+    const disk: import('../src/index.js').DiskConfig = { driver: 'fs', root: '/tmp' }
+    const config: import('../src/index.js').StorageConfig = { disks: { default: disk } }
+    const creds: import('../src/index.js').S3Credentials = {
+      accessKeyId: 'a',
+      secretAccessKey: 'b',
+    }
+    const storage: import('../src/index.js').ResolvedStorage | undefined = undefined
+    expect(config).toBeDefined()
+    expect(creds).toBeDefined()
+    expect(storage).toBeUndefined()
   })
 
   it('exports normalizeSource', async () => {

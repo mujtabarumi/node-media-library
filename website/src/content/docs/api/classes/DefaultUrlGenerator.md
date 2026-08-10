@@ -22,7 +22,7 @@ Defined in: [packages/core/src/storage/url-generator.ts:50](https://github.com/m
 
 ##### storage
 
-`ResolvedStorage`
+[`ResolvedStorage`](/api/interfaces/ResolvedStorage/)
 
 ##### pathGen
 

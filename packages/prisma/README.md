@@ -5,7 +5,9 @@ Prisma adapter for `@node-media-library/core`. Pre-release: not yet published to
 ## Install
 
 Once published: `npm install @node-media-library/prisma @prisma/client`
-`@prisma/client` (`>=6.2 <8`) is an optional peer dependency — bring your own version.
+`@prisma/client` (`>=7 <8`) is an optional peer dependency — bring your own version. The range is
+what CI exercises; the adapter itself is structurally typed and never imports `@prisma/client`, so
+support for older majors can be widened later once a CI leg proves it.
 
 ## Add the model
 
@@ -14,34 +16,45 @@ Paste into `schema.prisma`, then run your own migrate flow (`prisma migrate dev`
 ```prisma
 model Media {
   id                   String   @id
-  modelType            String
-  modelId              String
+  modelType            String   @map("model_type")
+  modelId              String   @map("model_id")
   uuid                 String   @unique
-  collectionName       String
+  collectionName       String   @map("collection_name")
   name                 String
-  fileName             String
-  mimeType             String?
+  fileName             String   @map("file_name")
+  mimeType             String?  @map("mime_type")
   disk                 String
-  conversionsDisk      String?
-  // size Int supports files up to ~2GB; switch to BigInt (and adjust MediaRow) for larger files
+  conversionsDisk      String?  @map("conversions_disk")
+  // size Int caps individual files at ~2GB. Raising it is a library change, not a
+  // schema-only one: MediaRow and core's MediaRecord both type size as number.
   size                 Int
   manipulations        Json
-  customProperties     Json
-  generatedConversions Json
-  responsiveImages     Json
-  orderColumn          Int?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-  @@index([modelType, modelId])
+  customProperties     Json     @map("custom_properties")
+  generatedConversions Json     @map("generated_conversions")
+  responsiveImages     Json     @map("responsive_images")
+  orderColumn          Int?     @map("order_column")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  @@index([modelType, modelId, collectionName])
   @@map("media")
 }
 ```
 
 Also exported verbatim as `MEDIA_MODEL_SNIPPET`. Prisma 7 note: it generates the client into your own output dir — pass that instance into `prismaAdapter`, don't assume a package default.
 
-`size Int` supports files up to ~2GB; switch to `BigInt` (and adjust `MediaRow`) for larger files.
+`size Int` caps individual files at ~2GB. Raising it is a library change, not a schema-only one:
+`MediaRow` and core's `MediaRecord` both type `size` as `number`, so changing the column alone would
+hand `bigint` to code expecting `number`.
 
 Ordering for a model's media uses `orderBy: [{ orderColumn: { sort: 'asc', nulls: 'last' } }, { createdAt: 'asc' }]`. The `nulls: 'last'` behavior is verified against SQLite in this repo's test suite; run the exported contract suite against your own Postgres/MySQL before relying on it there.
+
+`iterateAll({ collectionName })` filters on `collectionName` without `modelType`, which the
+`[modelType, modelId, collectionName]` index cannot serve. `iterateAll` keyset-paginates by primary
+key (`orderBy: { id: 'asc' }`), so the planner typically walks id order and filters out non-matching
+rows rather than seeking through an index — each batch costs work proportional to table size, not to
+matches. That is fine at the scale `clean` runs today; add a `[collectionName]` index if you run it
+against a large table.
 
 ## Usage
 
