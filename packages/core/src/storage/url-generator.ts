@@ -91,14 +91,19 @@ export class DefaultUrlGenerator implements UrlGenerator {
   }
 
   /**
-   * Public URL for `path` on `diskName`: fs-baseUrl short-circuit, otherwise
-   * `disk.getUrl()`, plus the `?v=` versioning suffix when enabled. Shared by
-   * `url()` and `responsiveUrl()` so the two never drift.
+   * Public URL for `path` on `diskName`: baseUrl short-circuit (any driver),
+   * otherwise `disk.getUrl()`, plus the `?v=` versioning suffix when enabled.
+   * Shared by `url()` and `responsiveUrl()` so the two never drift.
    */
   private async publicUrlFor(path: string, diskName: string, media: MediaRecord): Promise<string> {
     const config = this.storage.diskConfig(diskName)
 
-    if (config.driver === 'fs' && config.baseUrl) {
+    // Every driver honors `baseUrl`, not just fs. On r2 it is the only way to
+    // build a working public URL at all (no object ACLs — public access comes
+    // from an r2.dev subdomain or a custom domain), and on s3/gcs it is what
+    // points at a CDN in front of the bucket. Signed URLs deliberately do NOT
+    // route through here: they must presign against the real endpoint.
+    if (config.baseUrl) {
       const baseUrl = config.baseUrl.replace(/\/+$/, '')
       return `${baseUrl}/${path}${this.version(media)}`
     }
