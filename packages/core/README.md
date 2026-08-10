@@ -398,11 +398,13 @@ above (R2 → S3 → GCS → fs).
   on every driver that can sign (`s3`/`r2`/`gcs`) they always presign against the real endpoint and
   ignore `baseUrl`, because a presigned URL is only valid against the host it was signed for. The `fs`
   driver cannot sign, so `signedUrl()` there falls back to the public URL — which _does_ use `baseUrl`.
-- **`r2` requires `baseUrl` for any public URL.** Without it, `url()`/`firstUrl()`/`responsiveUrl()`/
-  `srcset()` throw `StorageError` rather than returning
+- **`r2` requires `baseUrl` for any public URL.** Without it, `DefaultUrlGenerator` makes
+  `url()`/`firstUrl()`/`responsiveUrl()`/`srcset()` throw `StorageError` rather than returning
   `https://{accountId}.r2.cloudflarestorage.com/{bucket}/{key}` — that is the authenticated S3 API host
   and it rejects anonymous reads, so returning it would hand a silently dead link to your template. Set
-  `baseUrl`, or serve the file with `signedUrl()`.
+  `baseUrl`, or serve the file with `signedUrl()`. A custom `urlGenerator` builds URLs its own way and
+  is not subject to this — which is also why supplying one downgrades the construction-time check on
+  public R2 collections to a warning.
 
 ## Security model
 

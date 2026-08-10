@@ -766,9 +766,10 @@ clearer.
   front of the bucket and public URLs use it. Signed URLs are the exception: on every driver that can
   sign (`s3`/`r2`/`gcs`) they always presign against the real endpoint and ignore `baseUrl`. The `fs`
   driver cannot sign, so `signedUrl()` there falls back to the public URL, which does use `baseUrl`.
-- **An `r2` disk with no `baseUrl` has no public URL.** `url()` and friends throw `StorageError`
-  instead of returning the authenticated `*.r2.cloudflarestorage.com` API host, which 401s for
-  anonymous readers. Set `baseUrl`, or serve the file with `signedUrl()`.
+- **An `r2` disk with no `baseUrl` has no public URL.** With the default URL generator, `url()` and
+  friends throw `StorageError` instead of returning the authenticated `*.r2.cloudflarestorage.com` API
+  host, which 401s for anonymous readers. Set `baseUrl`, or serve the file with `signedUrl()`. A
+  custom `urlGenerator` builds its own URLs and is not subject to this.
 - The `s3`/`r2` drivers need the optional peers `@aws-sdk/client-s3` and `@aws-sdk/s3-request-presigner`;
   the `gcs` driver needs `@google-cloud/storage ^7.10.2`. Install whichever driver(s) you use.
 - **Visibility is bucket-level on R2, not per-object.** `.public()` writes public ACLs on `s3`/`gcs`, but
