@@ -6,7 +6,7 @@ editUrl: false
 
 > **createMediaLibrary**(`config`): [`MediaLibrary`](/api/classes/MediaLibrary/)
 
-Defined in: [packages/core/src/library.ts:36](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/library.ts#L36)
+Defined in: [packages/core/src/library.ts:37](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/library.ts#L37)
 
 ## Parameters
 

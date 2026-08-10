@@ -42,7 +42,7 @@ Defined in: [packages/core/src/storage/url-generator.ts:50](https://github.com/m
 
 > **responsiveSignedUrl**(`media`, `fileName`, `opts?`): `Promise`\<`string`\>
 
-Defined in: [packages/core/src/storage/url-generator.ts:164](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/storage/url-generator.ts#L164)
+Defined in: [packages/core/src/storage/url-generator.ts:169](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/storage/url-generator.ts#L169)
 
 Signed URL for a responsive variant file — the private-disk counterpart
 to `responsiveUrl`. Optional for the same reason: custom `UrlGenerator`
@@ -78,7 +78,7 @@ degrade gracefully to `[]`/`null` when it's absent.
 
 > **responsiveUrl**(`media`, `fileName`): `Promise`\<`string`\>
 
-Defined in: [packages/core/src/storage/url-generator.ts:117](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/storage/url-generator.ts#L117)
+Defined in: [packages/core/src/storage/url-generator.ts:122](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/storage/url-generator.ts#L122)
 
 Public URL for a responsive variant file (as stored in
 `ResponsiveImagesEntry.files[].fileName`). Optional so custom
@@ -110,7 +110,7 @@ gracefully to `[]`/`null` when it's absent.
 
 > **signedUrl**(`media`, `conversionName?`, `opts?`): `Promise`\<`string`\>
 
-Defined in: [packages/core/src/storage/url-generator.ts:155](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/storage/url-generator.ts#L155)
+Defined in: [packages/core/src/storage/url-generator.ts:160](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/storage/url-generator.ts#L160)
 
 #### Parameters
 

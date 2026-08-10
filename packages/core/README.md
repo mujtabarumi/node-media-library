@@ -77,24 +77,24 @@ await library.for('User', userId).clear('gallery')
 Only `repository` and `models` are required. Everything else below has a default that works, so a
 minimal config is genuinely two keys.
 
-| Key                         | Type                  | Default                            | Notes                                                                           |
-| --------------------------- | --------------------- | ---------------------------------- | ------------------------------------------------------------------------------- |
-| `repository`                | `MediaRepository`     | **required**                       | `InMemoryMediaRepository` for tests; `@node-media-library/prisma` for real use. |
-| `models`                    | `Record<string, {…}>` | **required**                       | `for()` throws `UnknownModelError` for a type absent from this map.             |
-| `storage`                   | `StorageConfig`       | synthesized from env               | See [Storage disks](#storage-disks).                                            |
-| `queue`                     | `AnyQueueDriver`      | `syncDriver()`                     | See [Queue drivers](#queue-drivers).                                            |
-| `maxFileSize`               | `number`              | `10 * 1024 * 1024`                 | Enforced during accumulation, not after the bytes land.                         |
-| `disallowedExtensions`      | `string[]`            | `DEFAULT_DISALLOWED_EXTENSIONS`    | Checked per dot-segment.                                                        |
-| `allowedExtensions`         | `string[]`            | none                               | When set, acts as an allowlist instead.                                         |
-| `versionUrls`               | `boolean`             | `false`                            | Cache-busting version query on generated URLs.                                  |
-| `signedUrlExpiresIn`        | `string \| number`    | `'30 mins'`                        | Default `signedUrl()` expiry; the `fs` driver ignores it (it cannot sign).      |
-| `fileNameSanitizer`         | `FileNameSanitizer`   | built-in                           | A security control — see [Security model](#security-model) before replacing it. |
-| `pathGenerator`             | `PathGenerator`       | `DefaultPathGenerator`             | `{prefix}/{mediaId}/{fileName}`.                                                |
-| `urlGenerator`              | `UrlGenerator`        | `DefaultUrlGenerator`              | Required for a custom CDN hostname on s3/gcs.                                   |
-| `imageGenerators`           | `ImageGenerator[]`    | `[sharpImageGenerator()]`          | Nothing auto-registers — add pdf/video generators explicitly.                   |
-| `optimizers`                | `ImageOptimizer[]`    | `[]`                               | See [Image optimizers](#image-optimizers).                                      |
-| `responsiveWidthCalculator` | `WidthCalculator`     | `FileSizeOptimizedWidthCalculator` | See [Responsive images](#responsive-images).                                    |
-| `responsivePlaceholders`    | `boolean`             | `true`                             | LQIP generation alongside responsive variants.                                  |
+| Key                         | Type                  | Default                            | Notes                                                                                          |
+| --------------------------- | --------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `repository`                | `MediaRepository`     | **required**                       | `InMemoryMediaRepository` for tests; `@node-media-library/prisma` for real use.                |
+| `models`                    | `Record<string, {…}>` | **required**                       | `for()` throws `UnknownModelError` for a type absent from this map.                            |
+| `storage`                   | `StorageConfig`       | synthesized from env               | See [Storage disks](#storage-disks).                                                           |
+| `queue`                     | `AnyQueueDriver`      | `syncDriver()`                     | See [Queue drivers](#queue-drivers).                                                           |
+| `maxFileSize`               | `number`              | `10 * 1024 * 1024`                 | Enforced during accumulation, not after the bytes land.                                        |
+| `disallowedExtensions`      | `string[]`            | `DEFAULT_DISALLOWED_EXTENSIONS`    | Checked per dot-segment.                                                                       |
+| `allowedExtensions`         | `string[]`            | none                               | When set, acts as an allowlist instead.                                                        |
+| `versionUrls`               | `boolean`             | `false`                            | Cache-busting version query on generated URLs.                                                 |
+| `signedUrlExpiresIn`        | `string \| number`    | `'30 mins'`                        | Default `signedUrl()` expiry; the `fs` driver ignores it (it cannot sign).                     |
+| `fileNameSanitizer`         | `FileNameSanitizer`   | built-in                           | A security control — see [Security model](#security-model) before replacing it.                |
+| `pathGenerator`             | `PathGenerator`       | `DefaultPathGenerator`             | `{prefix}/{mediaId}/{fileName}`.                                                               |
+| `urlGenerator`              | `UrlGenerator`        | `DefaultUrlGenerator`              | Only needed to replace URL generation entirely — a custom CDN hostname is `baseUrl`, not this. |
+| `imageGenerators`           | `ImageGenerator[]`    | `[sharpImageGenerator()]`          | Nothing auto-registers — add pdf/video generators explicitly.                                  |
+| `optimizers`                | `ImageOptimizer[]`    | `[]`                               | See [Image optimizers](#image-optimizers).                                                     |
+| `responsiveWidthCalculator` | `WidthCalculator`     | `FileSizeOptimizedWidthCalculator` | See [Responsive images](#responsive-images).                                                   |
+| `responsivePlaceholders`    | `boolean`             | `true`                             | LQIP generation alongside responsive variants.                                                 |
 
 ## Custom properties, copy, and move
 
@@ -324,9 +324,11 @@ contract-test suites.
 
 ## Storage disks
 
-`storage.disks` accepts `fs`, `s3`, and `gcs` driver configs. Without explicit config, the default disk is
-synthesized from env vars at startup: `MEDIA_S3_BUCKET` set → S3; else `MEDIA_GCS_BUCKET` set → GCS (S3 takes
-precedence when both are present); else local fs (`MEDIA_FS_ROOT`, default `./storage/media`).
+`storage.disks` accepts `fs`, `s3`, `r2`, and `gcs` driver configs. Without explicit config, the default disk
+is synthesized from env vars at startup, in this precedence: `MEDIA_R2_ACCOUNT_ID` set → R2; else
+`MEDIA_S3_BUCKET` set → S3; else `MEDIA_GCS_BUCKET` set → GCS; else local fs (`MEDIA_FS_ROOT`, default
+`./storage/media`). `MEDIA_R2_ACCOUNT_ID` without `MEDIA_R2_BUCKET` throws rather than silently falling
+through to another driver.
 
 ```typescript
 createMediaLibrary({
@@ -347,6 +349,42 @@ createMediaLibrary({
 Requires the optional peer `@google-cloud/storage ^7.10.2` — install it alongside `@node-media-library/core` to
 use the `gcs` driver.
 
+Cloudflare R2:
+
+```ts
+storage: {
+  default: 'r2',
+  disks: {
+    r2: {
+      driver: 'r2',
+      accountId: process.env.R2_ACCOUNT_ID!,
+      bucket: 'my-media',
+      credentials: {
+        accessKeyId: process.env.R2_ACCESS_KEY_ID!,
+        secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+      },
+      // Required only for `.public()` collections: R2 has no object ACLs, so
+      // public access comes from an r2.dev subdomain or a custom domain.
+      baseUrl: 'https://cdn.example.com',
+    },
+  },
+}
+```
+
+`r2` derives the S3 API endpoint from `accountId` (override with `endpoint` for R2's EU jurisdiction),
+forces `supportsACL: false` (R2 rejects the ACL header flydrive would otherwise send), and sets
+`region: 'auto'`. It's normalized into the `s3` shape internally, so it shares that driver's code path.
+
+The `s3` and `r2` drivers need the AWS SDK, which is an optional peer:
+
+```bash
+pnpm add @aws-sdk/client-s3 @aws-sdk/s3-request-presigner
+```
+
+Synthesized-from-env config also supports R2 via `MEDIA_R2_ACCOUNT_ID`, `MEDIA_R2_BUCKET`,
+`MEDIA_R2_BASE_URL`, `MEDIA_R2_ACCESS_KEY_ID`, and `MEDIA_R2_SECRET_ACCESS_KEY`, at the precedence noted
+above (R2 → S3 → GCS → fs).
+
 ### URL building per driver
 
 - **`fs` requires `baseUrl`.** The `DefaultUrlGenerator` short-circuits to `{baseUrl}/{path}` for `fs` disks;
@@ -355,8 +393,10 @@ use the `gcs` driver.
 - **`signedUrl()` does not sign on the `fs` driver.** It returns the plain public URL and ignores `expiresIn`
   (documented dev-mode behavior — the returned URL never expires). Use `s3`/`gcs` for genuinely time-limited
   URLs, or serve the bytes yourself via `download()`/`inline()` behind your own authorization.
-- **`baseUrl` is accepted but unconsumed by the `s3`/`gcs` drivers** — their public URLs come from the driver's
-  own defaults. A custom CDN hostname needs a custom `UrlGenerator`.
+- **`baseUrl` sets the public URL base on every driver**, not just `fs` — point it at a CDN hostname in
+  front of an `s3`/`r2`/`gcs` bucket and `url()`/`firstUrl()` use it. Signed URLs are the one exception:
+  they always presign against the real endpoint and ignore `baseUrl`, because a presigned URL is only
+  valid against the host it was signed for.
 
 ## Security model
 
@@ -387,8 +427,21 @@ use the `gcs` driver.
 - **Private-by-default storage.** Disks default to `visibility: 'private'` (see `synthesizeDefaultDisk` in
   `storage/resolve.ts`); `url()` vs. `signedUrl()` is the caller's per-call choice regardless of a collection's
   visibility setting. `collection().public()` marks that collection's writes (original, conversions, and
-  responsive variants) with `{ visibility: 'public' }` so the underlying disk driver applies public ACLs/
-  permissions at write time — it does not change which URL-generation method you call.
+  responsive variants) with `{ visibility: 'public' }` — it does not change which URL-generation method you
+  call.
+- **What `.public()` actually does depends on the driver.** On `s3` and `gcs`, that write option makes the
+  driver apply public ACLs/permissions to the object, so per-object visibility is real. **On `r2`, it's a
+  storage-layer no-op** — Cloudflare R2 has no object ACLs, so visibility there is a property of the _bucket_
+  (whether an r2.dev subdomain or a custom domain is attached to it), not the object. A `.public()` collection
+  on an `r2` disk with no `baseUrl` throws when the `MediaLibrary` is constructed, because such a URL could
+  never resolve.
+- **Mixing public and private collections on one R2 bucket is unsupported.** If the bucket has a public
+  domain attached, every object in it — including the ones from your "private" collections — is reachable by
+  anyone who can guess or obtain the key. What actually protects a private object is key unguessability, not
+  ACLs: default keys are `{prefix}/{mediaId}/{fileName}`, where `mediaId` is a random UUID. Use two disks
+  instead — a public-domain bucket for `.public()` collections and a bare bucket for the rest — via
+  `collection().useDisk()` / `.storeConversionsOnDisk()`. Configuring one R2 disk with `baseUrl` for both
+  kinds of collection triggers a `console.warn` at construction.
 
 ## CLI
 
@@ -407,13 +460,13 @@ need to be executed with a TypeScript loader such as `tsx`.
 
 ## Roadmap
 
-**Current**: File upload, storage (fs/s3/gcs), retrieval, collections, image conversions, responsive images, queue-backed dispatch (sync, BullMQ, and RabbitMQ), Prisma adapter, PDF/video image generators, downloads/ZIP, CLI, offline maintenance (`clean()`), `copyMedia`/`moveMedia`, atomic custom-property updates, and an image optimizer seam (`@node-media-library/optimizers`).
+**Current**: File upload, storage (fs/s3/r2/gcs), retrieval, collections, image conversions, responsive images, queue-backed dispatch (sync, BullMQ, and RabbitMQ), Prisma adapter, PDF/video image generators, downloads/ZIP, CLI, offline maintenance (`clean()`), `copyMedia`/`moveMedia`, atomic custom-property updates, and an image optimizer seam (`@node-media-library/optimizers`).
 
 **Known limitations** (architectural, not scheduled for v1):
 
 - `@node-media-library/video` reads the whole source video into memory (`Buffer`) before shelling out to `ffmpeg`, and spawns a separate `ffmpeg` process per frame extraction — an N+1 spawn pattern when a media item has multiple video-derived conversions. Fine for typical use; not tuned for very large video files or high-conversion-count workloads.
 - The Prisma adapter's JSON-column merges (`setCustomProperty`, `markConversionGenerated`, `mergeResponsiveImages`, etc.) run inside `$transaction` when the client provides one, but that alone doesn't take a row lock on Postgres/MySQL's default read-committed isolation — two concurrent merges on the _same_ record can still lose a write. SQLite's single-writer model doesn't have this gap. See the honesty note on `mergeJsonColumn` in `packages/prisma/src/adapter.ts`.
-- `s3`/`gcs` disk configs accept a `baseUrl` option but it's currently unconsumed by those drivers (only the `fs` driver's URL generator reads it) — public URLs for S3/GCS are derived from the driver's own defaults, not `baseUrl`.
+- MinIO covers the `s3` path in CI (via `S3_ENDPOINT`-gated tests), but it accepts ACLs, so it can't exercise R2's `supportsACL: false` path or its checksum handling. R2-specific behavior is only verified when `R2_*` repository secrets are configured and the gated R2 suite runs for real.
 
 **Remaining**: Publish to npm.
 

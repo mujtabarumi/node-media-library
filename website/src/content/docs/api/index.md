@@ -53,6 +53,7 @@ banner:
 - [RegenerateOptions](/api/interfaces/RegenerateOptions/)
 - [ResponsiveImagesEntry](/api/interfaces/ResponsiveImagesEntry/)
 - [ResponsiveVariant](/api/interfaces/ResponsiveVariant/)
+- [S3Credentials](/api/interfaces/S3Credentials/)
 - [SignedUrlOptions](/api/interfaces/SignedUrlOptions/)
 - [StorageConfig](/api/interfaces/StorageConfig/)
 - [UrlGenerator](/api/interfaces/UrlGenerator/)

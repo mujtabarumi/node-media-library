@@ -4,7 +4,7 @@ editUrl: false
 ---
 # Interface: StorageConfig
 
-Defined in: [packages/core/src/storage/resolve.ts:38](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/storage/resolve.ts#L38)
+Defined in: [packages/core/src/storage/resolve.ts:91](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/storage/resolve.ts#L91)
 
 ## Properties
 
@@ -12,7 +12,7 @@ Defined in: [packages/core/src/storage/resolve.ts:38](https://github.com/mujtaba
 
 > `optional` **default?**: `string`
 
-Defined in: [packages/core/src/storage/resolve.ts:39](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/storage/resolve.ts#L39)
+Defined in: [packages/core/src/storage/resolve.ts:92](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/storage/resolve.ts#L92)
 
 ***
 
@@ -20,7 +20,7 @@ Defined in: [packages/core/src/storage/resolve.ts:39](https://github.com/mujtaba
 
 > `optional` **disks?**: `Record`\<`string`, [`DiskConfig`](/api/type-aliases/DiskConfig/)\>
 
-Defined in: [packages/core/src/storage/resolve.ts:41](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/storage/resolve.ts#L41)
+Defined in: [packages/core/src/storage/resolve.ts:94](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/storage/resolve.ts#L94)
 
 ***
 
@@ -28,4 +28,4 @@ Defined in: [packages/core/src/storage/resolve.ts:41](https://github.com/mujtaba
 
 > `optional` **prefix?**: `string`
 
-Defined in: [packages/core/src/storage/resolve.ts:40](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/storage/resolve.ts#L40)
+Defined in: [packages/core/src/storage/resolve.ts:93](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/storage/resolve.ts#L93)

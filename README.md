@@ -20,7 +20,7 @@ await library.for('User', user.id).firstUrl('avatar', 'thumb')
 
 It's a Node port of [spatie/laravel-medialibrary](https://github.com/spatie/laravel-medialibrary) —
 the same mental model (models → collections → conversions), rebuilt on Node primitives: pluggable
-storage via [flydrive](https://flydrive.dev) (fs/S3/GCS), a pluggable repository (Prisma adapter
+storage via [flydrive](https://flydrive.dev) (fs/S3/R2/GCS), a pluggable repository (Prisma adapter
 included), a pluggable queue (BullMQ adapter included), and [sharp](https://sharp.pixelplumbing.com)
 for image work. It is **not** a transliteration — see
 [Coming from the Laravel package](#coming-from-spatielaravel-medialibrary).
@@ -249,10 +249,10 @@ pnpm add @node-media-library/rabbitmq   # AMQP
 
 ### Storage
 
-`storage` is optional. With no config at all the default disk is synthesized from the environment
-(`MEDIA_S3_BUCKET` → S3, else `MEDIA_GCS_BUCKET` → GCS, else local fs at `MEDIA_FS_ROOT`). Explicit
-config is clearer — see [Storage disks](#storage-disks), and note the `fs` driver needs `baseUrl` or
-`url()` throws.
+`storage` is optional. With no config at all the default disk is synthesized from the environment, in
+this precedence: `MEDIA_R2_ACCOUNT_ID` → R2, else `MEDIA_S3_BUCKET` → S3, else `MEDIA_GCS_BUCKET` → GCS,
+else local fs at `MEDIA_FS_ROOT`. Explicit config is clearer — see [Storage disks](#storage-disks), and
+note the `fs` driver needs `baseUrl` or `url()` throws.
 
 ### Full option reference
 
@@ -260,7 +260,7 @@ config is clearer — see [Storage disks](#storage-disks), and note the `fs` dri
 | --------------------------- | --------------------- | ---------------------------------- | ----------------------------------------------------------------------------------- |
 | `repository`                | `MediaRepository`     | **required**                       | Where media rows live.                                                              |
 | `models`                    | `Record<string, {…}>` | **required**                       | Model types and their collections. `for()` throws `UnknownModelError` off this map. |
-| `storage`                   | `StorageConfig`       | synthesized from env               | Named disks (`fs`/`s3`/`gcs`).                                                      |
+| `storage`                   | `StorageConfig`       | synthesized from env               | Named disks (`fs`/`s3`/`r2`/`gcs`).                                                 |
 | `queue`                     | `AnyQueueDriver`      | `syncDriver()`                     | See above.                                                                          |
 | `maxFileSize`               | `number`              | `10 * 1024 * 1024`                 | Byte cap, enforced **while streaming**, not after.                                  |
 | `disallowedExtensions`      | `string[]`            | `DEFAULT_DISALLOWED_EXTENSIONS`    | Blocklist, checked per dot-segment (`evil.php.jpg` is rejected).                    |
@@ -269,7 +269,7 @@ config is clearer — see [Storage disks](#storage-disks), and note the `fs` dri
 | `signedUrlExpiresIn`        | `string \| number`    | `'30 mins'`                        | Default expiry for `signedUrl()`. Ignored by the `fs` driver, which cannot sign.    |
 | `fileNameSanitizer`         | `FileNameSanitizer`   | built-in                           | Replacing this replaces a security control — extend the default, don't start over.  |
 | `pathGenerator`             | `PathGenerator`       | `DefaultPathGenerator`             | Where files land: `{prefix}/{mediaId}/{fileName}`.                                  |
-| `urlGenerator`              | `UrlGenerator`        | `DefaultUrlGenerator`              | How URLs are built. Needed for a custom CDN hostname on s3/gcs.                     |
+| `urlGenerator`              | `UrlGenerator`        | `DefaultUrlGenerator`              | How URLs are built. A custom CDN hostname is `baseUrl`, not this.                   |
 | `imageGenerators`           | `ImageGenerator[]`    | `[sharpImageGenerator()]`          | Add `pdfImageGenerator()` / `videoImageGenerator()` here — nothing auto-registers.  |
 | `optimizers`                | `ImageOptimizer[]`    | `[]`                               | `jpegoptim`/`pngquant` passes over conversion output.                               |
 | `responsiveWidthCalculator` | `WidthCalculator`     | `FileSizeOptimizedWidthCalculator` | Which widths `.withResponsiveImages()` produces.                                    |
@@ -718,7 +718,7 @@ exported from `@node-media-library/core/testing`, which every bundled adapter al
 
 ## Storage disks
 
-`fs`, `s3`, and `gcs`, with per-collection routing:
+`fs`, `s3`, `r2`, and `gcs`, with per-collection routing:
 
 ```ts
 storage: {
@@ -733,18 +733,49 @@ storage: {
 invoices: collection().useDisk('documents').storeConversionsOnDisk('documents')
 ```
 
+Cloudflare R2:
+
+```ts
+storage: {
+  default: 'r2',
+  disks: {
+    r2: {
+      driver: 'r2',
+      accountId: process.env.R2_ACCOUNT_ID!,
+      bucket: 'my-media',
+      credentials: {
+        accessKeyId: process.env.R2_ACCESS_KEY_ID!,
+        secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+      },
+      // Required only for `.public()` collections: R2 has no object ACLs, so
+      // public access comes from an r2.dev subdomain or a custom domain.
+      baseUrl: 'https://cdn.example.com',
+    },
+  },
+}
+```
+
 With no `storage` config at all, the default disk is synthesized from the environment:
-`MEDIA_S3_BUCKET` → S3, else `MEDIA_GCS_BUCKET` → GCS, else local fs at `MEDIA_FS_ROOT` (default
-`./storage/media`). Handy for a twelve-factor deploy; explicit config is clearer.
+`MEDIA_R2_ACCOUNT_ID` → R2, else `MEDIA_S3_BUCKET` → S3, else `MEDIA_GCS_BUCKET` → GCS, else local fs at
+`MEDIA_FS_ROOT` (default `./storage/media`). Handy for a twelve-factor deploy; explicit config is
+clearer.
 
 - The **`fs` driver needs `baseUrl`** to produce URLs at all — without it, `url()` throws
   `StorageError`. Serve that root statically and point `baseUrl` at it.
-- `s3`/`gcs` also accept a `baseUrl`, but **it is currently ignored** by those drivers; their URLs come
-  from the driver's own defaults.
-- The `gcs` driver needs the optional peer `@google-cloud/storage ^7.10.2`.
+- **`baseUrl` is honored on every driver**, including `s3`/`r2`/`gcs` — point it at a CDN hostname in
+  front of the bucket and public URLs use it. Signed URLs are the exception: they always presign
+  against the real endpoint and ignore `baseUrl`.
+- The `s3`/`r2` drivers need the optional peers `@aws-sdk/client-s3` and `@aws-sdk/s3-request-presigner`;
+  the `gcs` driver needs `@google-cloud/storage ^7.10.2`. Install whichever driver(s) you use.
+- **Visibility is bucket-level on R2, not per-object.** `.public()` writes public ACLs on `s3`/`gcs`, but
+  R2 has no object ACLs, so `.public()` is a storage-layer no-op there — a public R2 disk needs
+  `baseUrl` pointed at an r2.dev subdomain or custom domain, and a public R2 disk with no `baseUrl`
+  throws at construction. Mixing public and private collections on one R2 bucket is unsupported (the
+  "private" objects become guessable-key-reachable through the bucket's public domain) — use two disks.
 - Files land at `{prefix}/{mediaId}/{fileName}`, with `conversions/` and `responsive/` beside them — so
   one media item is one directory, and deleting it is one recursive delete. Swap `pathGenerator` to
-  change that.
+  change that. `mediaId` is a random UUID, which is what actually keeps a private object's key
+  unguessable — not ACLs.
 
 ## Security defaults
 
@@ -758,7 +789,8 @@ The short version — the full rationale is in
 - **`maxFileSize` is enforced during accumulation**, so a hostile stream or URL can't exhaust memory
   before the check runs.
 - **Storage is private by default.** `collection().public()` opts a collection's writes into public
-  ACLs.
+  ACLs on `s3`/`gcs`. On `r2` there are no object ACLs, so visibility is bucket-level — see
+  [Storage disks](#storage-disks).
 - Replacing `fileNameSanitizer` replaces those protections. Extend the default rather than starting
   from scratch.
 
@@ -822,7 +854,7 @@ The concepts transfer directly; the API is Node-idiomatic rather than a translit
 | `$user->getFirstMediaUrl('avatar','thumb')` | `await library.for('User', id).firstUrl('avatar', 'thumb')`     |
 | `$media->getSrcset()`                       | `await library.srcset(media.id)`                                |
 | `media:regenerate` / `media:clean`          | `node-media-library regenerate` / `clean`                       |
-| Laravel filesystem disks                    | flydrive disks (`fs` / `s3` / `gcs`)                            |
+| Laravel filesystem disks                    | flydrive disks (`fs` / `s3` / `r2` / `gcs`)                     |
 | Laravel queues                              | `QueueDriver` — `syncDriver()` by default, or BullMQ/RabbitMQ   |
 | Eloquent `Media` model                      | `MediaRepository` interface — Prisma adapter, or bring your own |
 
@@ -853,8 +885,9 @@ Stated up front, because finding these out in production is worse:
   conversions per item.
 - **`signedUrl()` doesn't sign on the `fs` driver** — see
   [recipe 3](#3-private-documents--signed-urls-streamed-downloads-bulk-zip).
-- **`baseUrl` is ignored by the `s3`/`gcs` drivers**, so a custom CDN hostname needs a custom
-  `UrlGenerator` for now.
+- **R2-specific behavior is only verified when `R2_*` repository secrets are configured.** CI runs the
+  shared storage contract against MinIO for the `s3` path, but MinIO accepts ACLs, so it can't prove R2's
+  `supportsACL: false` suppression or its checksum handling.
 - **`clean()` is not concurrency-safe** with running workers — see [Maintenance CLI](#maintenance-cli).
 
 ## Contributing
