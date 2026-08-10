@@ -108,3 +108,75 @@ describe('conversion urls', () => {
     expect(result).toEqual({ enqueued: 1 })
   })
 })
+
+describe('baseUrl is honored on every driver', () => {
+  const fakeMedia = () =>
+    ({
+      id: 'abc',
+      fileName: 'cat.png',
+      disk: 'default',
+      conversionsDisk: null,
+      generatedConversions: {},
+      updatedAt: new Date(0),
+    }) as never
+
+  it('an s3 disk with baseUrl builds URLs from it, not from the endpoint', async () => {
+    const library = createMediaLibrary({
+      repository: new InMemoryMediaRepository(),
+      storage: {
+        prefix: 'media',
+        disks: {
+          default: {
+            driver: 's3',
+            bucket: 'b',
+            region: 'us-east-1',
+            endpoint: 'https://s3.example.com',
+            baseUrl: 'https://cdn.example.com',
+          },
+        },
+      },
+      models: {},
+    })
+    expect(await library.urlGenerator.url(fakeMedia())).toBe(
+      'https://cdn.example.com/media/abc/cat.png',
+    )
+  })
+
+  it('an r2 disk with baseUrl builds public URLs from it, trailing slash stripped', async () => {
+    const library = createMediaLibrary({
+      repository: new InMemoryMediaRepository(),
+      storage: {
+        disks: {
+          default: {
+            driver: 'r2',
+            accountId: 'acct',
+            bucket: 'b',
+            // flydrive's own `new URL(key, cdnUrl)` would mangle a base like
+            // this; core's join does not.
+            baseUrl: 'https://cdn.example.com/',
+          },
+        },
+      },
+      models: {},
+    })
+    expect(await library.urlGenerator.url(fakeMedia())).toBe('https://cdn.example.com/abc/cat.png')
+  })
+
+  it('a baseUrl with a path segment keeps that segment', async () => {
+    const library = createMediaLibrary({
+      repository: new InMemoryMediaRepository(),
+      storage: {
+        disks: {
+          default: {
+            driver: 'r2',
+            accountId: 'acct',
+            bucket: 'b',
+            baseUrl: 'https://cdn.x/assets',
+          },
+        },
+      },
+      models: {},
+    })
+    expect(await library.urlGenerator.url(fakeMedia())).toBe('https://cdn.x/assets/abc/cat.png')
+  })
+})

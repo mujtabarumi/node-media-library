@@ -63,14 +63,24 @@
     "sharp": "^0.35.3"
   },
   "peerDependencies": {
-    "@google-cloud/storage": "^7.10.2"
+    "@google-cloud/storage": "^7.10.2",
+    "@aws-sdk/client-s3": "^3.577.0",
+    "@aws-sdk/s3-request-presigner": "^3.577.0"
   },
   "peerDependenciesMeta": {
     "@google-cloud/storage": {
       "optional": true
+    },
+    "@aws-sdk/client-s3": {
+      "optional": true
+    },
+    "@aws-sdk/s3-request-presigner": {
+      "optional": true
     }
   },
   "devDependencies": {
+    "@aws-sdk/client-s3": "^3.1106.0",
+    "@aws-sdk/s3-request-presigner": "^3.1106.0",
     "@google-cloud/storage": "^7.10.2",
     "@types/archiver": "^8.0.0",
     "@types/node": "^22.0.0",

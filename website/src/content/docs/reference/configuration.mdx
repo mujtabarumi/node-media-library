@@ -102,15 +102,21 @@ start. Full setup, shutdown semantics, and failure handling are on
 `storage` is optional. Given no config at all, the default disk is synthesized from the environment at
 startup:
 
-| Environment            | Resulting default disk                |
-| ---------------------- | ------------------------------------- |
-| `MEDIA_S3_BUCKET` set  | S3 (wins if both bucket vars are set) |
-| `MEDIA_GCS_BUCKET` set | GCS                                   |
-| Neither                | Local `fs` at `MEDIA_FS_ROOT`         |
+| Environment               | Resulting default disk             |
+| ------------------------- | ---------------------------------- |
+| `MEDIA_R2_ACCOUNT_ID` set | Cloudflare R2 (highest precedence) |
+| `MEDIA_S3_BUCKET` set     | S3                                 |
+| `MEDIA_GCS_BUCKET` set    | GCS                                |
+| None of the above         | Local `fs` at `MEDIA_FS_ROOT`      |
 
-`MEDIA_FS_ROOT` itself defaults to `./storage/media`. Convenient for a twelve-factor deploy; explicit
-config is clearer. Disk options, per-collection routing, and the URL-building rules per driver are on
-[Packages](/reference/packages/).
+Precedence is R2 → S3 → GCS → fs — the first one with its required variable(s) set wins.
+`MEDIA_R2_ACCOUNT_ID` without `MEDIA_R2_BUCKET` throws rather than silently falling through to another
+driver. The R2 disk also picks up `MEDIA_R2_BASE_URL`, `MEDIA_R2_ACCESS_KEY_ID`, and
+`MEDIA_R2_SECRET_ACCESS_KEY` when present. `MEDIA_FS_ROOT` itself defaults to `./storage/media`.
+Convenient for a twelve-factor deploy; explicit config is clearer. The `s3` driver also gained
+`credentials`, `supportsACL`, `forcePathStyle`, and `requestChecksumCalculation` options, which make
+MinIO, Backblaze B2, and DigitalOcean Spaces configurable too. Disk options, per-collection routing,
+and the URL-building rules per driver are on [Packages](/reference/packages/).
 
 <Aside type="caution" title="The fs driver needs baseUrl">
   It has no way to derive a public URL on its own, so `url()` and `firstUrl()` throw `StorageError`
@@ -123,7 +129,7 @@ config is clearer. Disk options, per-collection routing, and the URL-building ru
 | --------------------------- | --------------------- | ---------------------------------- | ----------------------------------------------------------------------------------- |
 | `repository`                | `MediaRepository`     | **required**                       | Where media rows live.                                                              |
 | `models`                    | `Record<string, {…}>` | **required**                       | Model types and their collections. `for()` throws `UnknownModelError` off this map. |
-| `storage`                   | `StorageConfig`       | synthesized from env               | Named disks (`fs` / `s3` / `gcs`).                                                  |
+| `storage`                   | `StorageConfig`       | synthesized from env               | Named disks (`fs` / `s3` / `r2` / `gcs`).                                           |
 | `queue`                     | `AnyQueueDriver`      | `syncDriver()`                     | See above.                                                                          |
 | `maxFileSize`               | `number`              | `10 * 1024 * 1024`                 | Byte cap, enforced **while the bytes stream**, not after they land.                 |
 | `disallowedExtensions`      | `string[]`            | `DEFAULT_DISALLOWED_EXTENSIONS`    | Blocklist, checked per dot-segment — `evil.php.jpg` is rejected.                    |
@@ -132,7 +138,7 @@ config is clearer. Disk options, per-collection routing, and the URL-building ru
 | `signedUrlExpiresIn`        | `string \| number`    | `'30 mins'`                        | Default `signedUrl()` expiry. The `fs` driver ignores it; it cannot sign.           |
 | `fileNameSanitizer`         | `FileNameSanitizer`   | built-in                           | A security control — extend the default rather than starting from scratch.          |
 | `pathGenerator`             | `PathGenerator`       | `DefaultPathGenerator`             | Where files land: `{prefix}/{mediaId}/{fileName}`.                                  |
-| `urlGenerator`              | `UrlGenerator`        | `DefaultUrlGenerator`              | How URLs are built. Needed for a custom CDN hostname on s3/gcs.                     |
+| `urlGenerator`              | `UrlGenerator`        | `DefaultUrlGenerator`              | How URLs are built. A custom CDN hostname is `baseUrl`, not this.                   |
 | `imageGenerators`           | `ImageGenerator[]`    | `[sharpImageGenerator()]`          | Add `pdfImageGenerator()` / `videoImageGenerator()` here — nothing auto-registers.  |
 | `optimizers`                | `ImageOptimizer[]`    | `[]`                               | `jpegoptim` / `pngquant` passes over conversion output.                             |
 | `responsiveWidthCalculator` | `WidthCalculator`     | `FileSizeOptimizedWidthCalculator` | Which widths `.withResponsiveImages()` produces.                                    |

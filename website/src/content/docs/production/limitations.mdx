@@ -50,15 +50,39 @@ time-limited. It's silent — you get a working URL, just not a temporary one.
 `download()`/`inline()` behind your own authorization check. See
 [Private files & downloads](/guides/private-files/).
 
-## `baseUrl` is ignored by the `s3` and `gcs` drivers
+## R2-specific behavior is unverified until repository secrets are configured
 
-**What happens.** All three disk configs accept a `baseUrl`, but only the `fs` driver's URL generator
-reads it. Public S3 and GCS URLs come from the driver's own defaults.
+**What happens.** The shared storage contract runs against MinIO in CI to exercise the `s3` code path
+for real, but MinIO accepts object ACLs — it can't prove Cloudflare R2's `supportsACL: false`
+suppression, or exercise R2's checksum handling. The gated real-R2 suite only runs when `R2_*`
+repository secrets are present.
 
-**When it bites.** Pointing public URLs at a CDN hostname in front of your bucket.
+**When it bites.** Trusting that "the s3 path is tested" means R2 is tested. It doesn't — R2 is a
+distinct code path (`driver: 'r2'` normalizes into the `s3` shape) that MinIO structurally cannot
+validate.
 
-**What to do.** Supply a custom `UrlGenerator` for now. (On `fs`, the opposite applies — `baseUrl` is
-not optional there, and `url()` throws `StorageError` without it.)
+**What to do.** Add `R2_*` repository secrets to enable the real-R2 suite before depending on R2 in
+production, or test against a real R2 bucket yourself.
+
+## Visibility on Cloudflare R2 is bucket-level, not per-object
+
+**What happens.** `.public()` writes public ACLs on `s3` and `gcs`, but R2 has no object ACLs — a
+`.public()` collection on an `r2` disk is a storage-layer no-op. Public access on R2 comes from
+attaching an r2.dev subdomain or custom domain to the _bucket_, configured via the disk's `baseUrl`.
+
+**When it bites.** Mixing public and private collections on one R2 bucket. If the bucket has a public
+domain attached, every object in it — including the "private" ones — is reachable by anyone who can
+derive its key. What actually protects a private object is key unguessability, not ACLs: default keys
+are `{prefix}/{mediaId}/{fileName}`, where `mediaId` is a random UUID.
+
+**What to do.** Use two R2 disks: one bucket (or one with a public domain attached) for `.public()`
+collections, and a separate bucket with no public domain for everything else, wired up with
+`collection().useDisk()` / `.storeConversionsOnDisk()`. A `.public()` collection on an `r2` disk with no
+`baseUrl` throws when the `MediaLibrary` is constructed — unless you supply your own `urlGenerator`, in
+which case it only warns, since core cannot know how a custom generator builds public URLs. Configuring
+one R2 disk with `baseUrl` that serves both public and private collections logs a `console.warn`.
+Separately, `url()` on _any_ collection whose disk is `r2` with no `baseUrl` throws `StorageError`
+rather than returning the authenticated `*.r2.cloudflarestorage.com` host, which 401s anonymously.
 
 ## Video frames are extracted one process at a time, from memory
 

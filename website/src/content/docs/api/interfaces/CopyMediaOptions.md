@@ -4,7 +4,7 @@ editUrl: false
 ---
 # Interface: CopyMediaOptions
 
-Defined in: [packages/core/src/library.ts:90](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/library.ts#L90)
+Defined in: [packages/core/src/library.ts:91](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/library.ts#L91)
 
 ## Properties
 
@@ -12,6 +12,6 @@ Defined in: [packages/core/src/library.ts:90](https://github.com/mujtabarumi/nod
 
 > `optional` **toCollection?**: `string`
 
-Defined in: [packages/core/src/library.ts:92](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/library.ts#L92)
+Defined in: [packages/core/src/library.ts:93](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/library.ts#L93)
 
 Target collection; defaults to the source record's collection name.

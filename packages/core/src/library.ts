@@ -13,6 +13,7 @@ import type { JsonObject, MediaRecord } from './types.js'
 import type { ResponsiveImagesEntry } from './responsive/types.js'
 import type { MediaRepository } from './repository.js'
 import type { ResolvedStorage } from './storage/resolve.js'
+import { checkCollectionVisibility } from './storage/visibility-check.js'
 import type { PathGenerator } from './storage/path-generator.js'
 import type { UrlGenerator } from './storage/url-generator.js'
 import { DefaultUrlGenerator } from './storage/url-generator.js'
@@ -120,6 +121,14 @@ export class MediaLibrary {
    */
   constructor(config: MediaLibraryConfig) {
     this.resolved = resolveConfig(config)
+    // Fail before anything is wired: a public collection on an r2 disk with no
+    // baseUrl can never produce a working URL, and finding that out at request
+    // time means a customer hits the dead link first. "Can never" only holds
+    // for the DefaultUrlGenerator, so a consumer-supplied one downgrades the
+    // throw to a warning — see checkCollectionVisibility's JSDoc.
+    checkCollectionVisibility(this.resolved.models, this.resolved.storage, {
+      hasCustomUrlGenerator: config.urlGenerator !== undefined,
+    })
     this.engine = new ConversionEngine({
       repository: this.resolved.repository,
       storage: this.resolved.storage,
