@@ -18,819 +18,265 @@ await library.for('User', user.id).firstUrl('avatar', 'thumb')
 // → 'https://cdn.example.com/9f3.../conversions/photo-thumb.jpg'
 ```
 
-It's a Node port of [spatie/laravel-medialibrary](https://github.com/spatie/laravel-medialibrary) —
-the same mental model (models → collections → conversions), rebuilt on Node primitives: pluggable
-storage via [flydrive](https://flydrive.dev) (fs/S3/R2/GCS), a pluggable repository (Prisma adapter
-included), a pluggable queue (BullMQ adapter included), and [sharp](https://sharp.pixelplumbing.com)
-for image work. It is **not** a transliteration — see
-[Coming from the Laravel package](#coming-from-spatielaravel-medialibrary).
+A Node port of [spatie/laravel-medialibrary](https://github.com/spatie/laravel-medialibrary) — the same
+mental model (models → collections → conversions), rebuilt on Node primitives: pluggable storage via
+[flydrive](https://flydrive.dev) (fs/S3/R2/GCS), a pluggable repository (Prisma adapter included), a
+pluggable queue (BullMQ and RabbitMQ adapters included), and
+[sharp](https://sharp.pixelplumbing.com) for image work.
 
-> **Status: pre-release.** Not yet published to npm. The API below is what's implemented and tested
-> in this repo today; install from a git checkout until the first release.
-
----
-
-## Contents
-
-- [What you get](#what-you-get)
-- [Requirements](#requirements)
-- [Install](#install)
-- [Five-minute example](#five-minute-example)
-- **[Configuration](#configuration)**
-  - [A database-backed repository](#a-database-backed-repository)
-  - [A queue driver](#a-queue-driver)
-  - [Storage](#storage)
-  - [Full option reference](#full-option-reference)
-- **Recipes**
-  - [1. User avatars — one file, auto-thumbnail, fallback image](#1-user-avatars--one-file-auto-thumbnail-fallback-image)
-  - [2. Product galleries — ordering, responsive `srcset`, keep-latest](#2-product-galleries--ordering-responsive-srcset-keep-latest)
-  - [3. Private documents — signed URLs, streamed downloads, bulk ZIP](#3-private-documents--signed-urls-streamed-downloads-bulk-zip)
-  - [4. Accepting uploads from Express, Hono, or Next.js](#4-accepting-uploads-from-express-hono-or-nextjs)
-  - [5. Getting conversions off the request path](#5-getting-conversions-off-the-request-path)
-  - [6. Thumbnails for PDFs and videos](#6-thumbnails-for-pdfs-and-videos)
-  - [7. Importing a file from a URL, safely](#7-importing-a-file-from-a-url-safely)
-  - [8. Metadata, search, copy and move](#8-metadata-search-copy-and-move)
-- **Production**
-  - [Persistence with Prisma](#persistence-with-prisma)
-  - [Storage disks](#storage-disks)
-  - [Security defaults](#security-defaults)
-  - [Maintenance CLI](#maintenance-cli)
-- [Packages](#packages)
-- [Coming from spatie/laravel-medialibrary](#coming-from-spatielaravel-medialibrary)
-- [Known limitations](#known-limitations)
-- [Contributing](#contributing)
+> **Status: pre-release.** Not yet published to npm. Everything below is implemented and tested in this
+> repo today; install from a git checkout until the first release.
 
 ---
-
-## What you get
-
-|                          |                                                                                                                                       |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
-| **Any source**           | Filesystem path, `Buffer`, `Readable`, web `File`/`Blob`, base64, or a remote URL (with a host allowlist).                            |
-| **Collections**          | Per-collection rules: `singleFile()`, `onlyKeepLatest(n)`, accepted MIME types, custom predicates, its own disk, a fallback URL.      |
-| **Conversions**          | Declarative resize/crop/format/quality/blur/greyscale, run inline or on a queue, stored beside the original and cleaned up with it.   |
-| **Responsive images**    | Generated variant sets plus an LQIP placeholder; read back as a ready-made `srcset` string.                                           |
-| **Serving**              | Public URLs, signed URLs, web-standard `Response` for download/inline, and streamed multi-file ZIPs — no temp files.                  |
-| **Pluggable everything** | Repository, queue, storage disk, path/URL generation, image generators, and image optimizers are all interfaces you can swap.         |
-| **Safe by default**      | MIME sniffed from bytes, filenames sanitized, extension blocklist, size caps enforced while streaming, private-by-default visibility. |
-| **Operations**           | `regenerate()` to backfill conversions, `clean()` to delete orphans and stale derivatives, both exposed as a CLI.                     |
 
 ## Requirements
 
-- **Node ≥ 22**
-- A repository backend — the bundled `InMemoryMediaRepository` for tests, `@node-media-library/prisma`
-  for real use, or your own `MediaRepository`
-- Optional system binaries, only for the packages that use them: `pdftoppm` (PDF), `ffmpeg` (video),
-  `jpegoptim`/`pngquant` (optimizers). Each package no-ops or skips when its binary is absent.
+- **Node 22 or newer**
+- **A place to store media rows** — the bundled `InMemoryMediaRepository` for tests,
+  [`@node-media-library/prisma`](packages/prisma/README.md) for real use, or your own `MediaRepository`
+- **Optional system binaries**, only for the packages that use them: `pdftoppm` (PDF), `ffmpeg`
+  (video), `jpegoptim`/`pngquant` (optimizers). Each package no-ops when its binary is absent.
 
-## Install
+---
+
+# Getting started
+
+Five steps, about ten minutes. No database and no cloud account — you'll use an in-memory repository
+and a local folder, then swap both out at the end.
+
+## Step 1 — Install the core package
+
+Nothing is on npm yet, so you install from a checkout. Build it, then pack a tarball:
 
 ```bash
-pnpm add @node-media-library/core
+git clone https://github.com/mujtabarumi/node-media-library.git
+cd node-media-library
+pnpm install && pnpm build
+cd packages/core && pnpm pack --pack-destination ~/nml
 ```
 
-Add adapters as you need them:
+Then, in your own project:
 
 ```bash
-pnpm add @node-media-library/prisma      # database-backed repository
-pnpm add @node-media-library/bullmq      # queued conversions
-pnpm add @node-media-library/pdf         # PDF page thumbnails
-pnpm add @node-media-library/video       # video frame thumbnails
-pnpm add @node-media-library/optimizers  # jpegoptim / pngquant
+pnpm add ~/nml/node-media-library-core-0.0.0.tgz
 ```
 
-## Five-minute example
+**Pack it — don't link it.** A package's `exports` deliberately points at `src/*.ts` so this
+workspace runs from source; only `pnpm pack` applies the `publishConfig.exports` override that
+repoints entry points at built `dist/`. A `file:` dependency or `pnpm add github:…` skips that step
+and hands your app raw TypeScript that Node cannot load.
 
-Everything below is real, runnable code — an in-memory repository and a local disk, so there's nothing
-to provision.
+Use pnpm throughout, not npm: each package's `prepack` script deliberately fails under bare `npm
+pack`/`npm publish`, because npm ignores `publishConfig.exports` and would produce exactly that
+broken tarball.
+
+Adapters are separate packages, each packed the same way, and nothing is pulled in for you — you'll
+add one in [Next steps](#next-steps). Once the first release lands, all of this collapses back to
+`pnpm add @node-media-library/core`.
+
+## Step 2 — Create your config
+
+This is the one file that describes your media setup. Everything else reads from it.
 
 ```ts
 // media.ts
-import {
-  createMediaLibrary,
-  InMemoryMediaRepository,
-  collection,
-  conversion,
-} from '@node-media-library/core'
+import { createMediaLibrary, InMemoryMediaRepository, collection } from '@node-media-library/core'
 
 export const library = createMediaLibrary({
+  // Where media rows live. In-memory for now — swapped for a database later.
   repository: new InMemoryMediaRepository(),
+
+  // Where the files themselves land.
   storage: {
     disks: {
-      default: {
-        driver: 'fs',
-        root: './storage/media',
-        // Required for the fs driver: it has no way to derive a public URL on its
-        // own, so url() throws without this. Point it at whatever path your server
-        // serves ./storage/media from (e.g. express.static).
-        baseUrl: 'http://localhost:3000/media',
-      },
+      default: { driver: 'fs', root: './storage/media' },
     },
   },
+
+  // Which model types can own media, and what collections they have.
   models: {
     User: {
       collections: {
-        avatar: collection()
-          .singleFile()
-          .acceptsMimeTypes(['image/*'])
-          .conversions({
-            // .nonQueued() runs it inline, so the URL is valid the moment add() resolves
-            thumb: conversion().width(96).height(96).fit('cover').format('webp').nonQueued(),
-          }),
+        avatar: collection().singleFile().acceptsMimeTypes(['image/*']),
       },
     },
   },
 })
 ```
+
+Only `repository` and `models` are required — every other key has a working default.
+
+**No environment variables yet.** An in-memory repository and a local folder need no credentials, so
+there is nothing to put in a `.env` until you swap one of them out. See
+[Environment variables](#environment-variables) for what each swap needs.
+
+✅ **You should now be able to import `library` without an error.** Nothing has touched the disk yet.
+
+## Step 3 — Store a file
 
 ```ts
 import { library } from './media.js'
 
-const media = await library.for('User', 'user-1').add('/tmp/upload.png').toCollection('avatar')
+const media = await library.for('User', 'user-1').add('/tmp/photo.png').toCollection('avatar')
 
-media.id //  '0e5f…'    — the media record id
-media.mimeType //  'image/png' — sniffed from the bytes, not from the filename
+console.log(media.id) //  '0e5f…'     — the media record id
+console.log(media.mimeType) //  'image/png'  — sniffed from the bytes, not the filename
+```
 
-await library.for('User', 'user-1').firstUrl('avatar') //  original
+✅ **You should now see a new directory under `./storage/media/`**, named after the media id, with your
+file inside it.
+
+Two things happened that you didn't ask for, and both are the point of the library:
+
+- The file was **validated against the collection** (`image/*`), not against ad-hoc checks at the call
+  site. A `.png` that is actually a PHP script is rejected here — the MIME type comes from the bytes.
+- Because `avatar` is `singleFile()`, any previous avatar for `user-1` was **deleted**, files included.
+  You never write cleanup code.
+
+> A filesystem-path source is **moved**, not copied — `/tmp/photo.png` is consumed. Call
+> `.preservingOriginal()` if you need it to survive.
+
+## Step 4 — Get a URL back
+
+```ts
+await library.for('User', 'user-1').firstUrl('avatar')
+```
+
+Right now this throws `StorageError`. That's expected: the `fs` driver has no way to guess how your
+files are served, so you have to tell it. Add `baseUrl` to the disk:
+
+```ts
+// media.ts
+default: {
+  driver: 'fs',
+  root: './storage/media',
+  baseUrl: 'http://localhost:3000/media',   // ← add this
+},
+```
+
+Point it at whatever path your server serves `./storage/media` from:
+
+```ts
+app.use('/media', express.static('./storage/media'))
+```
+
+✅ **`firstUrl('avatar')` now returns a URL** you can open in a browser.
+
+Every driver honors `baseUrl`, so this is also how you put a CDN hostname in front of an S3 or R2
+bucket later.
+
+## Step 5 — Add a thumbnail
+
+Declare the conversion on the collection, and it is derived on every upload from then on:
+
+```ts
+import { collection, conversion } from '@node-media-library/core'
+
+avatar: collection()
+  .singleFile()
+  .acceptsMimeTypes(['image/*'])
+  .conversions({
+    // .nonQueued() runs it inline, so the URL is valid the moment add() resolves
+    thumb: conversion().width(96).height(96).fit('cover').format('webp').nonQueued(),
+  })
+```
+
+```ts
 await library.for('User', 'user-1').firstUrl('avatar', 'thumb') //  96×96 webp
 ```
 
-Three things happened that are worth naming, because they're the whole point of the library:
+✅ **You should now see a `conversions/` folder** beside the original, containing the webp thumbnail.
+Delete the media and both go with it.
 
-1. The file was **validated against the collection**, not against ad-hoc checks at the call site.
-2. The `thumb` conversion was **derived and stored automatically**, because the collection declares it.
-3. Because `avatar` is `singleFile()`, the previous avatar (and every file derived from it) was
-   **deleted** — you never write cleanup code.
-
-> A filesystem-path source is **moved**, not copied — the temp file at `/tmp/upload.png` is consumed.
-> Call `.preservingOriginal()` if you need it to survive.
+**That's the whole model.** Files belong to a collection, the collection declares its rules and its
+derived variants, and the library keeps the two in sync.
 
 ---
 
-## Configuration
+## Next steps
 
-The example above runs on defaults that exist so you can try the library without provisioning
-anything. Two of them — an in-memory repository and inline conversions — are the two you replace
-first. This section is the map.
+The quickstart runs on two defaults that exist so you can try the library without provisioning
+anything. Those are the two you replace first.
 
-`createMediaLibrary()` takes one object. Only **`repository`** and **`models`** are required; every
-other key has a working default.
+| You want to…                                | Do this                                                                                                                                        |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Keep media across restarts**              | `InMemoryMediaRepository` is for tests. Install [`@node-media-library/prisma`](packages/prisma/README.md), add the `Media` model, and migrate. |
+| **Stop conversions blocking your requests** | Conversions run inline by default. Add [`bullmq`](packages/bullmq/README.md) or [`rabbitmq`](packages/rabbitmq/README.md) and run a worker.    |
+| **Store on S3, R2, or GCS**                 | Change the disk's `driver` and install the peer SDK — see [Storage disks](packages/core/README.md#storage-disks).                              |
+| **Wire it into Express / Hono / Next.js**   | `add()` takes whatever your framework hands you — see [Handling uploads](website/src/content/docs/guides/uploads.mdx).                         |
+| **Thumbnail PDFs and videos**               | Append [`pdf`](packages/pdf/README.md) / [`video`](packages/video/README.md) generators — nothing auto-registers.                              |
+| **Serve private files**                     | Storage is private by default; use `signedUrl()`, or stream the bytes yourself with `download()`.                                              |
 
-### A database-backed repository
+## Environment variables
 
-`InMemoryMediaRepository` loses everything when the process exits — it is for tests. For real use,
-install the adapter, add the `Media` model to your Prisma schema, and migrate:
+Copy [`.env.example`](.env.example) and fill in what you need. Nothing is required for the quickstart.
 
-```bash
-pnpm add @node-media-library/prisma
-```
+**Only `MEDIA_*` variables are read by this library**, and only when you omit `storage` from
+`createMediaLibrary()` entirely. The moment you pass `storage.disks`, they're ignored — configure the
+disk in code instead. (`MEDIA_PREFIX` is the exception: it backs `storage.prefix` either way.)
 
-```bash
-npx prisma migrate dev --name add_media
-```
+| Variable                                                  | When it applies           | Notes                                                                         |
+| --------------------------------------------------------- | ------------------------- | ----------------------------------------------------------------------------- |
+| `MEDIA_R2_ACCOUNT_ID`, `MEDIA_R2_BUCKET`                  | 1st — wins over S3/GCS/fs | Setting the account id without the bucket **throws** rather than fall through |
+| `MEDIA_R2_ACCESS_KEY_ID`, `MEDIA_R2_SECRET_ACCESS_KEY`    | with R2                   | Both required, or neither is applied                                          |
+| `MEDIA_R2_BASE_URL`                                       | with R2                   | Required for public reads — R2 has no object ACLs                             |
+| `MEDIA_S3_BUCKET`, `MEDIA_S3_REGION`, `MEDIA_S3_ENDPOINT` | 2nd                       | `ENDPOINT` covers MinIO, Backblaze, Spaces                                    |
+| `MEDIA_GCS_BUCKET`                                        | 3rd                       | Credentials via `GOOGLE_APPLICATION_CREDENTIALS`                              |
+| `MEDIA_FS_ROOT`                                           | 4th — the fallback        | Defaults to `./storage/media`. `baseUrl` has no env var; set it in config     |
+| `MEDIA_PREFIX`                                            | always                    | Prefixes every stored path on any driver                                      |
+| `NODE_ENV`                                                | always                    | `production` + a local fs disk logs a durability warning at startup           |
 
-```ts
-import { PrismaClient } from '@prisma/client'
-import { prismaAdapter } from '@node-media-library/prisma'
+**Everything else is read by somebody other than this library.** You read it and pass the result in:
 
-const prisma = new PrismaClient()
+| Variable                                     | Read by             | You use it for                                                 |
+| -------------------------------------------- | ------------------- | -------------------------------------------------------------- |
+| `DATABASE_URL`                               | Prisma              | `prismaAdapter(new PrismaClient())`                            |
+| `REDIS_URL`                                  | your code → BullMQ  | `bullmqDriver({ connection: { url: process.env.REDIS_URL } })` |
+| `AMQP_URL`                                   | your code → amqplib | `rabbitmqDriver({ url: process.env.AMQP_URL })`                |
+| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | AWS SDK             | S3/R2 auth when you don't pass `credentials` on the disk       |
+| `GOOGLE_APPLICATION_CREDENTIALS`             | Google Cloud SDK    | GCS auth                                                       |
 
-createMediaLibrary({
-  repository: prismaAdapter(prisma),
-  models: {/* … */},
-})
-```
+> **Don't confuse these with the repo's own test gates.** Unprefixed `R2_ACCOUNT_ID`, `R2_BUCKET`,
+> `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, and `R2_BASE_URL` — plus `REDIS_URL` and `AMQP_URL` —
+> gate this repository's integration suites in CI. They are contributor secrets, not application
+> config. An app configures storage with `MEDIA_R2_*`. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-The model definition to paste, the opt-in cascading delete, and the adapter's own options (`owners`,
-`iterateBatchSize`) are in [Persistence with Prisma](#persistence-with-prisma).
+## Documentation
 
-Not using Prisma? `MediaRepository` is a plain interface — implement it against Drizzle, Kysely, or a
-raw driver, then validate it against the shared contract suite exported from
-`@node-media-library/core/testing`. Every bundled adapter runs that same suite.
-
-### A queue driver
-
-Conversions run **inline** unless you configure otherwise, which is how upload endpoints get slow.
-Drivers come in two kinds, and the distinction decides whether you need a second process at all:
-
-| `queue:`                   | Kind       | `add()` waits for conversions? | Survives a restart? | Needs a worker process? |
-| -------------------------- | ---------- | ------------------------------ | ------------------- | ----------------------- |
-| `syncDriver()` _(default)_ | in-process | Yes                            | —                   | No                      |
-| `deferDriver()`            | in-process | No                             | **No**              | No                      |
-| `bullmqDriver()` (Redis)   | broker     | No                             | Yes                 | **Yes**                 |
-| `rabbitmqDriver()` (AMQP)  | broker     | No                             | Yes                 | **Yes**                 |
-
-**In-process drivers** (`syncDriver`, `deferDriver`) are built into core and need no infrastructure.
-`MediaLibrary` attaches its own processor to them at construction, so there is nothing to start.
-`deferDriver()` gets conversions off the request path by running them on a later tick — but the work
-still happens in the web process, and **a job in flight when the process exits is simply lost**. It
-buys you latency, not durability.
-
-**Broker drivers** hand jobs to Redis or RabbitMQ. Constructing a `MediaLibrary` with one does _not_
-start consuming — a web process can enqueue and never act as a consumer. Consuming is an explicit
-`startWorker()` in a dedicated process:
-
-```ts
-// worker.ts
-const worker = await library.startWorker({ concurrency: 4 })
-process.on('SIGTERM', () => worker.close())
-```
-
-`startWorker()` throws if the configured driver is in-process, since those have no worker to start.
-The worker must be built from the **same model/collection config** as the web process — that's where
-conversion definitions live. Full setup, including the `worker` CLI command and its shutdown
-semantics, is in [recipe 5](#5-getting-conversions-off-the-request-path); the driver contract itself
-is in [`packages/core/README.md`](packages/core/README.md#queue-drivers).
+Full guides, the configuration reference, and the generated API docs live in
+[`website/`](website/README.md). The site isn't deployed yet — run it locally:
 
 ```bash
-pnpm add @node-media-library/bullmq     # Redis
-pnpm add @node-media-library/rabbitmq   # AMQP
+cd website && pnpm install && pnpm dev
 ```
 
-### Storage
-
-`storage` is optional. With no config at all the default disk is synthesized from the environment, in
-this precedence: `MEDIA_R2_ACCOUNT_ID` → R2, else `MEDIA_S3_BUCKET` → S3, else `MEDIA_GCS_BUCKET` → GCS,
-else local fs at `MEDIA_FS_ROOT`. Explicit config is clearer — see [Storage disks](#storage-disks), and
-note the `fs` driver needs `baseUrl` or `url()` throws.
-
-### Full option reference
-
-| Key                         | Type                  | Default                            | What it does                                                                        |
-| --------------------------- | --------------------- | ---------------------------------- | ----------------------------------------------------------------------------------- |
-| `repository`                | `MediaRepository`     | **required**                       | Where media rows live.                                                              |
-| `models`                    | `Record<string, {…}>` | **required**                       | Model types and their collections. `for()` throws `UnknownModelError` off this map. |
-| `storage`                   | `StorageConfig`       | synthesized from env               | Named disks (`fs`/`s3`/`r2`/`gcs`).                                                 |
-| `queue`                     | `AnyQueueDriver`      | `syncDriver()`                     | See above.                                                                          |
-| `maxFileSize`               | `number`              | `10 * 1024 * 1024`                 | Byte cap, enforced **while streaming**, not after.                                  |
-| `disallowedExtensions`      | `string[]`            | `DEFAULT_DISALLOWED_EXTENSIONS`    | Blocklist, checked per dot-segment (`evil.php.jpg` is rejected).                    |
-| `allowedExtensions`         | `string[]`            | none                               | If set, an allowlist — anything outside it is rejected.                             |
-| `versionUrls`               | `boolean`             | `false`                            | Append a cache-busting version query to generated URLs.                             |
-| `signedUrlExpiresIn`        | `string \| number`    | `'30 mins'`                        | Default expiry for `signedUrl()`. Ignored by the `fs` driver, which cannot sign.    |
-| `fileNameSanitizer`         | `FileNameSanitizer`   | built-in                           | Replacing this replaces a security control — extend the default, don't start over.  |
-| `pathGenerator`             | `PathGenerator`       | `DefaultPathGenerator`             | Where files land: `{prefix}/{mediaId}/{fileName}`.                                  |
-| `urlGenerator`              | `UrlGenerator`        | `DefaultUrlGenerator`              | How URLs are built. A custom CDN hostname is `baseUrl`, not this.                   |
-| `imageGenerators`           | `ImageGenerator[]`    | `[sharpImageGenerator()]`          | Add `pdfImageGenerator()` / `videoImageGenerator()` here — nothing auto-registers.  |
-| `optimizers`                | `ImageOptimizer[]`    | `[]`                               | `jpegoptim`/`pngquant` passes over conversion output.                               |
-| `responsiveWidthCalculator` | `WidthCalculator`     | `FileSizeOptimizedWidthCalculator` | Which widths `.withResponsiveImages()` produces.                                    |
-| `responsivePlaceholders`    | `boolean`             | `true`                             | Generate the base64 LQIP alongside responsive variants.                             |
-
----
-
-# Recipes
-
-## 1. User avatars — one file, auto-thumbnail, fallback image
-
-The classic case: one avatar per user, replaced on upload, with a default image for users who never
-set one.
-
-```ts
-avatar: collection()
-  .singleFile()
-  .acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp'])
-  .fallbackUrl('https://cdn.example.com/defaults/avatar.png')
-  .conversions({
-    thumb: conversion().width(96).height(96).fit('cover').format('webp').nonQueued(),
-    large: conversion().width(512).height(512).fit('cover').format('webp'),
-  })
-```
-
-```ts
-await library.for('User', user.id).add(file).toCollection('avatar')
-
-// Empty collection? You get the fallback, not null — so templates need no branching.
-const url = await library.for('User', user.id).firstUrl('avatar', 'thumb')
-```
-
-**Details that matter here:**
-
-- `.fallbackUrl(url)` with no conversion name backs **every** conversion-scoped lookup, so
-  `firstUrl('avatar', 'thumb')` returns it too. Register a per-conversion fallback with
-  `.fallbackUrl(url, 'thumb')` when you want a differently-sized default.
-- `thumb` is `.nonQueued()` and `large` is not: the small one is ready when `add()` resolves, the big
-  one goes through the queue. With the default sync driver both run inline; the split starts to matter
-  once you [add a real queue](#5-getting-conversions-off-the-request-path).
-- `acceptsMimeTypes` is checked against the **sniffed** MIME type. A `.png` file that is actually a
-  PHP script is rejected here, not discovered later.
-
-## 2. Product galleries — ordering, responsive `srcset`, keep-latest
-
-Many files per product, drag-to-reorder in the admin, and a `srcset` for the storefront.
-
-```ts
-gallery: collection()
-  .onlyKeepLatest(20)
-  .acceptsMimeTypes(['image/*'])
-  .withResponsiveImages() // variant set + LQIP for every original
-  .conversions({
-    card: conversion().width(400).height(400).fit('cover').format('webp'),
-    hero: conversion().width(1600).format('webp').withResponsiveImages(),
-  })
-```
-
-```ts
-const gallery = library.for('Product', product.id)
-
-await gallery.add(file).usingName('Front view').toCollection('gallery')
-
-// Reorder — ids not owned by this product are filtered out, so a tampered
-// payload can't renumber someone else's media.
-await gallery.reorder([mediaC.id, mediaA.id, mediaB.id])
-
-const images = await gallery.getAll('gallery') // in order
-```
-
-Rendering with responsive images:
-
-```ts
-const media = images[0]
-
-const srcset = await library.srcset(media.id) // 'https://…_1600_1200.jpg 1600w, …'
-const heroSrcset = await library.srcset(media.id, 'hero') // variants of the hero conversion
-const lqip = await library.placeholder(media.id) // 'data:image/svg+xml;base64,…'
-const urls = await library.responsiveUrls(media.id) // widest-first array
-```
-
-```html
-<img
-  src="{{ cardUrl }}"
-  srcset="{{ srcset }}"
-  sizes="(max-width: 700px) 100vw, 700px"
-  style="background-image: url('{{ lqip }}'); background-size: cover"
-/>
-```
-
-`onlyKeepLatest(20)` prunes the oldest beyond 20 on every add, stored files included. Use
-`singleFile()` or `onlyKeepLatest(n)` — they're mutually exclusive and the builder throws if you set
-both.
-
-**Backfilling:** turning `.withResponsiveImages()` on for a collection that already has media doesn't
-retroactively generate anything. Run
-[`regenerate({ withResponsive: true, onlyMissing: true })`](#maintenance-cli).
-
-## 3. Private documents — signed URLs, streamed downloads, bulk ZIP
-
-Invoices, contracts, anything that must not be publicly addressable. Storage is private by default,
-so this is the path of least resistance rather than an opt-in hardening step.
-
-```ts
-invoices: collection().acceptsMimeTypes(['application/pdf']).useDisk('documents') // a private S3 disk
-```
-
-```ts
-// A time-limited URL the browser can hit directly (S3/GCS presigned)
-const url = await library.for('Invoice', invoice.id).firstSignedUrl('invoices', undefined, {
-  expiresIn: '15 mins',
-})
-```
-
-Or keep the bytes behind your own authorization and stream them:
-
-```ts
-// Web-standard Response — works as-is in Hono, Next.js route handlers, Bun, Deno
-const res = await library.download(media.id) // Content-Disposition: attachment
-const preview = await library.inline(media.id) // …; inline
-const thumb = await library.download(media.id, 'thumb') // a specific conversion
-```
-
-Bulk export, streamed — no temp file, nothing buffered:
-
-```ts
-const docs = await library.for('Invoice', invoice.id).getAll('invoices')
-return library.zip(`invoice-${invoice.number}.zip`, docs)
-```
-
-Set `customProperties.zipFilenamePrefix` on a record to file it into a folder inside the archive
-(`'2024/'` → `2024/invoice.pdf`); the value is sanitized against zip-slip.
-
-> ⚠️ **`signedUrl()` on the `fs` driver does not sign anything.** It falls back to the plain public URL
-> and ignores `expiresIn`, because the local driver has no signing mechanism. That's fine in
-> development, but don't ship private media on an `fs` disk assuming the URL expires — use S3/GCS, or
-> serve the bytes yourself with `download()`/`inline()` behind your own auth check.
-
-## 4. Accepting uploads from Express, Hono, or Next.js
-
-`add()` takes whatever your framework hands you, so there's no adapter layer.
-
-**Hono / Next.js route handlers / Bun / Deno** — a web `File` goes straight in, and `download()`
-returns a `Response` you can return:
-
-```ts
-// app/api/avatar/route.ts
-export async function POST(request: Request) {
-  const form = await request.formData()
-  const file = form.get('avatar') as File
-  const user = library.for('User', session.userId)
-
-  const media = await user.add(file).toCollection('avatar')
-
-  return Response.json({ id: media.id, url: await user.firstUrl('avatar', 'thumb') })
-}
-
-// app/api/media/[id]/route.ts
-export async function GET(_: Request, { params }: { params: { id: string } }) {
-  return library.inline(params.id)
-}
-```
-
-**Express / Fastify** — pass multer's temp path (or its buffer), and use `toNodeStream()` to bridge the
-`Response` back to a Node stream:
-
-```ts
-import multer from 'multer'
-import { toNodeStream } from '@node-media-library/core'
-
-const upload = multer({ dest: '/tmp/uploads' })
-
-app.post('/avatar', upload.single('avatar'), async (req, res) => {
-  // A path source is MOVED into the library, so multer's temp file is cleaned up for you
-  const media = await library.for('User', req.user.id).add(req.file.path).toCollection('avatar')
-  res.json({ id: media.id })
-})
-
-app.get('/media/:id/download', async (req, res) => {
-  const response = await library.download(req.params.id)
-  response.headers.forEach((value, key) => res.setHeader(key, value))
-  toNodeStream(response).pipe(res)
-})
-```
-
-**Handling rejections.** Every validation failure is a typed error with a stable `code`, so mapping
-them to HTTP statuses is mechanical:
-
-```ts
-import {
-  FileTooLargeError,
-  UnacceptableFileError,
-  DisallowedExtensionError,
-} from '@node-media-library/core'
-
-try {
-  await library.for('User', id).add(file).toCollection('avatar')
-} catch (err) {
-  if (err instanceof FileTooLargeError) return res.status(413).json({ error: err.message })
-  if (err instanceof UnacceptableFileError) return res.status(415).json({ error: err.message })
-  if (err instanceof DisallowedExtensionError) return res.status(422).json({ error: err.message })
-  throw err
-}
-```
-
-| Error                      | `code`                 | Cause                                                        |
-| -------------------------- | ---------------------- | ------------------------------------------------------------ |
-| `FileTooLargeError`        | `FILE_TOO_LARGE`       | Over `maxFileSize` (default 10 MiB)                          |
-| `UnacceptableFileError`    | `UNACCEPTABLE_FILE`    | Failed `acceptsMimeTypes` / `acceptsFile`                    |
-| `DisallowedExtensionError` | `DISALLOWED_EXTENSION` | Blocklisted extension, or outside `allowedExtensions`        |
-| `UnknownModelError`        | `UNKNOWN_MODEL`        | `for()` called with a model type that isn't registered       |
-| `DownloadFailedError`      | `DOWNLOAD_FAILED`      | URL source: bad status, blocked host, redirect, bad protocol |
-| `ConversionFailedError`    | `CONVERSION_FAILED`    | An image generator failed                                    |
-| `StorageError`             | `STORAGE_ERROR`        | Unknown disk, or the driver can't build a URL                |
-
-All extend `MediaLibraryError`.
-
-## 5. Getting conversions off the request path
-
-Resizing a 4000×3000 photo into four formats inside the request is how upload endpoints get slow. The
-default `syncDriver()` runs conversions inline — fine for small images and tests. Swap in BullMQ and
-they become background jobs.
-
-Reach for `deferDriver()` first if all you want is the request to return early — it's built into core,
-needs no infrastructure, and runs conversions on a later tick. What it does not give you is durability:
-the work stays in the web process, so a job in flight when the process restarts is gone. A broker
-driver is what survives a deploy.
-
-```ts
-// media.config.ts — shared by BOTH processes
-import { prismaAdapter } from '@node-media-library/prisma'
-import { bullmqDriver } from '@node-media-library/bullmq'
-
-const connection = { url: process.env.REDIS_URL! }
-
-export const config = {
-  repository: prismaAdapter(prisma),
-  storage: {/* … */},
-  models: {/* … */},
-  queue: bullmqDriver({ connection }),
-}
-```
-
-```ts
-// web.ts — add() returns as soon as the original is stored
-import { createMediaLibrary } from '@node-media-library/core'
-import { config } from './media.config.js'
-
-export const library = createMediaLibrary(config)
-```
-
-```ts
-// worker.ts — a separate long-lived process
-import { createMediaLibrary } from '@node-media-library/core'
-import { config } from './media.config.js'
-
-const library = createMediaLibrary(config)
-const worker = await library.startWorker({ concurrency: 4 })
-process.on('SIGTERM', () => worker.close()) // waits for in-flight jobs; { force: true } to abandon them
-// keep the process alive; the worker above processes jobs until closed.
-```
-
-Or via the CLI, given a config module that default-exports the same `MediaLibrary`:
-
-```bash
-node-media-library worker --config media.config.ts --concurrency 4
-```
-
-**On RabbitMQ instead of Redis?** Swap the driver and nothing else changes — `startWorker()`, the CLI,
-and the events below are driver-agnostic:
-
-```ts
-import { rabbitmqDriver } from '@node-media-library/rabbitmq'
-
-queue: rabbitmqDriver({ url: process.env.AMQP_URL!, deadLetterExchange: 'media.dlx' })
-```
-
-One asymmetry worth knowing before you pick: the CLI's `--shutdown-timeout` genuinely cuts a wedged
-drain short with `rabbitmqDriver`, but **not** with `bullmqDriver` — BullMQ memoizes its close promise
-on the first call, so the forced close just returns the still-pending graceful one.
-
-The worker **must be built from the same model/collection config** as the web process — that's where
-conversion definitions live, and a worker that doesn't know about a collection can't generate its
-conversions.
-
-Meanwhile, conversions you want available immediately (a small thumbnail for the optimistic UI) stay
-`.nonQueued()` and still run inline. Watch progress through typed events:
-
-```ts
-library.events.on('conversion:completed', ({ media, conversion }) => {
-  logger.info({ mediaId: media.id, conversion }, 'conversion ready')
-})
-library.events.on('conversion:failed', ({ media, conversion, error }) => {
-  logger.error({ mediaId: media.id, conversion, error }, 'conversion failed')
-})
-```
-
-Full event map: `media:added`, `media:deleting`, `media:deleted`, `media:copied`, `media:moved`,
-`collection:cleared`, `conversion:started|completed|failed`, `responsive:generated|failed`.
-`events.on()` returns an unsubscribe function.
-
-## 6. Thumbnails for PDFs and videos
-
-Core only knows how to read images. PDF and video support is **explicit** — append a generator; there
-is no auto-detection.
-
-```ts
-import {
-  createMediaLibrary,
-  sharpImageGenerator,
-  collection,
-  conversion,
-} from '@node-media-library/core'
-import { pdfImageGenerator } from '@node-media-library/pdf'
-import { videoImageGenerator } from '@node-media-library/video'
-
-createMediaLibrary({
-  // …
-  imageGenerators: [sharpImageGenerator(), pdfImageGenerator(), videoImageGenerator()],
-  models: {
-    Lesson: {
-      collections: {
-        material: collection().conversions({
-          cover: conversion().width(600).pdfPageNumber(1).videoFrameAtSecond(3),
-        }),
-      },
-    },
-  },
-})
-```
-
-One conversion definition serves both: `pdfPageNumber` is read when the source is a PDF,
-`videoFrameAtSecond` when it's a video, and neither applies to a plain image. Both generators also feed
-`.withResponsiveImages()` — the source is rasterized once and variants derive from that raster.
-
-If **no** configured generator supports a file's MIME type, its conversions are skipped silently and
-the upload still succeeds: a `.zip` in an `attachments` collection is stored and downloadable, it just
-has no thumbnail. Requires `pdftoppm` / `ffmpeg` on `PATH`.
-
-## 7. Importing a file from a URL, safely
-
-Migrating from another system, or importing a user-supplied avatar URL:
-
-```ts
-await library
-  .for('User', user.id)
-  .add({ url: 'https://cdn.partner.com/photos/42.jpg', allowedHosts: ['cdn.partner.com'] })
-  .usingName('Imported photo')
-  .toCollection('avatar')
-```
-
-`allowedHosts` is an exact `host:port` match, and redirects are rejected outright rather than followed
-— so a `302` to an internal address can't slip past the allowlist. The download is capped at
-`maxFileSize` **while it streams**, and a `Content-Length` header that already exceeds the cap is
-rejected before a byte is read.
-
-> This is not a complete SSRF defense. The allowlist checks the hostname you were given; it can't stop
-> DNS rebinding, or an allowlisted host that resolves to a private IP. If the URLs come from untrusted
-> users, put an egress proxy in front of this.
-
-## 8. Metadata, search, copy and move
-
-Attach your own data to a media record and query by it:
-
-```ts
-await library
-  .for('Post', post.id)
-  .add(file)
-  .withCustomProperties({ alt: 'Sunset over the bay', credit: 'A. Photographer', featured: true })
-  .toCollection('images')
-
-// Update one key without touching siblings (a dedicated atomic repository
-// operation, not a read-modify-write of the whole JSON blob)
-await library.setCustomProperty(media.id, 'alt', 'Sunset over the bay, 2024')
-await library.removeCustomProperty(media.id, 'credit')
-
-// Filter by exact match…
-const featured = await library.for('Post', post.id).getAll('images', { featured: true })
-// …or with a predicate
-const large = await library.for('Post', post.id).getAll('images', (m) => m.size > 1_000_000)
-```
-
-Move media between owners — reassigning a draft's uploads to the published post, or transferring an
-asset between accounts:
-
-```ts
-const copy = await library.copyMedia(media.id, 'Post', otherPost.id, { toCollection: 'images' })
-const moved = await library.moveMedia(media.id, 'Post', otherPost.id)
-```
-
-Both re-run the full add pipeline on the target, so the **target's** validation, disk, and collection
-rules apply, and derived files are regenerated rather than byte-copied. `moveMedia` is
-copy-then-delete: if the copy fails, the source is untouched.
-
----
-
-# Production
-
-## Persistence with Prisma
-
-`InMemoryMediaRepository` is for tests. For real use, add the `Media` model to your schema and pass the
-adapter:
-
-```prisma
-model Media {
-  id                   String   @id
-  modelType            String
-  modelId              String
-  uuid                 String   @unique
-  collectionName       String
-  name                 String
-  fileName             String
-  mimeType             String?
-  disk                 String
-  conversionsDisk      String?
-  size                 Int
-  manipulations        Json
-  customProperties     Json
-  generatedConversions Json
-  responsiveImages     Json
-  orderColumn          Int?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-  @@index([modelType, modelId])
-  @@map("media")
-}
-```
-
-```ts
-import { prismaAdapter, withMediaCascade } from '@node-media-library/prisma'
-
-const library = createMediaLibrary({ repository: prismaAdapter(prisma) /* … */ })
-
-// Opt-in: deleting a User now deletes its media rows AND their stored files
-const db = withMediaCascade(prisma, library)
-await db.user.delete({ where: { id: userId } })
-```
-
-Media rows are **not** foreign-keyed to your models — that's what lets `modelType`/`modelId` work across
-every table. Without `withMediaCascade`, deleting an owner leaves its media behind; recover those with
-`clean({ deleteOrphaned: true })`. See [`packages/prisma/README.md`](packages/prisma/README.md),
-including its honest note on JSON-column merge atomicity under Postgres/MySQL.
-
-Any backend works — implement `MediaRepository` and validate it against the shared contract suite
-exported from `@node-media-library/core/testing`, which every bundled adapter also runs.
-
-## Storage disks
-
-`fs`, `s3`, `r2`, and `gcs`, with per-collection routing:
-
-```ts
-storage: {
-  disks: {
-    default:   { driver: 'fs', root: './storage/media', baseUrl: 'http://localhost:3000/media' },
-    public:    { driver: 's3', bucket: 'assets',    region: 'us-east-1', visibility: 'public' },
-    documents: { driver: 's3', bucket: 'documents', region: 'us-east-1' }, // private
-  },
-}
-
-// then, per collection:
-invoices: collection().useDisk('documents').storeConversionsOnDisk('documents')
-```
-
-Cloudflare R2:
-
-```ts
-storage: {
-  default: 'r2',
-  disks: {
-    r2: {
-      driver: 'r2',
-      accountId: process.env.R2_ACCOUNT_ID!,
-      bucket: 'my-media',
-      credentials: {
-        accessKeyId: process.env.R2_ACCESS_KEY_ID!,
-        secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
-      },
-      // Required only for `.public()` collections: R2 has no object ACLs, so
-      // public access comes from an r2.dev subdomain or a custom domain.
-      baseUrl: 'https://cdn.example.com',
-    },
-  },
-}
-```
-
-With no `storage` config at all, the default disk is synthesized from the environment:
-`MEDIA_R2_ACCOUNT_ID` → R2, else `MEDIA_S3_BUCKET` → S3, else `MEDIA_GCS_BUCKET` → GCS, else local fs at
-`MEDIA_FS_ROOT` (default `./storage/media`). Handy for a twelve-factor deploy; explicit config is
-clearer.
-
-- The **`fs` driver needs `baseUrl`** to produce URLs at all — without it, `url()` throws
-  `StorageError`. Serve that root statically and point `baseUrl` at it.
-- **`baseUrl` is honored on every driver**, including `s3`/`r2`/`gcs` — point it at a CDN hostname in
-  front of the bucket and public URLs use it. Signed URLs are the exception: on every driver that can
-  sign (`s3`/`r2`/`gcs`) they always presign against the real endpoint and ignore `baseUrl`. The `fs`
-  driver cannot sign, so `signedUrl()` there falls back to the public URL, which does use `baseUrl`.
-- **An `r2` disk with no `baseUrl` has no public URL.** With the default URL generator, `url()` and
-  friends throw `StorageError` instead of returning the authenticated `*.r2.cloudflarestorage.com` API
-  host, which 401s for anonymous readers. Set `baseUrl`, or serve the file with `signedUrl()`. A
-  custom `urlGenerator` builds its own URLs and is not subject to this.
-- The `s3`/`r2` drivers need the optional peers `@aws-sdk/client-s3` and `@aws-sdk/s3-request-presigner`;
-  the `gcs` driver needs `@google-cloud/storage ^7.10.2`. Install whichever driver(s) you use.
-- **Visibility is bucket-level on R2, not per-object.** `.public()` writes public ACLs on `s3`/`gcs`, but
-  R2 has no object ACLs, so `.public()` is a storage-layer no-op there — a public R2 disk needs
-  `baseUrl` pointed at an r2.dev subdomain or custom domain, and a public R2 disk with no `baseUrl`
-  throws at construction — or warns instead, if you supply your own `urlGenerator`, since core can't
-  see how that builds URLs. Mixing public and private collections on one R2 bucket is unsupported (the
-  "private" objects become guessable-key-reachable through the bucket's public domain) — use two disks.
-- Files land at `{prefix}/{mediaId}/{fileName}`, with `conversions/` and `responsive/` beside them — so
-  one media item is one directory, and deleting it is one recursive delete. Swap `pathGenerator` to
-  change that. `mediaId` is a random UUID, which is what actually keeps a private object's key
-  unguessable — not ACLs.
-
-## Security defaults
-
-The short version — the full rationale is in
-[`packages/core/README.md`](packages/core/README.md#security-model):
-
-- **MIME is sniffed from the bytes**, never taken from a `Content-Type` header or an extension.
-- **Filenames are sanitized** (path separators, control characters, and leading dots stripped,
-  `basename()` applied) — including names you pass explicitly via `usingFileName()`.
-- **Extensions are blocked per dot-segment**, so `evil.php.jpg` is rejected, not just `evil.php`.
-- **`maxFileSize` is enforced during accumulation**, so a hostile stream or URL can't exhaust memory
-  before the check runs.
-- **Storage is private by default.** `collection().public()` opts a collection's writes into public
-  ACLs on `s3`/`gcs`. On `r2` there are no object ACLs, so visibility is bucket-level — see
-  [Storage disks](#storage-disks).
-- Replacing `fileNameSanitizer` replaces those protections. Extend the default rather than starting
-  from scratch.
-
-Found a vulnerability? Report it privately per [SECURITY.md](SECURITY.md).
-
-## Maintenance CLI
-
-Point it at a module that default-exports your `MediaLibrary`:
-
-```bash
-# Backfill conversions added after the media was uploaded
-node-media-library regenerate --config media.config.mjs --model Product --only-missing
-
-# Add responsive variants to media that predate .withResponsiveImages()
-node-media-library regenerate --config media.config.mjs --with-responsive --only-missing
-
-# See what a cleanup would remove — orphaned media and stale derived files
-node-media-library clean --config media.config.mjs --dry-run --delete-orphaned
-
-# Then do it, at most 10 deletes per second
-node-media-library clean --config media.config.mjs --delete-orphaned --rate-limit 10
-```
-
-Both are also methods: `library.regenerate({ … })` and `library.clean({ … })`.
-
-> `clean()` is **not** safe to run alongside active conversion workers — it diffs on-disk files against
-> config, and a worker writing one mid-diff can cause a spurious or missed delete. Run it offline. It
-> also skips (loudly) any record whose model/collection isn't registered in the config you hand it,
-> rather than treating every file as stale — so run it with your **full** config.
-
-Running the CLI from a checkout needs `pnpm build` first (the bin points at `dist/`). `.ts` configs need
-a loader such as `tsx`.
-
----
+**Every code sample in these guides is executed in CI.** They aren't written inline — they're
+imported from [`examples/`](examples/README.md), a workspace member with its own vitest suite, so
+`pnpm -r test` runs them and the docs build fails if a referenced snippet disappears. A sample that
+drifts from the shipped API breaks the build rather than misleading you.
+
+You can read the pages on GitHub, with one caveat: because those samples are injected at build
+time, GitHub renders the prose and **silently drops the code blocks** on the pages marked † below.
+For those, run the site locally or read the sources under [`examples/src/`](examples/src/).
+
+| Topic                                                                                | Covers                                                      |
+| ------------------------------------------------------------------------------------ | ----------------------------------------------------------- |
+| [Configuration reference](website/src/content/docs/reference/configuration.mdx)      | Every `createMediaLibrary()` option and its default         |
+| [Handling uploads](website/src/content/docs/guides/uploads.mdx)                      | Express, Hono, Next.js, and mapping errors to HTTP statuses |
+| [Avatars](website/src/content/docs/guides/avatars.mdx) †                             | Single-file collections and fallback images                 |
+| [Galleries & responsive images](website/src/content/docs/guides/galleries.mdx) †     | Ordering, `srcset`, LQIP placeholders, keep-latest          |
+| [Private files & downloads](website/src/content/docs/guides/private-files.mdx) †     | Signed URLs, streamed responses, bulk ZIP                   |
+| [Background conversions](website/src/content/docs/guides/background-conversions.mdx) | Queue drivers, workers, shutdown semantics                  |
+| [PDF & video thumbnails](website/src/content/docs/guides/pdf-video.mdx)              | Registering extra image generators                          |
+| [Importing from a URL](website/src/content/docs/guides/url-import.mdx) †             | Host allowlists, and what they don't protect against        |
+| [Metadata, copy & move](website/src/content/docs/guides/metadata.mdx) †              | Custom properties, filtering, reassigning owners            |
+| [Persistence with Prisma](website/src/content/docs/production/prisma.mdx)            | Schema, migrations, cascading deletes                       |
+| [Security model](website/src/content/docs/production/security.md)                    | MIME sniffing, sanitization, size caps, visibility          |
+| [CLI](website/src/content/docs/reference/cli.md)                                     | `regenerate` and `clean`                                    |
+| [Coming from Laravel MediaLibrary](website/src/content/docs/coming-from-laravel.md)  | API mapping and deliberate differences                      |
+
+[`packages/core/README.md`](packages/core/README.md) is the deepest single document — driver contracts,
+URL building per driver, and the full security rationale.
 
 ## Packages
 
@@ -847,36 +293,6 @@ sibling adapter.
 | [`@node-media-library/video`](packages/video/README.md)           | `ImageGenerator` extracting video frames via `ffmpeg`.                             |
 | [`@node-media-library/optimizers`](packages/optimizers/README.md) | `jpegoptim`/`pngquant` optimizers that shrink conversion and responsive output.    |
 
-## Coming from spatie/laravel-medialibrary
-
-The concepts transfer directly; the API is Node-idiomatic rather than a transliteration.
-
-| Laravel MediaLibrary                        | Here                                                            |
-| ------------------------------------------- | --------------------------------------------------------------- |
-| `InteractsWithMedia` trait on a model       | Register the model type by name in `models: { User: { … } }`    |
-| `$user->addMedia($f)->toMediaCollection()`  | `library.for('User', id).add(f).toCollection()`                 |
-| `registerMediaCollections()`                | `collection()` builders in config                               |
-| `registerMediaConversions()`                | `conversion()` builders, per collection                         |
-| `$user->getFirstMediaUrl('avatar','thumb')` | `await library.for('User', id).firstUrl('avatar', 'thumb')`     |
-| `$media->getSrcset()`                       | `await library.srcset(media.id)`                                |
-| `media:regenerate` / `media:clean`          | `node-media-library regenerate` / `clean`                       |
-| Laravel filesystem disks                    | flydrive disks (`fs` / `s3` / `r2` / `gcs`)                     |
-| Laravel queues                              | `QueueDriver` — `syncDriver()` by default, or BullMQ/RabbitMQ   |
-| Eloquent `Media` model                      | `MediaRepository` interface — Prisma adapter, or bring your own |
-
-**Deliberate differences:**
-
-- **No ORM coupling.** Nothing here knows about your models; you name a `modelType` string and the
-  repository stores it. That's what lets one media table serve Prisma, Drizzle, or a raw driver.
-- **Everything that touches storage is async.** `firstUrl()`, `srcset()`, and `signedUrl()` return
-  promises, because building a URL can mean asking a driver to sign one.
-- **Conversions are sharp-based**, not Glide/Imagick, and expose sharp's vocabulary (`fit`, `format`,
-  `quality`, `blur`, `greyscale`, `autoOrient`).
-- **Downloads are web-standard `Response` objects**, not framework responses — with `toNodeStream()`
-  for Express-style servers.
-- **No auto-registration.** PDF and video support is an explicit `imageGenerators` entry; optimizers are
-  an explicit `optimizers` entry. Nothing is enabled just by installing a package.
-
 ## Known limitations
 
 Stated up front, because finding these out in production is worse:
@@ -886,15 +302,17 @@ Stated up front, because finding these out in production is worse:
   (model, collection) if you need a hard guarantee.
 - **Prisma JSON-column merges aren't lock-safe** under Postgres/MySQL read-committed isolation — two
   concurrent merges on the _same_ record can lose a write. SQLite is unaffected (single writer).
+- **`signedUrl()` doesn't sign on the `fs` driver.** It falls back to the plain public URL and ignores
+  `expiresIn`. Don't ship private media on an `fs` disk assuming the URL expires.
 - **`@node-media-library/video` buffers the whole source video in memory** and spawns one `ffmpeg`
-  process per frame extraction. Fine for typical clips; not tuned for large files or many video
-  conversions per item.
-- **`signedUrl()` doesn't sign on the `fs` driver** — see
-  [recipe 3](#3-private-documents--signed-urls-streamed-downloads-bulk-zip).
+  process per frame extraction. Fine for typical clips; not tuned for large files.
 - **R2-specific behavior is only verified when `R2_*` repository secrets are configured.** CI runs the
-  shared storage contract against MinIO for the `s3` path, but MinIO accepts ACLs, so it can't prove R2's
-  `supportsACL: false` suppression or its checksum handling.
-- **`clean()` is not concurrency-safe** with running workers — see [Maintenance CLI](#maintenance-cli).
+  shared storage contract against MinIO for the `s3` path, but MinIO accepts ACLs, so it can't prove
+  R2's `supportsACL: false` suppression or its checksum handling.
+- **`clean()` is not concurrency-safe** with running workers — it diffs on-disk files against config,
+  and a worker writing one mid-diff can cause a spurious or missed delete. Run it offline.
+
+Full detail: [Known limitations](website/src/content/docs/production/limitations.mdx).
 
 ## Contributing
 
@@ -909,8 +327,9 @@ pnpm -r typecheck
 pnpm build
 ```
 
-Participation is governed by our [Code of Conduct](CODE_OF_CONDUCT.md). The original design spec lives
-at [`docs/superpowers/specs/`](docs/superpowers/specs/).
+Participation is governed by our [Code of Conduct](CODE_OF_CONDUCT.md). Found a vulnerability? Report
+it privately per [SECURITY.md](SECURITY.md). The original design spec lives at
+[`docs/superpowers/specs/`](docs/superpowers/specs/).
 
 ## License
 
