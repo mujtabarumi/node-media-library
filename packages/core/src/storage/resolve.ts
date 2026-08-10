@@ -94,7 +94,12 @@ export interface StorageConfig {
   disks?: Record<string, DiskConfig>
 }
 
-/** @internal */
+/**
+ * The storage layer a `MediaLibrary` resolved from its config. Public because
+ * `MediaLibrary.storage` returns it — typed code against that getter needs the
+ * name. Constructing one is not part of the public surface; `resolveStorage`
+ * stays internal.
+ */
 export interface ResolvedStorage {
   defaultDisk: string
   prefix: string

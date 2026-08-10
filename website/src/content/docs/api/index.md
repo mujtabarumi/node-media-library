@@ -51,6 +51,7 @@ banner:
 - [QueueDriver](/api/interfaces/QueueDriver/)
 - [QueueWorker](/api/interfaces/QueueWorker/)
 - [RegenerateOptions](/api/interfaces/RegenerateOptions/)
+- [ResolvedStorage](/api/interfaces/ResolvedStorage/)
 - [ResponsiveImagesEntry](/api/interfaces/ResponsiveImagesEntry/)
 - [ResponsiveVariant](/api/interfaces/ResponsiveVariant/)
 - [S3Credentials](/api/interfaces/S3Credentials/)

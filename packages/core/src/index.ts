@@ -6,7 +6,15 @@ export * from './definitions/conversion.js'
 export * from './definitions/collection.js'
 export * from './repository.js'
 export * from './repository/in-memory.js'
-export * from './storage/resolve.js'
+// Named rather than `export *`: the module also exports resolveStorage,
+// normalizeR2, and writeOptionsFor, which are @internal. Without this,
+// `export *` re-widens the public surface silently — exports.test.ts guards it.
+export type {
+  DiskConfig,
+  StorageConfig,
+  S3Credentials,
+  ResolvedStorage,
+} from './storage/resolve.js'
 export * from './storage/path-generator.js'
 export * from './storage/url-generator.js'
 export * from './pipeline/source.js'
