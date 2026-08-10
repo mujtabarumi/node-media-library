@@ -78,8 +78,11 @@ are `{prefix}/{mediaId}/{fileName}`, where `mediaId` is a random UUID.
 **What to do.** Use two R2 disks: one bucket (or one with a public domain attached) for `.public()`
 collections, and a separate bucket with no public domain for everything else, wired up with
 `collection().useDisk()` / `.storeConversionsOnDisk()`. A `.public()` collection on an `r2` disk with no
-`baseUrl` throws when the `MediaLibrary` is constructed. Configuring one R2 disk with `baseUrl` that
-serves both public and private collections logs a `console.warn`.
+`baseUrl` throws when the `MediaLibrary` is constructed — unless you supply your own `urlGenerator`, in
+which case it only warns, since core cannot know how a custom generator builds public URLs. Configuring
+one R2 disk with `baseUrl` that serves both public and private collections logs a `console.warn`.
+Separately, `url()` on _any_ collection whose disk is `r2` with no `baseUrl` throws `StorageError`
+rather than returning the authenticated `*.r2.cloudflarestorage.com` host, which 401s anonymously.
 
 ## Video frames are extracted one process at a time, from memory
 

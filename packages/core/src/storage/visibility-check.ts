@@ -29,11 +29,21 @@ function configOrNull(storage: ResolvedStorage, name: string): DiskConfig | null
  *
  * Lives here rather than in `resolveStorage` because it needs the collection
  * registry, and `resolveStorage` is deliberately unaware of collections.
+ *
+ * `opts.hasCustomUrlGenerator` downgrades the public-collection-on-bare-r2
+ * throw to a `console.warn`. The throw is only sound for the
+ * `DefaultUrlGenerator`, whose public URLs demonstrably cannot work without a
+ * `baseUrl`. A consumer-supplied `UrlGenerator` is a documented extension
+ * point and may build public URLs from its own CDN logic that core cannot
+ * see — asserting those are broken would make a working configuration
+ * unconstructable. The mixed-visibility warning is unaffected: it is about
+ * where the bytes live, not how URLs are built.
  * @internal
  */
 export function checkCollectionVisibility(
   models: Readonly<Record<string, Readonly<Record<string, CollectionDefinition>>>>,
   storage: ResolvedStorage,
+  opts: { hasCustomUrlGenerator?: boolean } = {},
 ): void {
   const publicDisks = new Set<string>()
   const privateDisks = new Set<string>()
@@ -51,12 +61,20 @@ export function checkCollectionVisibility(
         }
         publicDisks.add(diskName)
         if (cfg.driver === 'r2' && !cfg.baseUrl) {
-          throw new StorageError(
+          const message =
             `Collection "${collectionName}" on model "${modelType}" is public, but its disk ` +
-              `"${diskName}" is an r2 disk with no baseUrl. Cloudflare R2 has no object ACLs — ` +
-              `public URLs come from an r2.dev subdomain or a custom domain. Set baseUrl on the ` +
-              `disk, or drop .public() and serve the files with signedUrl().`,
-          )
+            `"${diskName}" is an r2 disk with no baseUrl. Cloudflare R2 has no object ACLs — ` +
+            `public URLs come from an r2.dev subdomain or a custom domain. Set baseUrl on the ` +
+            `disk, or drop .public() and serve the files with signedUrl().`
+          if (opts.hasCustomUrlGenerator) {
+            console.warn(
+              `[media-library] ${message} A custom urlGenerator is configured, so this is a ` +
+                `warning rather than an error — core cannot tell how it builds public URLs. The ` +
+                `DefaultUrlGenerator would throw here.`,
+            )
+            continue
+          }
+          throw new StorageError(message)
         }
       }
     }

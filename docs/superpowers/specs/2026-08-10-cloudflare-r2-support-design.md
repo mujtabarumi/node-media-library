@@ -78,7 +78,7 @@ export type DiskConfig =
       credentials?: S3Credentials
       supportsACL?: boolean
       forcePathStyle?: boolean
-      requestChecksumCalculation?: 'when_supported' | 'when_required'
+      requestChecksumCalculation?: 'WHEN_SUPPORTED' | 'WHEN_REQUIRED'
       visibility?: Visibility
       baseUrl?: string
     }
@@ -113,7 +113,7 @@ storage: {
 
 **`S3Credentials` is a locally-declared structural type, not an import from `@aws-sdk/client-s3`.** The AWS SDK is an optional peer; a type import would break `tsc` for every fs/gcs user who has not installed it. The shape is structurally compatible with the SDK's own credentials object, so it passes through unchanged.
 
-`requestChecksumCalculation` is exposed but **deliberately left unset by the `r2` preset.** AWS SDK ≥3.729 defaults to `when_supported`, computing CRC32 on every `PutObject`, which historically broke non-AWS S3 endpoints. Cloudflare has since added CRC32 support to R2, but this repo installs no SDK today, so the claim is unverifiable from source. The live R2 suite (§4.6) settles it empirically. If `PutObject` fails there, the fix is a one-line default in the preset, backed by a test that proves it — rather than a workaround baked in on a guess.
+`requestChecksumCalculation` is exposed but **deliberately left unset by the `r2` preset.** AWS SDK ≥3.729 defaults to `WHEN_SUPPORTED`, computing CRC32 on every `PutObject`, which historically broke non-AWS S3 endpoints. Cloudflare has since added CRC32 support to R2, but this repo installs no SDK today, so the claim is unverifiable from source. The live R2 suite (§4.6) settles it empirically. If `PutObject` fails there, the fix is a one-line default in the preset, backed by a test that proves it — rather than a workaround baked in on a guess.
 
 ### 4.2 Normalization: one code path
 

@@ -763,14 +763,19 @@ clearer.
 - The **`fs` driver needs `baseUrl`** to produce URLs at all — without it, `url()` throws
   `StorageError`. Serve that root statically and point `baseUrl` at it.
 - **`baseUrl` is honored on every driver**, including `s3`/`r2`/`gcs` — point it at a CDN hostname in
-  front of the bucket and public URLs use it. Signed URLs are the exception: they always presign
-  against the real endpoint and ignore `baseUrl`.
+  front of the bucket and public URLs use it. Signed URLs are the exception: on every driver that can
+  sign (`s3`/`r2`/`gcs`) they always presign against the real endpoint and ignore `baseUrl`. The `fs`
+  driver cannot sign, so `signedUrl()` there falls back to the public URL, which does use `baseUrl`.
+- **An `r2` disk with no `baseUrl` has no public URL.** `url()` and friends throw `StorageError`
+  instead of returning the authenticated `*.r2.cloudflarestorage.com` API host, which 401s for
+  anonymous readers. Set `baseUrl`, or serve the file with `signedUrl()`.
 - The `s3`/`r2` drivers need the optional peers `@aws-sdk/client-s3` and `@aws-sdk/s3-request-presigner`;
   the `gcs` driver needs `@google-cloud/storage ^7.10.2`. Install whichever driver(s) you use.
 - **Visibility is bucket-level on R2, not per-object.** `.public()` writes public ACLs on `s3`/`gcs`, but
   R2 has no object ACLs, so `.public()` is a storage-layer no-op there — a public R2 disk needs
   `baseUrl` pointed at an r2.dev subdomain or custom domain, and a public R2 disk with no `baseUrl`
-  throws at construction. Mixing public and private collections on one R2 bucket is unsupported (the
+  throws at construction — or warns instead, if you supply your own `urlGenerator`, since core can't
+  see how that builds URLs. Mixing public and private collections on one R2 bucket is unsupported (the
   "private" objects become guessable-key-reachable through the bucket's public domain) — use two disks.
 - Files land at `{prefix}/{mediaId}/{fileName}`, with `conversions/` and `responsive/` beside them — so
   one media item is one directory, and deleting it is one recursive delete. Swap `pathGenerator` to

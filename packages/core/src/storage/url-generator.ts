@@ -94,6 +94,10 @@ export class DefaultUrlGenerator implements UrlGenerator {
    * Public URL for `path` on `diskName`: baseUrl short-circuit (any driver),
    * otherwise `disk.getUrl()`, plus the `?v=` versioning suffix when enabled.
    * Shared by `url()` and `responsiveUrl()` so the two never drift.
+   *
+   * @throws StorageError when the disk cannot produce a working public URL —
+   * an `r2` disk with no `baseUrl` (checked here), or any driver whose
+   * `getUrl()` refuses (e.g. `fs` with no `baseUrl`).
    */
   private async publicUrlFor(path: string, diskName: string, media: MediaRecord): Promise<string> {
     const config = this.storage.diskConfig(diskName)
@@ -106,6 +110,21 @@ export class DefaultUrlGenerator implements UrlGenerator {
     if (config.baseUrl) {
       const baseUrl = config.baseUrl.replace(/\/+$/, '')
       return `${baseUrl}/${path}${this.version(media)}`
+    }
+
+    // An r2 disk with no baseUrl has no working public URL, and this is
+    // statically knowable — `disk.getUrl()` would happily return
+    // `https://{account}.r2.cloudflarestorage.com/{bucket}/{key}`, the
+    // authenticated S3 API host, which 401s for anonymous readers. Returning
+    // that would hand a silently dead link to a template. Throwing here
+    // mirrors what already happens for an `fs` disk with no baseUrl (that one
+    // via flydrive's own getUrl(), which refuses).
+    if (config.driver === 'r2') {
+      throw new StorageError(
+        `Unable to build a public URL for "${path}": disk "${diskName}" is an r2 disk with no ` +
+          `baseUrl. Cloudflare R2 has no object ACLs — public URLs come from an r2.dev subdomain ` +
+          `or a custom domain, so set baseUrl on the disk, or serve this file with signedUrl().`,
+      )
     }
 
     try {

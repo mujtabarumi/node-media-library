@@ -22,15 +22,23 @@ jobs:
         options: >-
           --health-cmd "rabbitmq-diagnostics -q ping"
           --health-interval 10s --health-timeout 5s --health-retries 10
+      # bitnami/* rather than minio/minio because service containers accept
+      # `options` but not `command`, and minio/minio needs `server /data`.
+      # Bitnami moved their versioned tags to `bitnamilegacy` in 2025 and
+      # `bitnami/minio` no longer publishes ANY tag — `bitnami/minio:latest`
+      # 404s on Docker Hub, so this must be the legacy repo, and it must be
+      # pinned: the archive is frozen, but `latest` there is still explicitly
+      # development-only. Digest pinned alongside the tag so a re-tag cannot
+      # change what runs. MINIO_DEFAULT_BUCKETS is what creates the bucket.
       minio:
-        image: bitnami/minio:latest
+        image: bitnamilegacy/minio:2025.7.23-debian-12-r5@sha256:6dabb4a2088c9a79908de3bc05f4586c23ad2182c8908e7e3acbf61c1467fb20
         ports: ['9000:9000']
         env:
           MINIO_ROOT_USER: minioadmin
           MINIO_ROOT_PASSWORD: minioadmin
           MINIO_DEFAULT_BUCKETS: media-test
         options: >-
-          --health-cmd "curl -f http://localhost:9000/minio/health/live"
+          --health-cmd "mc ready local"
           --health-interval 10s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v7

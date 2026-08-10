@@ -5,7 +5,7 @@ Node.js port of [spatie/laravel-medialibrary](https://github.com/spatie/laravel-
 > **Pre-release**: Not yet published to npm. The v1 surface covers file upload, storage, retrieval,
 > collection organization, image conversions, responsive images, queue-backed dispatch, downloads/ZIP, a CLI, and
 > offline maintenance (`clean()`), plus Spatie-parity extras: `copyMedia`/`moveMedia`, atomic custom-property
-> updates, an image optimizer seam, and a GCS disk driver. PDF/video conversion generators live in
+> updates, an image optimizer seam, and GCS and Cloudflare R2 disk drivers. PDF/video conversion generators live in
 > `@node-media-library/pdf` and `@node-media-library/video`. A little design-spec surface still hasn't shipped —
 > see [Roadmap](#roadmap) below.
 
@@ -395,8 +395,14 @@ above (R2 → S3 → GCS → fs).
   URLs, or serve the bytes yourself via `download()`/`inline()` behind your own authorization.
 - **`baseUrl` sets the public URL base on every driver**, not just `fs` — point it at a CDN hostname in
   front of an `s3`/`r2`/`gcs` bucket and `url()`/`firstUrl()` use it. Signed URLs are the one exception:
-  they always presign against the real endpoint and ignore `baseUrl`, because a presigned URL is only
-  valid against the host it was signed for.
+  on every driver that can sign (`s3`/`r2`/`gcs`) they always presign against the real endpoint and
+  ignore `baseUrl`, because a presigned URL is only valid against the host it was signed for. The `fs`
+  driver cannot sign, so `signedUrl()` there falls back to the public URL — which _does_ use `baseUrl`.
+- **`r2` requires `baseUrl` for any public URL.** Without it, `url()`/`firstUrl()`/`responsiveUrl()`/
+  `srcset()` throw `StorageError` rather than returning
+  `https://{accountId}.r2.cloudflarestorage.com/{bucket}/{key}` — that is the authenticated S3 API host
+  and it rejects anonymous reads, so returning it would hand a silently dead link to your template. Set
+  `baseUrl`, or serve the file with `signedUrl()`.
 
 ## Security model
 
@@ -434,7 +440,9 @@ above (R2 → S3 → GCS → fs).
   storage-layer no-op** — Cloudflare R2 has no object ACLs, so visibility there is a property of the _bucket_
   (whether an r2.dev subdomain or a custom domain is attached to it), not the object. A `.public()` collection
   on an `r2` disk with no `baseUrl` throws when the `MediaLibrary` is constructed, because such a URL could
-  never resolve.
+  never resolve. **Exception: if you supply your own `urlGenerator`**, that becomes a `console.warn` instead —
+  a custom generator may build public URLs from CDN logic core cannot see, so core must not declare it broken.
+  The `DefaultUrlGenerator` still throws.
 - **Mixing public and private collections on one R2 bucket is unsupported.** If the bucket has a public
   domain attached, every object in it — including the ones from your "private" collections — is reachable by
   anyone who can guess or obtain the key. What actually protects a private object is key unguessability, not

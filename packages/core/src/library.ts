@@ -123,8 +123,12 @@ export class MediaLibrary {
     this.resolved = resolveConfig(config)
     // Fail before anything is wired: a public collection on an r2 disk with no
     // baseUrl can never produce a working URL, and finding that out at request
-    // time means a customer hits the dead link first.
-    checkCollectionVisibility(this.resolved.models, this.resolved.storage)
+    // time means a customer hits the dead link first. "Can never" only holds
+    // for the DefaultUrlGenerator, so a consumer-supplied one downgrades the
+    // throw to a warning — see checkCollectionVisibility's JSDoc.
+    checkCollectionVisibility(this.resolved.models, this.resolved.storage, {
+      hasCustomUrlGenerator: config.urlGenerator !== undefined,
+    })
     this.engine = new ConversionEngine({
       repository: this.resolved.repository,
       storage: this.resolved.storage,
