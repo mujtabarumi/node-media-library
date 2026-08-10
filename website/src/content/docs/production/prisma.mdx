@@ -7,7 +7,7 @@ import { Aside } from '@astrojs/starlight/components'
 import SharpEdge from '../../../components/SharpEdge.astro'
 import Requires from '../../../components/Requires.astro'
 
-<Requires items={['@node-media-library/prisma', '@prisma/client >=6.2 <8']} />
+<Requires items={['@node-media-library/prisma', '@prisma/client >=7 <8']} />
 
 `InMemoryMediaRepository` is for tests. For anything real, media records need a table.
 
@@ -25,30 +25,34 @@ Paste into `schema.prisma` and run your usual migrate flow. It's also exported a
 ```prisma
 model Media {
   id                   String   @id
-  modelType            String
-  modelId              String
+  modelType            String   @map("model_type")
+  modelId              String   @map("model_id")
   uuid                 String   @unique
-  collectionName       String
+  collectionName       String   @map("collection_name")
   name                 String
-  fileName             String
-  mimeType             String?
+  fileName             String   @map("file_name")
+  mimeType             String?  @map("mime_type")
   disk                 String
-  conversionsDisk      String?
+  conversionsDisk      String?  @map("conversions_disk")
+  // size Int caps individual files at ~2GB. Raising it is a library change, not a
+  // schema-only one: MediaRow and core's MediaRecord both type size as number.
   size                 Int
   manipulations        Json
-  customProperties     Json
-  generatedConversions Json
-  responsiveImages     Json
-  orderColumn          Int?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-  @@index([modelType, modelId])
+  customProperties     Json     @map("custom_properties")
+  generatedConversions Json     @map("generated_conversions")
+  responsiveImages     Json     @map("responsive_images")
+  orderColumn          Int?     @map("order_column")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  @@index([modelType, modelId, collectionName])
   @@map("media")
 }
 ```
 
-`size Int` covers files up to about 2 GB. If you accept larger, switch it to `BigInt` and adjust
-`MediaRow` accordingly.
+`size Int` caps individual files at ~2GB. Raising it is a library change, not a schema-only one:
+`MediaRow` and core's `MediaRecord` both type `size` as `number`, so changing the column alone would
+hand `bigint` to code expecting `number`.
 
 ## Wiring the adapter
 

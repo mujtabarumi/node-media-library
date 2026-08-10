@@ -50,9 +50,11 @@ hand `bigint` to code expecting `number`.
 Ordering for a model's media uses `orderBy: [{ orderColumn: { sort: 'asc', nulls: 'last' } }, { createdAt: 'asc' }]`. The `nulls: 'last'` behavior is verified against SQLite in this repo's test suite; run the exported contract suite against your own Postgres/MySQL before relying on it there.
 
 `iterateAll({ collectionName })` filters on `collectionName` without `modelType`, which the
-`[modelType, modelId, collectionName]` index cannot serve — each batch is a sequential scan. That is
-fine at the scale `clean` runs today; add a `[collectionName]` index if you run it against a large
-table.
+`[modelType, modelId, collectionName]` index cannot serve. `iterateAll` keyset-paginates by primary
+key (`orderBy: { id: 'asc' }`), so the planner typically walks id order and filters out non-matching
+rows rather than seeking through an index — each batch costs work proportional to table size, not to
+matches. That is fine at the scale `clean` runs today; add a `[collectionName]` index if you run it
+against a large table.
 
 ## Usage
 

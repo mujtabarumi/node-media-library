@@ -60,14 +60,17 @@ describe('mapping', () => {
     expect('createdAt' in data).toBe(false)
     expect('updatedAt' in data).toBe(false)
   })
-  it('MEDIA_MODEL_SNIPPET, the sqlite fixture, and the README agree exactly', () => {
+  it('MEDIA_MODEL_SNIPPET, the sqlite fixture, the README, and the website docs agree exactly', () => {
     const here = dirname(fileURLToPath(import.meta.url))
     const fixture = readFileSync(join(here, 'prisma/schema.prisma'), 'utf8')
     const readme = readFileSync(join(here, '../README.md'), 'utf8')
+    const websitePath = '../../../website/src/content/docs/production/prisma.mdx'
+    const website = readFileSync(join(here, websitePath), 'utf8')
 
     const snippet = normalizeModel(MEDIA_MODEL_SNIPPET)
-    expect(extractMediaModel(fixture)).toBe(snippet)
-    expect(extractMediaModel(readme)).toBe(snippet)
+    expect(extractMediaModel(fixture), 'packages/prisma/test/prisma/schema.prisma').toBe(snippet)
+    expect(extractMediaModel(readme), 'packages/prisma/README.md').toBe(snippet)
+    expect(extractMediaModel(website), websitePath).toBe(snippet)
   })
 })
 

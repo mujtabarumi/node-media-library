@@ -57,4 +57,18 @@ describe('peer range', () => {
     const readme = readFileSync(join(here, '../README.md'), 'utf8')
     expect(readme).toContain(`\`${peerRange()}\``)
   })
+
+  const websiteFiles = [
+    '../../../website/src/content/docs/production/prisma.mdx',
+    '../../../website/src/content/docs/start/install.md',
+    '../../../website/src/content/docs/reference/packages.md',
+  ]
+
+  it('is quoted verbatim in the website docs', () => {
+    const range = peerRange()
+    for (const relPath of websiteFiles) {
+      const content = readFileSync(join(here, relPath), 'utf8')
+      expect(content, relPath).toContain(range)
+    }
+  })
 })
