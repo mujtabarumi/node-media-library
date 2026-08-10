@@ -10,6 +10,11 @@ packages/prisma/test/prisma/generated
 # Archived planning documents — kept verbatim as a historical record.
 docs/superpowers/plans
 
+# Git-ignored scratch written by the subagent-driven-development workflow.
+# Prettier scans it even though git does not, which makes `format:check` fail
+# locally while still passing in CI's fresh checkout.
+.superpowers
+
 # Astro's generated type/content cache for the docs site.
 website/.astro
 
