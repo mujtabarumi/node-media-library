@@ -1,4 +1,7 @@
 import { describe, it, expect } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { dirname, join } from 'node:path'
 import {
   prismaAdapter,
   withMediaCascade,
@@ -33,5 +36,25 @@ describe('public exports', () => {
     expect(client).toBeUndefined()
     expect(delegate).toBeUndefined()
     expect(row).toBeUndefined()
+  })
+})
+
+describe('peer range', () => {
+  const here = dirname(fileURLToPath(import.meta.url))
+
+  function peerRange(): string {
+    const pkg = JSON.parse(readFileSync(join(here, '../package.json'), 'utf8')) as {
+      peerDependencies: Record<string, string>
+    }
+    return pkg.peerDependencies['@prisma/client']!
+  }
+
+  it('is exactly the range CI proves', () => {
+    expect(peerRange()).toBe('>=7 <8')
+  })
+
+  it('is quoted verbatim in the README', () => {
+    const readme = readFileSync(join(here, '../README.md'), 'utf8')
+    expect(readme).toContain(`\`${peerRange()}\``)
   })
 })

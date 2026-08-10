@@ -5,7 +5,9 @@ Prisma adapter for `@node-media-library/core`. Pre-release: not yet published to
 ## Install
 
 Once published: `npm install @node-media-library/prisma @prisma/client`
-`@prisma/client` (`>=6.2 <8`) is an optional peer dependency — bring your own version.
+`@prisma/client` (`>=7 <8`) is an optional peer dependency — bring your own version. The range is
+what CI exercises; the adapter itself is structurally typed and never imports `@prisma/client`, so
+support for older majors can be widened later once a CI leg proves it.
 
 ## Add the model
 
