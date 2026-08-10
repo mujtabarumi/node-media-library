@@ -14,6 +14,19 @@ export function writeOptionsFor(isPublicCollection: boolean): { visibility: 'pub
   return isPublicCollection ? { visibility: 'public' } : undefined
 }
 
+/**
+ * Static S3 credentials. Declared structurally rather than imported from
+ * `@aws-sdk/client-s3`, which is an *optional* peer — a type import would
+ * break `tsc` for every fs/gcs consumer who never installed the AWS SDK.
+ * The shape is structurally compatible with the SDK's own credentials
+ * object, so it passes through unchanged.
+ */
+export interface S3Credentials {
+  accessKeyId: string
+  secretAccessKey: string
+  sessionToken?: string
+}
+
 export type DiskConfig =
   | { driver: 'fs'; root: string; visibility?: 'public' | 'private'; baseUrl?: string }
   | {
@@ -21,6 +34,25 @@ export type DiskConfig =
       bucket: string
       region?: string
       endpoint?: string
+      /** Static credentials. Omit to use the AWS SDK's default provider chain. */
+      credentials?: S3Credentials
+      /**
+       * Whether the backend implements object ACLs. Leave unset for AWS S3.
+       * Set `false` for backends without ACL support — flydrive then skips the
+       * `x-amz-acl` header on every write. Cloudflare R2 requires `false`;
+       * `driver: 'r2'` forces it for you.
+       */
+      supportsACL?: boolean
+      /** Path-style addressing (`host/bucket/key`). Required by MinIO. */
+      forcePathStyle?: boolean
+      /**
+       * Passed through to the AWS SDK, and mirrors its own casing. Current
+       * SDK versions default to `'WHEN_SUPPORTED'`, computing a CRC32
+       * checksum on every PutObject, which some S3-compatible backends
+       * reject. Set `'WHEN_REQUIRED'` if a backend rejects checksummed
+       * writes.
+       */
+      requestChecksumCalculation?: 'WHEN_SUPPORTED' | 'WHEN_REQUIRED'
       visibility?: 'public' | 'private'
       baseUrl?: string
     }
@@ -124,6 +156,15 @@ export function resolveStorage(
           region: cfg.region,
           endpoint: cfg.endpoint,
           visibility: cfg.visibility ?? 'private',
+          // Spread conditionally rather than passing `undefined`: an explicit
+          // `credentials: undefined` is fine for the SDK, but the same is not
+          // true of every option here, and this matches the gcs branch's style.
+          ...(cfg.credentials ? { credentials: cfg.credentials } : {}),
+          ...(cfg.supportsACL !== undefined ? { supportsACL: cfg.supportsACL } : {}),
+          ...(cfg.forcePathStyle !== undefined ? { forcePathStyle: cfg.forcePathStyle } : {}),
+          ...(cfg.requestChecksumCalculation
+            ? { requestChecksumCalculation: cfg.requestChecksumCalculation }
+            : {}),
         }),
       )
       cache.set(diskName, instance)
