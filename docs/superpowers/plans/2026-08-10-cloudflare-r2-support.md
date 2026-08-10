@@ -57,7 +57,7 @@
 
 **Interfaces:**
 - Consumes: nothing from earlier tasks.
-- Produces: `export interface S3Credentials { accessKeyId: string; secretAccessKey: string; sessionToken?: string }` from `src/storage/resolve.ts`. The `s3` member of `DiskConfig` gains `credentials?: S3Credentials`, `supportsACL?: boolean`, `forcePathStyle?: boolean`, `requestChecksumCalculation?: 'when_supported' | 'when_required'`. Task 2 normalizes into exactly this shape.
+- Produces: `export interface S3Credentials { accessKeyId: string; secretAccessKey: string; sessionToken?: string }` from `src/storage/resolve.ts`. The `s3` member of `DiskConfig` gains `credentials?: S3Credentials`, `supportsACL?: boolean`, `forcePathStyle?: boolean`, `requestChecksumCalculation?: 'WHEN_SUPPORTED' | 'WHEN_REQUIRED'`. Task 2 normalizes into exactly this shape.
 
 - [ ] **Step 1: Install the AWS SDK as devDependencies**
 
@@ -145,7 +145,7 @@ describe('s3 disk driver', () => {
           credentials: { accessKeyId: 'ak', secretAccessKey: 'sk', sessionToken: 'st' },
           supportsACL: false,
           forcePathStyle: true,
-          requestChecksumCalculation: 'when_required',
+          requestChecksumCalculation: 'WHEN_REQUIRED',
         },
       },
       default: 'media',
@@ -211,12 +211,13 @@ Then replace the `s3` member of `DiskConfig` with:
       /** Path-style addressing (`host/bucket/key`). Required by MinIO. */
       forcePathStyle?: boolean
       /**
-       * Passed through to the AWS SDK. SDK versions from 3.729 default to
-       * `'when_supported'`, computing a CRC32 checksum on every PutObject,
-       * which some S3-compatible backends reject. Set `'when_required'` if a
+       * Passed through to the AWS SDK, and mirrors its own casing. Current
+       * SDK versions default to
+       * `'WHEN_SUPPORTED'`, computing a CRC32 checksum on every PutObject,
+       * which some S3-compatible backends reject. Set `'WHEN_REQUIRED'` if a
        * backend rejects checksummed writes.
        */
-      requestChecksumCalculation?: 'when_supported' | 'when_required'
+      requestChecksumCalculation?: 'WHEN_SUPPORTED' | 'WHEN_REQUIRED'
       visibility?: 'public' | 'private'
       baseUrl?: string
     }
@@ -1382,7 +1383,7 @@ Then:
 gh run watch
 ```
 
-This is the first execution of the `s3` path anywhere. If it fails on checksums, that is the CRC32 risk landing: set `requestChecksumCalculation: 'when_required'` in `storage-minio.test.ts`, confirm it goes green, and record the finding — it becomes the evidence for whether `normalizeR2` should preset the same value.
+This is the first execution of the `s3` path anywhere. If it fails on checksums, that is the CRC32 risk landing: set `requestChecksumCalculation: 'WHEN_REQUIRED'` in `storage-minio.test.ts`, confirm it goes green, and record the finding — it becomes the evidence for whether `normalizeR2` should preset the same value.
 
 ---
 
