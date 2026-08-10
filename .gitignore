@@ -1,6 +1,9 @@
 node_modules/
 dist/
 /storage/
+.env
+.env.*
+!.env.example
 *.tsbuildinfo
 .DS_Store
 packages/prisma/test/prisma/generated/
