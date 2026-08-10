@@ -1,6 +1,6 @@
 {
   "name": "@node-media-library/video",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "description": "ffmpeg-backed ImageGenerator for extracting video frame thumbnails in @node-media-library/core.",
   "license": "MIT",

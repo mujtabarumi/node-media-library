@@ -2,9 +2,20 @@
   "$schema": "https://unpkg.com/@changesets/config@3.1.4/schema.json",
   "changelog": "@changesets/cli/changelog",
   "commit": false,
-  "fixed": [],
+  "fixed": [
+    [
+      "@node-media-library/core",
+      "@node-media-library/prisma",
+      "@node-media-library/bullmq",
+      "@node-media-library/rabbitmq",
+      "@node-media-library/pdf",
+      "@node-media-library/video",
+      "@node-media-library/optimizers"
+    ]
+  ],
   "linked": [],
   "access": "public",
+  "privatePackages": { "version": false, "tag": false },
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
   "ignore": []

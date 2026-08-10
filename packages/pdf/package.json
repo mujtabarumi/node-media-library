@@ -1,6 +1,6 @@
 {
   "name": "@node-media-library/pdf",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "description": "pdftoppm-backed ImageGenerator for rasterizing PDF originals in @node-media-library/core.",
   "license": "MIT",

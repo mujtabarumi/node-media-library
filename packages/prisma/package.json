@@ -1,6 +1,6 @@
 {
   "name": "@node-media-library/prisma",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "description": "Prisma adapter (MediaRepository + cascading deletes) for @node-media-library/core.",
   "license": "MIT",

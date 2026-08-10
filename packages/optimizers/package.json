@@ -1,6 +1,6 @@
 {
   "name": "@node-media-library/optimizers",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "description": "Binary image optimizers (jpegoptim, pngquant) for node-media-library",
   "license": "MIT",
