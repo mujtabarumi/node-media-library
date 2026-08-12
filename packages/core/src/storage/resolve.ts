@@ -151,6 +151,7 @@ function synthesizeDefaultDisk(env: Record<string, string | undefined>): DiskCon
     driver: 'fs',
     root: env.MEDIA_FS_ROOT ?? './storage/media',
     visibility: 'private',
+    ...(env.MEDIA_FS_BASE_URL ? { baseUrl: env.MEDIA_FS_BASE_URL } : {}),
   }
 }
 

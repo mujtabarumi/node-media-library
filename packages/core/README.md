@@ -101,6 +101,11 @@ minimal config is genuinely two keys.
 | `responsiveWidthCalculator` | `WidthCalculator`     | `FileSizeOptimizedWidthCalculator` | See [Responsive images](#responsive-images).                                                                                                |
 | `responsivePlaceholders`    | `boolean`             | `true`                             | LQIP generation alongside responsive variants.                                                                                              |
 
+> At upload time `PathGenerator.path()` receives a record that has not been persisted yet — its
+> `createdAt` and `updatedAt` are not set. A layout derived from those dates breaks on the first
+> upload. `customProperties` **is** populated by then, so keying the layout off a custom property
+> works.
+
 ## Custom properties, copy, and move
 
 `setCustomProperty`/`removeCustomProperty` update a single key atomically — sibling keys already present in
@@ -410,6 +415,37 @@ above (R2 → S3 → GCS → fs).
   `baseUrl`, or serve the file with `signedUrl()`. A custom `urlGenerator` builds URLs its own way and
   is not subject to this — which is also why supplying one downgrades the construction-time check on
   public R2 collections to a warning.
+
+### Seeing your files in development (no S3)
+
+With the local filesystem disk, `url()` throws unless the disk has a `baseUrl` — there is nothing to
+build a URL from. Two ways forward, and the second is recommended.
+
+**Preferred: serve through your own route.** `download()` and `inline()` return a Web `Response`, so
+in any Fetch-based framework this is the whole integration:
+
+```ts
+export async function loader({ params }) {
+  return library.inline(params.id)
+}
+```
+
+Authorization stays in your handler, where it belongs.
+
+**Alternative: set a base URL and serve the root statically.**
+
+```bash
+MEDIA_FS_ROOT=./storage/media
+MEDIA_FS_BASE_URL=http://localhost:3000/media
+```
+
+> **This bypasses private-by-default.** The env-synthesized fs disk is `visibility: 'private'`, but
+> statically serving `MEDIA_FS_ROOT` exposes **every file under that root**, including media in
+> private collections. For `r2` the library refuses to construct in the equivalent situation; there
+> is no such guard for `fs`. Use this for local development only.
+
+You will also see the `[media-library] Media is stored on the local filesystem in production`
+warning if `NODE_ENV=production` — that is expected with an env-synthesized fs disk, not a bug.
 
 ## Security model
 
