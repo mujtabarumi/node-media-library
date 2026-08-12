@@ -97,11 +97,15 @@ Cascaded models must expose a scalar `id` field — the extension reads `result.
 `iterateAll({ customProperties: { storeId: 's1' } })` matches records whose `customProperties`
 contain every supplied key with a deep-equal value.
 
-**By default the filter runs in the application, not the database.** The adapter pushes
-`modelType`/`collectionName` down to their indexed columns, then discards non-matching rows in Node.
-Correct everywhere, but it reads every row matching the other filters.
+**By default the filter runs in the application, not the database.** The adapter passes
+`modelType` and `collectionName` into the SQL `where` clause, then discards non-matching rows in
+Node for anything not expressed there. Only `modelType` gets an index seek: the schema's
+`@@index([modelType, modelId, collectionName])` is a composite index keyed leftmost by
+`modelType`, and `iterateAll` never filters on `modelId`, so the leftmost-prefix rule stops the
+index lookup at `modelType` — `collectionName` is checked as a residual filter within that scan,
+not through the index. Either way, it reads every row matching the other filters.
 
-To push it into SQL, name your database's JSON path dialect:
+To push `customProperties` into SQL, name your database's JSON path dialect:
 
 ```ts
 prismaAdapter(client, { jsonPathStyle: 'postgres' }) // or 'mysql'
@@ -111,6 +115,15 @@ Prisma's JSON `path` operand differs per connector — PostgreSQL takes an array
 and SQLite take a string (`'$.storeId'`) — and this adapter never imports `@prisma/client`, so it
 cannot detect your provider. Naming the wrong one surfaces as a `PrismaClientValidationError` on the
 first filtered call, not as a type error.
+
+**Only scalar values are pushed into SQL, even with `jsonPathStyle` set.** A key is pushed down
+only when its value is a `string`, `number`, or `boolean` — the cases where Prisma's JSON `equals`
+is unambiguous. Objects, arrays, and `null` are always filtered in the application instead, using
+the same deep-equality check the default path uses (Prisma's `equals` is not guaranteed to match
+that for non-scalars, and `null` in particular usually needs a `Prisma.JsonNull`/`DbNull` sentinel
+rather than a literal `null`). A filter mixing scalar and non-scalar keys still returns correct
+results, but the non-scalar keys get no performance benefit — the adapter still scans every row
+that matched the pushed-down keys to check them.
 
 **Even pushed down, JSON matching is unindexed by default.** On PostgreSQL, add an expression index
 for the key you filter on:

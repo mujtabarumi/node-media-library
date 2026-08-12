@@ -142,13 +142,26 @@ class PrismaMediaRepository implements MediaRepository {
     if (filter?.collectionName !== undefined) filterWhere.collectionName = filter.collectionName
 
     // customProperties reaches SQL only when the consumer named their dialect
-    // (see PrismaAdapterOptions.jsonPathStyle). Otherwise it is applied per
-    // row below — slower, but correct on every provider.
+    // (see PrismaAdapterOptions.jsonPathStyle), and even then only for scalar
+    // values (string/number/boolean): Prisma's JSON `equals` is unambiguous
+    // for those, but not guaranteed to match this library's deep-equality
+    // semantics for objects, arrays, or null (null in particular usually
+    // needs a Prisma.JsonNull/DbNull sentinel, not a literal `null`, and
+    // array/object `equals` behavior is not guaranteed consistent across
+    // connectors). Non-scalar keys are always applied per row below.
     const style = this.opts.jsonPathStyle
     const entries = filter?.customProperties ? Object.entries(filter.customProperties) : []
-    const pushedDown = style !== undefined && entries.length > 0
-    if (pushedDown) {
-      filterWhere.AND = entries.map(([key, value]) => ({
+    const scalarEntries = entries.filter(
+      ([, value]) =>
+        typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean',
+    )
+    // Only skip the per-row check below when every key was pushed down —
+    // if even one key was held back (non-scalar), matchesMediaFilter is the
+    // sole authority for it and must run on every yielded row.
+    const allPushedDown =
+      style !== undefined && entries.length > 0 && scalarEntries.length === entries.length
+    if (style !== undefined && scalarEntries.length > 0) {
+      filterWhere.AND = scalarEntries.map(([key, value]) => ({
         customProperties: {
           path: style === 'postgres' ? [key] : `$.${key}`,
           equals: value,
@@ -173,7 +186,7 @@ class PrismaMediaRepository implements MediaRepository {
         const record = toMediaRecord(row)
         // Batch termination below counts rows FETCHED, not yielded, so
         // post-filtering here cannot truncate the iteration early.
-        if (pushedDown || matchesMediaFilter(record, filter)) {
+        if (allPushedDown || matchesMediaFilter(record, filter)) {
           yield record
         }
       }
