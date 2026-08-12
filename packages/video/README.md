@@ -2,6 +2,16 @@
 
 Video-backed ImageGenerator using ffmpeg to extract frames at specified timestamps, then applying conversions through the sharp pipeline.
 
+## Installation
+
+```bash
+pnpm add @node-media-library/video sharp
+```
+
+> **sharp is a required optional peer.** This package rasterizes into core's `sharpImageGenerator()`,
+> so sharp must be installed even though it is declared optional. It is marked optional only because
+> core declares it that way.
+
 ## System Requirements
 
 Requires the `ffmpeg` binary:

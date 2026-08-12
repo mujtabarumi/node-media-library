@@ -14,8 +14,13 @@ Node.js port of [spatie/laravel-medialibrary](https://github.com/spatie/laravel-
 Once published:
 
 ```bash
-pnpm add @node-media-library/core
+pnpm add @node-media-library/core sharp
 ```
+
+> **sharp is an optional peer dependency.** It is required for image conversions, responsive images,
+> and placeholders — which the Quick Start below uses. Omit it only if you store files without ever
+> converting them, or if you supply your own `config.imageGenerators`. Nothing auto-installs it: npm
+> and pnpm both skip peers marked optional, and Yarn never auto-installs peers at all.
 
 ## Quick Start
 
@@ -77,24 +82,24 @@ await library.for('User', userId).clear('gallery')
 Only `repository` and `models` are required. Everything else below has a default that works, so a
 minimal config is genuinely two keys.
 
-| Key                         | Type                  | Default                            | Notes                                                                                          |
-| --------------------------- | --------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `repository`                | `MediaRepository`     | **required**                       | `InMemoryMediaRepository` for tests; `@node-media-library/prisma` for real use.                |
-| `models`                    | `Record<string, {…}>` | **required**                       | `for()` throws `UnknownModelError` for a type absent from this map.                            |
-| `storage`                   | `StorageConfig`       | synthesized from env               | See [Storage disks](#storage-disks).                                                           |
-| `queue`                     | `AnyQueueDriver`      | `syncDriver()`                     | See [Queue drivers](#queue-drivers).                                                           |
-| `maxFileSize`               | `number`              | `10 * 1024 * 1024`                 | Enforced during accumulation, not after the bytes land.                                        |
-| `disallowedExtensions`      | `string[]`            | `DEFAULT_DISALLOWED_EXTENSIONS`    | Checked per dot-segment.                                                                       |
-| `allowedExtensions`         | `string[]`            | none                               | When set, acts as an allowlist instead.                                                        |
-| `versionUrls`               | `boolean`             | `false`                            | Cache-busting version query on generated URLs.                                                 |
-| `signedUrlExpiresIn`        | `string \| number`    | `'30 mins'`                        | Default `signedUrl()` expiry; the `fs` driver ignores it (it cannot sign).                     |
-| `fileNameSanitizer`         | `FileNameSanitizer`   | built-in                           | A security control — see [Security model](#security-model) before replacing it.                |
-| `pathGenerator`             | `PathGenerator`       | `DefaultPathGenerator`             | `{prefix}/{mediaId}/{fileName}`.                                                               |
-| `urlGenerator`              | `UrlGenerator`        | `DefaultUrlGenerator`              | Only needed to replace URL generation entirely — a custom CDN hostname is `baseUrl`, not this. |
-| `imageGenerators`           | `ImageGenerator[]`    | `[sharpImageGenerator()]`          | Nothing auto-registers — add pdf/video generators explicitly.                                  |
-| `optimizers`                | `ImageOptimizer[]`    | `[]`                               | See [Image optimizers](#image-optimizers).                                                     |
-| `responsiveWidthCalculator` | `WidthCalculator`     | `FileSizeOptimizedWidthCalculator` | See [Responsive images](#responsive-images).                                                   |
-| `responsivePlaceholders`    | `boolean`             | `true`                             | LQIP generation alongside responsive variants.                                                 |
+| Key                         | Type                  | Default                            | Notes                                                                                                                                       |
+| --------------------------- | --------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `repository`                | `MediaRepository`     | **required**                       | `InMemoryMediaRepository` for tests; `@node-media-library/prisma` for real use.                                                             |
+| `models`                    | `Record<string, {…}>` | **required**                       | `for()` throws `UnknownModelError` for a type absent from this map.                                                                         |
+| `storage`                   | `StorageConfig`       | synthesized from env               | See [Storage disks](#storage-disks).                                                                                                        |
+| `queue`                     | `AnyQueueDriver`      | `syncDriver()`                     | See [Queue drivers](#queue-drivers).                                                                                                        |
+| `maxFileSize`               | `number`              | `10 * 1024 * 1024`                 | Enforced during accumulation, not after the bytes land.                                                                                     |
+| `disallowedExtensions`      | `string[]`            | `DEFAULT_DISALLOWED_EXTENSIONS`    | Checked per dot-segment.                                                                                                                    |
+| `allowedExtensions`         | `string[]`            | none                               | When set, acts as an allowlist instead.                                                                                                     |
+| `versionUrls`               | `boolean`             | `false`                            | Cache-busting version query on generated URLs.                                                                                              |
+| `signedUrlExpiresIn`        | `string \| number`    | `'30 mins'`                        | Default `signedUrl()` expiry; the `fs` driver ignores it (it cannot sign).                                                                  |
+| `fileNameSanitizer`         | `FileNameSanitizer`   | built-in                           | A security control — see [Security model](#security-model) before replacing it.                                                             |
+| `pathGenerator`             | `PathGenerator`       | `DefaultPathGenerator`             | `{prefix}/{mediaId}/{fileName}`.                                                                                                            |
+| `urlGenerator`              | `UrlGenerator`        | `DefaultUrlGenerator`              | Only needed to replace URL generation entirely — a custom CDN hostname is `baseUrl`, not this.                                              |
+| `imageGenerators`           | `ImageGenerator[]`    | `[sharpImageGenerator()]`          | Nothing auto-registers — add pdf/video generators explicitly. Defaults to `[sharpImageGenerator()]`, which needs the optional `sharp` peer. |
+| `optimizers`                | `ImageOptimizer[]`    | `[]`                               | See [Image optimizers](#image-optimizers).                                                                                                  |
+| `responsiveWidthCalculator` | `WidthCalculator`     | `FileSizeOptimizedWidthCalculator` | See [Responsive images](#responsive-images).                                                                                                |
+| `responsivePlaceholders`    | `boolean`             | `true`                             | LQIP generation alongside responsive variants.                                                                                              |
 
 ## Custom properties, copy, and move
 

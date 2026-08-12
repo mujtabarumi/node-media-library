@@ -1,5 +1,4 @@
 import { describe, it, expect, afterAll } from 'vitest'
-import sharp from 'sharp'
 import { createMediaLibrary } from '../library.js'
 import { InMemoryMediaRepository } from '../repository/in-memory.js'
 import { collection } from '../definitions/collection.js'
@@ -52,10 +51,12 @@ export function runStorageCycleContract(
       },
     })
 
-    const png = () =>
-      sharp({ create: { width: 64, height: 64, channels: 3, background: '#ff0000' } })
+    const png = async () => {
+      const sharp = (await import('sharp')).default
+      return sharp({ create: { width: 64, height: 64, channels: 3, background: '#ff0000' } })
         .png()
         .toBuffer()
+    }
 
     const originalKey = (id: string, fileName: string) => `${prefix}/${id}/${fileName}`
     const conversionsDir = (id: string) => `${prefix}/${id}/conversions`

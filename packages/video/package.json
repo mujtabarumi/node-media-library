@@ -49,6 +49,14 @@
   "dependencies": {
     "@node-media-library/core": "workspace:*"
   },
+  "peerDependencies": {
+    "sharp": ">=0.33 <1"
+  },
+  "peerDependenciesMeta": {
+    "sharp": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@types/node": "^22.20.1",
     "sharp": "^0.35.3",
