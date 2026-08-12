@@ -441,8 +441,10 @@ MEDIA_FS_BASE_URL=http://localhost:3000/media
 
 > **This bypasses private-by-default.** The env-synthesized fs disk is `visibility: 'private'`, but
 > statically serving `MEDIA_FS_ROOT` exposes **every file under that root**, including media in
-> private collections. For `r2` the library refuses to construct in the equivalent situation; there
-> is no such guard for `fs`. Use this for local development only.
+> private collections — and nothing in the library stops you. The same class of risk exists on `r2`:
+> a private-only collection on a disk with `baseUrl` set triggers no check at all, and the one
+> related guard that does exist — a disk mixing `.public()` and private collections — only produces a
+> non-blocking `console.warn`, never a refusal to construct. Use this for local development only.
 
 You will also see the `[media-library] Media is stored on the local filesystem in production`
 warning if `NODE_ENV=production` — that is expected with an env-synthesized fs disk, not a bug.
