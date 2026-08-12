@@ -46,7 +46,7 @@
     "prepack": "node ../../scripts/ensure-pnpm-pack.mjs"
   },
   "dependencies": {
-    "@node-media-library/core": "workspace:*"
+    "@node-media-library/core": "workspace:^"
   },
   "peerDependencies": {
     "sharp": ">=0.33 <1"

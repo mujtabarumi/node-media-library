@@ -49,7 +49,7 @@ importers:
   packages/bullmq:
     dependencies:
       '@node-media-library/core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../core
     devDependencies:
       '@types/node':
@@ -117,7 +117,7 @@ importers:
   packages/optimizers:
     dependencies:
       '@node-media-library/core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../core
     devDependencies:
       '@types/node':
@@ -133,7 +133,7 @@ importers:
   packages/pdf:
     dependencies:
       '@node-media-library/core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../core
     devDependencies:
       '@types/node':
@@ -152,7 +152,7 @@ importers:
   packages/prisma:
     dependencies:
       '@node-media-library/core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../core
     devDependencies:
       '@prisma/adapter-better-sqlite3':
@@ -177,7 +177,7 @@ importers:
   packages/rabbitmq:
     dependencies:
       '@node-media-library/core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../core
     devDependencies:
       '@types/amqplib':
@@ -199,7 +199,7 @@ importers:
   packages/video:
     dependencies:
       '@node-media-library/core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../core
     devDependencies:
       '@types/node':
