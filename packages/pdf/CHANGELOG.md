@@ -6,6 +6,11 @@
 > reaching npm, so the breaking-change and migration notes describe commits rather than a shipped
 > release. Nothing here requires action from a new installation.
 
+- `sharp` is now declared as an optional peer dependency. It is a hard runtime requirement for this
+  package — install it explicitly.
+- The published package now depends on `@node-media-library/core` with a caret range rather than an
+  exact pin.
+
 ### Minor Changes
 
 - 6698e20: Raise the supported Node floor from `>=20` to `>=22`.

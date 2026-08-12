@@ -6,6 +6,21 @@
 > reaching npm, so the breaking-change and migration notes describe commits rather than a shipped
 > release. Nothing here requires action from a new installation.
 
+- `VERSION` is now generated from `package.json` at build time instead of being hardcoded.
+- `sharp` is now an **optional peer dependency** rather than a direct dependency. Install it
+  alongside core if you use conversions, responsive images, or placeholders — no package manager
+  auto-installs a peer marked optional.
+- `MediaFilter` gained `customProperties`, matched by deep equality. `matchesMediaFilter` is exported
+  so third-party `MediaRepository` backends can implement it with identical semantics.
+- The fs fallback disk reads `MEDIA_FS_BASE_URL`.
+- `performConversions()` now validates its arguments with the same guard `startWorker()` applies to
+  broker payloads.
+- The package root's storage exports narrow to `DiskConfig`, `StorageConfig`, `S3Credentials`, and
+  `ResolvedStorage`. `resolveStorage`, `normalizeR2`, and `writeOptionsFor` are no longer reachable
+  from the root import — they were only ever exported via `export *` and were never part of the
+  public surface. `ResolvedStorage` loses its `@internal` tag, since `MediaLibrary.storage` already
+  returned it as a public getter and the tag was simply wrong.
+
 ### Major Changes
 
 - d092bf5: Split `QueueDriver` into `InProcessQueueDriver` (`attach`) and `BrokerQueueDriver` (`work`), and stop
