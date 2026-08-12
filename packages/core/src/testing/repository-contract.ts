@@ -168,6 +168,76 @@ export function runMediaRepositoryContract(
       expect(userGallery.length).toBe(1)
     })
 
+    it('iterateAll filters by customProperties with AND across keys', async () => {
+      await repo.create(makeRecord({ customProperties: { storeId: 's1', kind: 'photo' } }))
+      await repo.create(makeRecord({ customProperties: { storeId: 's1', kind: 'label' } }))
+      await repo.create(makeRecord({ customProperties: { storeId: 's2', kind: 'photo' } }))
+      await repo.create(makeRecord({ customProperties: {} }))
+
+      const store1: string[] = []
+      for await (const record of repo.iterateAll({ customProperties: { storeId: 's1' } })) {
+        expect(record.customProperties.storeId).toBe('s1')
+        store1.push(record.id)
+      }
+      expect(store1.length).toBe(2)
+
+      const store1Photos: string[] = []
+      for await (const record of repo.iterateAll({
+        customProperties: { storeId: 's1', kind: 'photo' },
+      })) {
+        store1Photos.push(record.id)
+      }
+      expect(store1Photos.length).toBe(1)
+
+      // A record missing the key does not match.
+      const missingKey: string[] = []
+      for await (const record of repo.iterateAll({ customProperties: { storeId: 's9' } })) {
+        missingKey.push(record.id)
+      }
+      expect(missingKey.length).toBe(0)
+
+      // An empty filter object matches everything, preserving prior behavior.
+      const everything: string[] = []
+      for await (const record of repo.iterateAll({ customProperties: {} })) {
+        everything.push(record.id)
+      }
+      expect(everything.length).toBe(4)
+
+      // Composes with the pre-existing filters.
+      const combined: string[] = []
+      for await (const record of repo.iterateAll({
+        modelType: 'User',
+        customProperties: { storeId: 's1' },
+      })) {
+        combined.push(record.id)
+      }
+      expect(combined.length).toBe(2)
+    })
+
+    it('iterateAll compares customProperties values by deep equality', async () => {
+      await repo.create(makeRecord({ customProperties: { tags: ['a', 'b'], meta: { x: 1 } } }))
+      await repo.create(makeRecord({ customProperties: { tags: ['a'], meta: { x: 2 } } }))
+
+      const nestedArray: string[] = []
+      for await (const record of repo.iterateAll({ customProperties: { tags: ['a', 'b'] } })) {
+        nestedArray.push(record.id)
+      }
+      expect(nestedArray.length).toBe(1)
+
+      const nestedObject: string[] = []
+      for await (const record of repo.iterateAll({ customProperties: { meta: { x: 1 } } })) {
+        nestedObject.push(record.id)
+      }
+      expect(nestedObject.length).toBe(1)
+
+      // Order matters for arrays; a different order is a different JSON value.
+      const reordered: string[] = []
+      for await (const record of repo.iterateAll({ customProperties: { tags: ['b', 'a'] } })) {
+        reordered.push(record.id)
+      }
+      expect(reordered.length).toBe(0)
+    })
+
     it('markConversionGenerated merges without clobbering other keys', async () => {
       const created = await repo.create(makeRecord({ generatedConversions: { thumb: true } }))
       await sleep(2)
