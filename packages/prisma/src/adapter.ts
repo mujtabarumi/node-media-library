@@ -1,4 +1,4 @@
-import { MediaLibraryError } from '@node-media-library/core'
+import { MediaLibraryError, matchesMediaFilter } from '@node-media-library/core'
 import type {
   JsonObject,
   MediaFilter,
@@ -12,6 +12,22 @@ import { toCreateData, toMediaRecord } from './mapping.js'
 export interface PrismaAdapterOptions {
   owners?: Record<string, (modelId: string) => boolean | Promise<boolean>>
   iterateBatchSize?: number
+  /**
+   * Push `MediaFilter.customProperties` into the SQL `where` clause using this
+   * database's JSON path syntax. PostgreSQL takes an array path
+   * (`['storeId']`); MySQL and SQLite take a string path (`'$.storeId'`).
+   * Prisma does not normalize the two, and this adapter is structurally typed
+   * — it never imports `@prisma/client` and cannot detect your provider — so
+   * naming the dialect is your call.
+   *
+   * Omit it to filter in the application instead. That is correct on every
+   * provider, but it reads every row matching `modelType`/`collectionName`
+   * before discarding non-matches.
+   *
+   * Setting the wrong dialect surfaces as a `PrismaClientValidationError` on
+   * the first filtered `iterateAll`, not as a type error.
+   */
+  jsonPathStyle?: 'postgres' | 'mysql'
 }
 
 function prismaErrorCode(e: unknown): string | undefined {
@@ -125,6 +141,21 @@ class PrismaMediaRepository implements MediaRepository {
     if (filter?.modelType !== undefined) filterWhere.modelType = filter.modelType
     if (filter?.collectionName !== undefined) filterWhere.collectionName = filter.collectionName
 
+    // customProperties reaches SQL only when the consumer named their dialect
+    // (see PrismaAdapterOptions.jsonPathStyle). Otherwise it is applied per
+    // row below — slower, but correct on every provider.
+    const style = this.opts.jsonPathStyle
+    const entries = filter?.customProperties ? Object.entries(filter.customProperties) : []
+    const pushedDown = style !== undefined && entries.length > 0
+    if (pushedDown) {
+      filterWhere.AND = entries.map(([key, value]) => ({
+        customProperties: {
+          path: style === 'postgres' ? [key] : `$.${key}`,
+          equals: value,
+        },
+      }))
+    }
+
     // Keyset pagination on id (not cursor+skip): a row can be deleted between
     // batches (e.g. Plan 6's clean command iterates and deletes concurrently),
     // and cursor+skip would silently truncate if the cursor row itself is gone.
@@ -139,7 +170,12 @@ class PrismaMediaRepository implements MediaRepository {
       })
       if (rows.length === 0) return
       for (const row of rows) {
-        yield toMediaRecord(row)
+        const record = toMediaRecord(row)
+        // Batch termination below counts rows FETCHED, not yielded, so
+        // post-filtering here cannot truncate the iteration early.
+        if (pushedDown || matchesMediaFilter(record, filter)) {
+          yield record
+        }
       }
       lastId = rows[rows.length - 1]!.id
       if (rows.length < this.batchSize) return

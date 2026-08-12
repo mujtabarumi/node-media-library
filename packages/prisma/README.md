@@ -92,6 +92,36 @@ Cascaded models must expose a scalar `id` field — the extension reads `result.
 
 `prismaAdapter(client, { owners, iterateBatchSize })`: `owners` is a `modelType -> (modelId) => boolean | Promise<boolean>` map, needed only by the future `clean --delete-orphaned` command (Plan 6) — most integrations can omit it. `iterateBatchSize` (default `100`) sets the page size `iterateAll` fetches internally.
 
+## Filtering by `customProperties`
+
+`iterateAll({ customProperties: { storeId: 's1' } })` matches records whose `customProperties`
+contain every supplied key with a deep-equal value.
+
+**By default the filter runs in the application, not the database.** The adapter pushes
+`modelType`/`collectionName` down to their indexed columns, then discards non-matching rows in Node.
+Correct everywhere, but it reads every row matching the other filters.
+
+To push it into SQL, name your database's JSON path dialect:
+
+```ts
+prismaAdapter(client, { jsonPathStyle: 'postgres' }) // or 'mysql'
+```
+
+Prisma's JSON `path` operand differs per connector — PostgreSQL takes an array (`['storeId']`), MySQL
+and SQLite take a string (`'$.storeId'`) — and this adapter never imports `@prisma/client`, so it
+cannot detect your provider. Naming the wrong one surfaces as a `PrismaClientValidationError` on the
+first filtered call, not as a type error.
+
+**Even pushed down, JSON matching is unindexed by default.** On PostgreSQL, add an expression index
+for the key you filter on:
+
+```sql
+CREATE INDEX media_store_id_idx ON "Media" ((("customProperties" ->> 'storeId')));
+```
+
+**What CI exercises:** the portable default path and `jsonPathStyle: 'mysql'`, both against SQLite.
+The `'postgres'` array form is asserted from Prisma's documented behavior, not from a passing test.
+
 ## Responsive images
 
 The repository exposes two additional `MediaRepository` methods backing `@node-media-library/core`'s responsive images support: `markConversionGenerated(id, name, generated)` and `mergeResponsiveImages(id, conversion, entry)`. Both read-merge-write into the `generatedConversions` / `responsiveImages` JSON columns respectively, keyed by conversion name — a plain `update()` would clobber sibling keys written concurrently, which is why these merge instead of replace.
