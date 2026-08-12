@@ -5,9 +5,17 @@ Prisma adapter for `@node-media-library/core`. Pre-release: not yet published to
 ## Install
 
 Once published: `npm install @node-media-library/prisma @prisma/client`
-`@prisma/client` (`>=7 <8`) is an optional peer dependency — bring your own version. The range is
-what CI exercises; the adapter itself is structurally typed and never imports `@prisma/client`, so
-support for older majors can be widened later once a CI leg proves it.
+`@prisma/client` (`>=6 <8`) is an optional peer dependency — bring your own version.
+
+## Prisma version compatibility
+
+The peer range is `>=6 <8`. The adapter is structurally typed — it imports nothing from
+`@prisma/client` and talks to a `{ media: { findMany, create, ... } }` shape you pass in — so it does
+not depend on any one client major.
+
+**CI exercises Prisma 7 only.** Support for Prisma 6 rests on that import-graph property, not on a
+passing test suite. If you hit an incompatibility on 6, please open an issue; it will be treated as a
+bug in this range, not as unsupported usage.
 
 ## Add the model
 
