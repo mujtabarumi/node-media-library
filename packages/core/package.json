@@ -51,7 +51,8 @@
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "build": "tsc -p tsconfig.build.json",
+    "sync-version": "node scripts/sync-version.mjs",
+    "build": "node scripts/sync-version.mjs && tsc -p tsconfig.build.json",
     "docs:api": "typedoc && node scripts/starlight-frontmatter.mjs",
     "prepublishOnly": "pnpm build",
     "prepack": "node ../../scripts/ensure-pnpm-pack.mjs"

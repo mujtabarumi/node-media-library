@@ -15,7 +15,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "changeset": "changeset",
-    "version": "changeset version",
+    "version": "changeset version && pnpm --filter @node-media-library/core sync-version",
     "release": "pnpm build && changeset publish"
   },
   "prettier": {

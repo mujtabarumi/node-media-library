@@ -50,6 +50,9 @@ jobs:
       - run: pnpm format:check
       - run: pnpm -r typecheck
       - run: pnpm -r build
+      - run: pnpm --filter @node-media-library/core sync-version
+      - name: version.ts is up to date
+        run: git diff --exit-code -- packages/core/src/version.ts
       - run: pnpm -r test
         env:
           REDIS_URL: 'redis://localhost:6379'
