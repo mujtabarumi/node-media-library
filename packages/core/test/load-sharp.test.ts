@@ -31,4 +31,11 @@ describe('loadSharp', () => {
     await expect(loadSharp(importer)).rejects.toThrow(MediaLibraryError)
     await expect(loadSharp(importer)).rejects.toThrow(/could not be loaded on this platform/)
   })
+
+  it('reports the underlying error without prescribing a fix when the cause is unrecognized', async () => {
+    const importer = throwingImporter('EACCES: permission denied', 'EACCES')
+    await expect(loadSharp(importer)).rejects.toThrow(MediaLibraryError)
+    await expect(loadSharp(importer)).rejects.toThrow(/EACCES: permission denied/)
+    await expect(loadSharp(importer)).rejects.not.toThrow(/rebuild sharp/)
+  })
 })
