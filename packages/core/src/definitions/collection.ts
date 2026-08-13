@@ -1,6 +1,6 @@
 import { IncomingFile } from '../types.js'
 import { MediaLibraryError } from '../errors.js'
-import { ConversionBuilder, ConversionDefinition, conversion } from './conversion.js'
+import { ConversionBuilder, ConversionDefinition } from './conversion.js'
 
 export interface CollectionDefinition {
   singleFile: boolean

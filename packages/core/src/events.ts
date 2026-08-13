@@ -24,14 +24,14 @@ export interface MediaEventMap {
 // is satisfied by named `interface` type arguments (e.g. `MediaEventMap`),
 // not just inline object-literal types.
 export class TypedEmitter<T extends object> {
-  private listeners = new Map<keyof T, Set<(payload: any) => void>>()
+  private listeners = new Map<keyof T, Set<(payload: unknown) => void>>()
 
   on<K extends keyof T>(event: K, fn: (payload: T[K]) => void): () => void {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set())
     }
-    this.listeners.get(event)!.add(fn as (payload: any) => void)
-    return () => this.listeners.get(event)?.delete(fn as (payload: any) => void)
+    this.listeners.get(event)!.add(fn as (payload: unknown) => void)
+    return () => this.listeners.get(event)?.delete(fn as (payload: unknown) => void)
   }
 
   emit<K extends keyof T>(event: K, payload: T[K]): void {

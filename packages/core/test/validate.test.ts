@@ -79,7 +79,7 @@ describe('DEFAULT_DISALLOWED_EXTENSIONS', () => {
 describe('sanitizeFileName', () => {
   it('strips directory components and disallowed characters', () => {
     const result = sanitizeFileName('../../etc/pass wd<x>.png')
-    expect(result).not.toMatch(/[\/\\<>]/)
+    expect(result).not.toMatch(/[/\\<>]/)
     expect(result).toMatch(/\.png$/)
   })
 

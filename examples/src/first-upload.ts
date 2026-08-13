@@ -54,8 +54,8 @@ export function createLibrary(storageRoot = './storage/media') {
 export async function storeAvatar(library: ReturnType<typeof createLibrary>, uploadPath: string) {
   const media = await library.for('User', 'user-1').add(uploadPath).toCollection('avatar')
 
-  media.id //  '0e5f…'    — the media record id
-  media.mimeType //  'image/png' — sniffed from the bytes, not the filename
+  console.log(media.id) //  '0e5f…'    — the media record id
+  console.log(media.mimeType) //  'image/png' — sniffed from the bytes, not the filename
 
   return media
 }
