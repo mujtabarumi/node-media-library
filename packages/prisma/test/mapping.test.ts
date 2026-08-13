@@ -20,7 +20,10 @@ function extractMediaModel(source: string): string {
 }
 
 describe('mapping', () => {
-  const row = {
+  // Split so the toCreateData test can use the timestamp-free half directly:
+  // that half IS the NewMediaRecord shape, which is the whole point of the
+  // assertion below that toCreateData emits no timestamps.
+  const newRecord = {
     id: 'm1',
     modelType: 'User',
     modelId: '1',
@@ -37,9 +40,8 @@ describe('mapping', () => {
     generatedConversions: { thumb: true },
     responsiveImages: {},
     orderColumn: 2,
-    createdAt: new Date(1),
-    updatedAt: new Date(2),
   }
+  const row = { ...newRecord, createdAt: new Date(1), updatedAt: new Date(2) }
   it('toMediaRecord round-trips fields and types Json columns', () => {
     const rec = toMediaRecord(row)
     expect(rec.customProperties).toEqual({ tag: 'x' })
@@ -48,7 +50,6 @@ describe('mapping', () => {
     expect(rec.createdAt).toBeInstanceOf(Date)
   })
   it('toCreateData carries every NewMediaRecord field and no timestamps', () => {
-    const { createdAt: _c, updatedAt: _u, ...newRecord } = row
     const data = toCreateData({
       ...newRecord,
       manipulations: {},

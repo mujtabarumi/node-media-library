@@ -51,7 +51,7 @@ describe('definition builders', () => {
       DEFAULT_COLLECTION.fallbackUrls['thumb'] = '/mutated'
     }).toThrow()
     expect(() => {
-      DEFAULT_COLLECTION.conversions['mutated'] = undefined as any
+      DEFAULT_COLLECTION.conversions['mutated'] = undefined as never
     }).toThrow()
     // Verify the objects are unchanged after attempted mutation
     expect(DEFAULT_COLLECTION.fallbackUrls).toBe(urlsBefore)

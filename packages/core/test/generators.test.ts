@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { DefaultPathGenerator } from '../src/storage/path-generator.js'
 import { DefaultUrlGenerator } from '../src/storage/url-generator.js'
 import { resolveStorage } from '../src/storage/resolve.js'
+import type { MediaRecord } from '../src/types.js'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -10,7 +11,7 @@ const media = {
   fileName: 'photo.jpg',
   disk: 'default',
   updatedAt: new Date(1750000000000),
-} as any
+} as unknown as MediaRecord
 describe('DefaultPathGenerator', () => {
   it('builds id-based paths with prefix', () => {
     const g = new DefaultPathGenerator('app')

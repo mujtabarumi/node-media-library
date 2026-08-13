@@ -13,6 +13,7 @@ pnpm install                                   # pnpm only — npm will not work
 pnpm -r typecheck                              # tsc --noEmit everywhere
 pnpm -r test                                   # every package's vitest suite
 pnpm format                                    # prettier --write (CI gates on format:check)
+pnpm lint                                      # eslint . — flat config, not type-aware (CI gates on it)
 pnpm --filter @node-media-library/core test    # scope to one package
 pnpm --filter @node-media-library/core test copy-move   # substring-match a single test file
 pnpm build && pnpm verify-pack                 # pack every package and lint the tarballs (see docs/publishing.md)
@@ -112,9 +113,3 @@ and would ship a tarball whose entry points reference unbuilt `src/`. Before pub
 `pnpm verify-pack` (packs every package and lints the tarballs with `publint`/`attw`) — see
 [`docs/publishing.md`](docs/publishing.md) for the full pre-publish gate and the smoke-install
 procedure.
-
-## Known gap
-
-`pnpm lint` currently fails: ESLint 10 and `typescript-eslint` are in `devDependencies` and the
-script exists, but no `eslint.config.js` has been written yet, and CI doesn't run lint. Delete this
-section once that's fixed.
