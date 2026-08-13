@@ -41,6 +41,62 @@ author has to remember.
 If you're writing an in-process driver, implement `InProcessQueueDriver`. If you're adapting a broker
 (a message queue, a job scheduler, a hosted queue service), implement `BrokerQueueDriver`.
 
+## Adopting the host application's queue
+
+If your application already runs a queue — its own broker connection, retry policy, backoff, and
+dead-letter path — you do not want a second one. Installing `@node-media-library/bullmq` or
+`@node-media-library/rabbitmq` alongside it gives you two of everything.
+
+Bridge instead. Implement `BrokerQueueDriver` so `enqueue` hands the job to your dispatcher, and let
+your existing worker call `performConversions()`:
+
+```ts
+import type { BrokerQueueDriver, ConversionJob } from '@node-media-library/core'
+
+export function hostQueueDriver(
+  dispatch: (job: ConversionJob) => Promise<void>,
+): BrokerQueueDriver {
+  return {
+    async enqueue(job) {
+      await dispatch(job)
+    },
+    async work() {
+      throw new Error(
+        'hostQueueDriver is consumed by the application worker, not by startWorker(). ' +
+          'Call library.performConversions(mediaId, names) from your own job handler.',
+      )
+    },
+    async close() {},
+  }
+}
+```
+
+Then in your worker's handler for that job type:
+
+```ts
+await library.performConversions(job.mediaId, job.conversionNames)
+```
+
+**A `work()` that throws is a legitimate implementation.** `MediaLibrary`'s constructor never calls
+`work()` — it only calls `attach()`, and only for in-process drivers. `startWorker()` is the sole
+caller, and you are not using it. Nothing else in core reaches this method.
+
+**The driver contract suite does not apply here.** `runBrokerQueueDriverContract` drives a driver
+through `work()`, which this one refuses. Assert two things instead: that `enqueue` reaches your
+dispatcher, and that your handler round-trips a payload through `performConversions()`.
+
+**Conversion failures will not reach your retry path.** `performConversions()` rejects only when
+_every_ requested conversion fails. It resolves when the media record is missing, when no generator
+supports the file, and on partial failure — so a job where two of three conversions failed is acked
+as successful and your DLQ never sees it. This is exactly how `startWorker()` behaves too; it is not
+specific to bridging. Subscribe to `conversion:failed` for named-conversion failures, and separately
+to `responsive:failed` for responsive-image failures — including the `'original'` responsive sentinel
+a queued job carries, which never emits `conversion:failed`. When `'original'` is the only item in
+the job, its failure rethrows and does reach your retry path like any other rejection; when the job
+also carries named conversions, the original-responsive failure is instead swallowed with a
+`console.warn` and the job acks as successful, so `responsive:failed` is your only signal for that
+case.
+
 ## The full interface
 
 Copied from [`packages/core/src/queue.ts`](../src/queue.ts):

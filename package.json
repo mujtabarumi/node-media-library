@@ -15,8 +15,9 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "changeset": "changeset",
-    "version": "changeset version",
-    "release": "pnpm build && changeset publish"
+    "version": "changeset version && pnpm --filter @node-media-library/core sync-version",
+    "release": "pnpm build && changeset publish",
+    "verify-pack": "node scripts/verify-pack.mjs"
   },
   "prettier": {
     "semi": false,
@@ -27,11 +28,13 @@
     "arrowParens": "always"
   },
   "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
     "@changesets/cli": "^2.31.1",
     "@eslint/js": "^10.0.1",
     "eslint": "^10.8.0",
     "globals": "^17.9.0",
     "prettier": "^3.9.6",
+    "publint": "^0.3.23",
     "typescript-eslint": "^8.66.0"
   }
 }

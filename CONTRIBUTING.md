@@ -211,9 +211,16 @@ repository tooling.
 Maintainers cut a release with:
 
 ```bash
-pnpm version   # consume changesets: bump versions, write CHANGELOG.md files
-pnpm release   # pnpm build && changeset publish
+pnpm version        # consume changesets: bump versions, write CHANGELOG.md files
+pnpm -r typecheck && pnpm -r test && pnpm build && pnpm verify-pack   # gate before publishing
+pnpm release         # pnpm build && changeset publish
 ```
+
+`pnpm verify-pack` packs every publishable package and runs `publint`/`attw` against the resulting
+tarballs — it catches `publishConfig.exports` mistakes and `files`-allowlist gaps that no in-repo
+test can see, because in-repo everything resolves to `src/`. See [`docs/publishing.md`](docs/publishing.md)
+for the full runbook: the verification gate, a smoke install against real packed tarballs, 2FA/OTP
+behavior, and the recovery procedure if a publish fails partway.
 
 ### Publishing
 

@@ -6,7 +6,7 @@ editUrl: false
 
 > **sharpImageGenerator**(): [`ImageGenerator`](/api/interfaces/ImageGenerator/)
 
-Defined in: [packages/core/src/conversions/image-generator.ts:28](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/conversions/image-generator.ts#L28)
+Defined in: [packages/core/src/conversions/image-generator.ts:29](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/conversions/image-generator.ts#L29)
 
 ## Returns
 

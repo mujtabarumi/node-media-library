@@ -48,7 +48,7 @@
     "prepack": "node ../../scripts/ensure-pnpm-pack.mjs"
   },
   "dependencies": {
-    "@node-media-library/core": "workspace:*"
+    "@node-media-library/core": "workspace:^"
   },
   "peerDependencies": {
     "amqplib": "^0.10"

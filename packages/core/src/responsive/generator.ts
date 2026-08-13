@@ -1,3 +1,5 @@
+import { loadSharp } from '../conversions/load-sharp.js'
+
 /** @internal */
 export interface RenderedVariant {
   buffer: Buffer
@@ -12,7 +14,7 @@ export async function renderVariant(
   format: 'jpeg' | 'png' | 'webp' | 'avif' | null,
   quality: number | null,
 ): Promise<RenderedVariant> {
-  const sharp = (await import('sharp')).default
+  const sharp = await loadSharp()
   let pipeline = sharp(input).rotate().resize({ width })
   if (format) {
     pipeline = pipeline.toFormat(format, { quality: quality ?? undefined })
@@ -28,7 +30,7 @@ export async function renderVariant(
  * @internal
  */
 export async function tinyPlaceholder(input: Buffer): Promise<string> {
-  const sharp = (await import('sharp')).default
+  const sharp = await loadSharp()
   const image = sharp(input).rotate()
   const meta = await image.metadata()
   // sharp's metadata() reports PRE-rotation (raw pixel-storage) dimensions

@@ -6,6 +6,23 @@
 > reaching npm, so the breaking-change and migration notes describe commits rather than a shipped
 > release. Nothing here requires action from a new installation.
 
+- The `@prisma/client` peer range widened to `>=6 <8`. The adapter imports nothing from the client,
+  so it is not tied to a single major. CI exercises Prisma 7 only.
+- `iterateAll` honors `MediaFilter.customProperties`. It filters in the application by default;
+  an opt-in `jsonPathStyle: 'postgres' | 'mysql'` pushes matching scalar values (string, number,
+  boolean) into the SQL `where` clause. Objects, arrays, and `null` are always filtered in the
+  application afterward, since Prisma's JSON `equals` is not guaranteed to match this library's
+  deep-equality semantics for those.
+- `MEDIA_MODEL_SNIPPET` now maps every field to a snake_case column via `@map()`, so pasting it
+  yields the same column names as `spatie/laravel-medialibrary` instead of quoted camelCase
+  identifiers on Postgres. Its `@@index` widens to `[modelType, modelId, collectionName]` so
+  collection-scoped `findForModel` reads stay covered by an index. The README's `size`/`BigInt` note
+  is corrected — it previously told readers to adjust `MediaRow`, a library type they cannot change —
+  and now documents that `iterateAll({ collectionName })` without `modelType` is not served by that
+  index.
+- The published package now depends on `@node-media-library/core` with a caret range rather than an
+  exact pin.
+
 ### Minor Changes
 
 - 6698e20: Raise the supported Node floor from `>=20` to `>=22`.

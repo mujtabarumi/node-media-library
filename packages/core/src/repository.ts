@@ -3,6 +3,17 @@ import { JsonObject, MediaRecord, NewMediaRecord } from './types.js'
 export interface MediaFilter {
   modelType?: string
   collectionName?: string
+  /**
+   * Every key must deep-equal the record's corresponding `customProperties`
+   * value. AND across keys; a record missing the key does not match; an
+   * absent or empty object matches everything.
+   *
+   * Backends implementing this by hand should call `matchesMediaFilter` so
+   * their semantics match the shared contract exactly. A backend that ignores
+   * this field returns UNFILTERED results, which is dangerous on deletion
+   * paths.
+   */
+  customProperties?: JsonObject
 }
 
 export interface MediaRepository {

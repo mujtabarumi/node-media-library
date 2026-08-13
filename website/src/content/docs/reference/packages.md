@@ -39,14 +39,15 @@ enables producing (`enqueue`). Consuming needs an explicit `await media.startWor
 
 ## Peer dependencies
 
-| Package    | Peer                            | Required?                                          |
-| ---------- | ------------------------------- | -------------------------------------------------- |
-| `core`     | `@google-cloud/storage`         | Optional — only for the `gcs` storage driver.      |
-| `core`     | `@aws-sdk/client-s3`            | Optional — only for the `s3`/`r2` storage drivers. |
-| `core`     | `@aws-sdk/s3-request-presigner` | Optional — only for the `s3`/`r2` storage drivers. |
-| `prisma`   | `@prisma/client`                | Optional — bring your own (`>=7 <8`).              |
-| `bullmq`   | `bullmq`                        | Required (`^5 \|\| ^6`).                           |
-| `rabbitmq` | `amqplib`                       | Required (`^0.10`).                                |
+| Package    | Peer                            | Required?                                                                         |
+| ---------- | ------------------------------- | --------------------------------------------------------------------------------- |
+| `core`     | `sharp`                         | Optional — needed for conversions, responsive images, placeholders (`>=0.33 <1`). |
+| `core`     | `@google-cloud/storage`         | Optional — only for the `gcs` storage driver.                                     |
+| `core`     | `@aws-sdk/client-s3`            | Optional — only for the `s3`/`r2` storage drivers.                                |
+| `core`     | `@aws-sdk/s3-request-presigner` | Optional — only for the `s3`/`r2` storage drivers.                                |
+| `prisma`   | `@prisma/client`                | Optional — bring your own (`>=6 <8`).                                             |
+| `bullmq`   | `bullmq`                        | Required (`^5 \|\| ^6`).                                                          |
+| `rabbitmq` | `amqplib`                       | Required (`^0.10`).                                                               |
 
 ## System binaries
 

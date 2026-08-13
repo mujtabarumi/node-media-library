@@ -5,9 +5,17 @@ Prisma adapter for `@node-media-library/core`. Pre-release: not yet published to
 ## Install
 
 Once published: `npm install @node-media-library/prisma @prisma/client`
-`@prisma/client` (`>=7 <8`) is an optional peer dependency — bring your own version. The range is
-what CI exercises; the adapter itself is structurally typed and never imports `@prisma/client`, so
-support for older majors can be widened later once a CI leg proves it.
+`@prisma/client` (`>=6 <8`) is an optional peer dependency — bring your own version.
+
+## Prisma version compatibility
+
+The peer range is `>=6 <8`. The adapter is structurally typed — it imports nothing from
+`@prisma/client` and talks to a `{ media: { findMany, create, ... } }` shape you pass in — so it does
+not depend on any one client major.
+
+**CI exercises Prisma 7 only.** Support for Prisma 6 rests on that import-graph property, not on a
+passing test suite. If you hit an incompatibility on 6, please open an issue; it will be treated as a
+bug in this range, not as unsupported usage.
 
 ## Add the model
 
@@ -83,6 +91,56 @@ Cascaded models must expose a scalar `id` field — the extension reads `result.
 ## Options
 
 `prismaAdapter(client, { owners, iterateBatchSize })`: `owners` is a `modelType -> (modelId) => boolean | Promise<boolean>` map, needed only by the future `clean --delete-orphaned` command (Plan 6) — most integrations can omit it. `iterateBatchSize` (default `100`) sets the page size `iterateAll` fetches internally.
+
+## Filtering by `customProperties`
+
+`iterateAll({ customProperties: { storeId: 's1' } })` matches records whose `customProperties`
+contain every supplied key with a deep-equal value.
+
+**By default the filter runs in the application, not the database.** The adapter passes
+`modelType` and `collectionName` into the SQL `where` clause, then discards non-matching rows in
+Node for anything not expressed there. Only `modelType` gets an index seek: the schema's
+`@@index([modelType, modelId, collectionName])` is a composite index keyed leftmost by
+`modelType`, and `iterateAll` never filters on `modelId`, so the leftmost-prefix rule stops the
+index lookup at `modelType` — `collectionName` is checked as a residual filter within that scan,
+not through the index. Either way, it reads every row matching the other filters.
+
+To push `customProperties` into SQL, name your database's JSON path dialect:
+
+```ts
+prismaAdapter(client, { jsonPathStyle: 'postgres' }) // or 'mysql'
+```
+
+Prisma's JSON `path` operand differs per connector — PostgreSQL takes an array (`['storeId']`), MySQL
+and SQLite take a string (`'$.storeId'`) — and this adapter never imports `@prisma/client`, so it
+cannot detect your provider. Naming the wrong one surfaces as a `PrismaClientValidationError` on the
+first filtered call, not as a type error.
+
+**Only scalar values are pushed into SQL, even with `jsonPathStyle` set.** A key is pushed down
+only when its value is a `string`, `number`, or `boolean` — the cases where Prisma's JSON `equals`
+is unambiguous. Objects, arrays, and `null` are always filtered in the application instead, using
+the same deep-equality check the default path uses (Prisma's `equals` is not guaranteed to match
+that for non-scalars, and `null` in particular usually needs a `Prisma.JsonNull`/`DbNull` sentinel
+rather than a literal `null`). A filter mixing scalar and non-scalar keys still returns correct
+results, but the non-scalar keys get no performance benefit — the adapter still scans every row
+that matched the pushed-down keys to check them.
+
+**A key is also held back unless it's a simple identifier** (`/^[A-Za-z_$][A-Za-z0-9_$]*$/`). The
+SQL path is built by interpolating the key directly (`` `$.${key}` ``), so a key containing `.`,
+`"`, `[`, or whitespace — `'shopify.storeId'`, say — would silently change which path is queried
+rather than erroring. Such keys always fall back to application-side filtering, same as a
+non-scalar value, and the same "still returns correct results, no performance benefit" tradeoff
+applies.
+
+**Even pushed down, JSON matching is unindexed by default.** On PostgreSQL, add an expression index
+for the key you filter on:
+
+```sql
+CREATE INDEX media_store_id_idx ON "Media" ((("customProperties" ->> 'storeId')));
+```
+
+**What CI exercises:** the portable default path and `jsonPathStyle: 'mysql'`, both against SQLite.
+The `'postgres'` array form is asserted from Prisma's documented behavior, not from a passing test.
 
 ## Responsive images
 

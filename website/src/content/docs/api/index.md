@@ -86,6 +86,7 @@ banner:
 - [conversion](/api/functions/conversion/)
 - [createMediaLibrary](/api/functions/createMediaLibrary/)
 - [deferDriver](/api/functions/deferDriver/)
+- [matchesMediaFilter](/api/functions/matchesMediaFilter/)
 - [sanitizeFileName](/api/functions/sanitizeFileName/)
 - [sharpImageGenerator](/api/functions/sharpImageGenerator/)
 - [syncDriver](/api/functions/syncDriver/)

@@ -1,6 +1,7 @@
 import { MediaLibraryError } from '../errors.js'
 import { JsonObject, MediaRecord, NewMediaRecord } from '../types.js'
 import { MediaFilter, MediaRepository } from '../repository.js'
+import { matchesMediaFilter } from './match.js'
 
 /** @internal */
 export function compareMediaOrder(a: MediaRecord, b: MediaRecord): number {
@@ -92,12 +93,7 @@ export class InMemoryMediaRepository implements MediaRepository {
 
   async *iterateAll(filter?: MediaFilter): AsyncIterable<MediaRecord> {
     const matches = [...this.records.values()]
-      .filter((record) => {
-        if (filter?.modelType !== undefined && record.modelType !== filter.modelType) return false
-        if (filter?.collectionName !== undefined && record.collectionName !== filter.collectionName)
-          return false
-        return true
-      })
+      .filter((record) => matchesMediaFilter(record, filter))
       .sort(compareMediaOrder)
     for (const record of matches) {
       yield record

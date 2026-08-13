@@ -6,6 +6,9 @@
 > reaching npm, so the breaking-change and migration notes describe commits rather than a shipped
 > release. Nothing here requires action from a new installation.
 
+- The published package now depends on `@node-media-library/core` with a caret range rather than an
+  exact pin.
+
 ### Major Changes
 
 - d092bf5: Split `QueueDriver` into `InProcessQueueDriver` (`attach`) and `BrokerQueueDriver` (`work`), and stop

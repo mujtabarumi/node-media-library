@@ -4,7 +4,13 @@
 
 > **First published release.** The entries below record development that predates this package
 > reaching npm, so the breaking-change and migration notes describe commits rather than a shipped
-> release. Nothing here requires action from a new installation.
+> release. No migration is needed from a previous release of this package; see the install notes
+> below for what a new installation needs.
+
+- `sharp` is now declared as an optional peer dependency. It is a hard runtime requirement for this
+  package — install it explicitly.
+- The published package now depends on `@node-media-library/core` with a caret range rather than an
+  exact pin.
 
 ### Minor Changes
 

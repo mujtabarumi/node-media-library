@@ -15,6 +15,7 @@ pnpm -r test                                   # every package's vitest suite
 pnpm format                                    # prettier --write (CI gates on format:check)
 pnpm --filter @node-media-library/core test    # scope to one package
 pnpm --filter @node-media-library/core test copy-move   # substring-match a single test file
+pnpm build && pnpm verify-pack                 # pack every package and lint the tarballs (see docs/publishing.md)
 ```
 
 The CLI's `bin` points at built output (`dist/cli.js`), so exercising it from a checkout needs
@@ -107,7 +108,10 @@ tooling.
 
 **Publishing goes through pnpm only.** Each package's `prepack` (`scripts/ensure-pnpm-pack.mjs`)
 deliberately fails under bare `npm publish` / `npm pack`, because npm ignores `publishConfig.exports`
-and would ship a tarball whose entry points reference unbuilt `src/`.
+and would ship a tarball whose entry points reference unbuilt `src/`. Before publishing, run
+`pnpm verify-pack` (packs every package and lints the tarballs with `publint`/`attw`) — see
+[`docs/publishing.md`](docs/publishing.md) for the full pre-publish gate and the smoke-install
+procedure.
 
 ## Known gap
 

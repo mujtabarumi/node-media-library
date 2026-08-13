@@ -200,8 +200,17 @@ export class MediaLibrary {
     return this.engine
   }
 
-  /** Runs `names` (or all applicable) conversions for `mediaId` inline. */
+  /**
+   * Runs `names` (or all applicable) conversions for `mediaId` inline.
+   *
+   * Arguments are shape-checked with the same guard `startWorker()` applies to
+   * broker payloads. This is the entry point a host-owned queue bridge calls
+   * with a payload it just deserialized, so it must not be the laxer of the
+   * two paths — see "Adopting the host application's queue" in
+   * docs/writing-a-queue-driver.md.
+   */
   async performConversions(mediaId: string, names?: string[]): Promise<void> {
+    assertConversionJob({ mediaId, conversionNames: names } as ConversionJob)
     return this.engine.perform(mediaId, names)
   }
 

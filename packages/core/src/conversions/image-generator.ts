@@ -1,4 +1,5 @@
 import type { ConversionDefinition } from '../definitions/conversion.js'
+import { loadSharp } from './load-sharp.js'
 
 const SUPPORTED_MIME_TYPES = new Set([
   'image/jpeg',
@@ -32,7 +33,7 @@ export function sharpImageGenerator(): ImageGenerator {
     },
 
     async toImage(input, def) {
-      const sharp = (await import('sharp')).default
+      const sharp = await loadSharp()
       let pipeline = sharp(input)
 
       if (def.autoOrient) {

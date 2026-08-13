@@ -14,8 +14,13 @@ Node.js port of [spatie/laravel-medialibrary](https://github.com/spatie/laravel-
 Once published:
 
 ```bash
-pnpm add @node-media-library/core
+pnpm add @node-media-library/core sharp
 ```
+
+> **sharp is an optional peer dependency.** It is required for image conversions, responsive images,
+> and placeholders — which the Quick Start below uses. Omit it only if you store files without ever
+> converting them, or if you supply your own `config.imageGenerators`. Nothing auto-installs it: npm
+> and pnpm both skip peers marked optional, and Yarn never auto-installs peers at all.
 
 ## Quick Start
 
@@ -77,24 +82,29 @@ await library.for('User', userId).clear('gallery')
 Only `repository` and `models` are required. Everything else below has a default that works, so a
 minimal config is genuinely two keys.
 
-| Key                         | Type                  | Default                            | Notes                                                                                          |
-| --------------------------- | --------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `repository`                | `MediaRepository`     | **required**                       | `InMemoryMediaRepository` for tests; `@node-media-library/prisma` for real use.                |
-| `models`                    | `Record<string, {…}>` | **required**                       | `for()` throws `UnknownModelError` for a type absent from this map.                            |
-| `storage`                   | `StorageConfig`       | synthesized from env               | See [Storage disks](#storage-disks).                                                           |
-| `queue`                     | `AnyQueueDriver`      | `syncDriver()`                     | See [Queue drivers](#queue-drivers).                                                           |
-| `maxFileSize`               | `number`              | `10 * 1024 * 1024`                 | Enforced during accumulation, not after the bytes land.                                        |
-| `disallowedExtensions`      | `string[]`            | `DEFAULT_DISALLOWED_EXTENSIONS`    | Checked per dot-segment.                                                                       |
-| `allowedExtensions`         | `string[]`            | none                               | When set, acts as an allowlist instead.                                                        |
-| `versionUrls`               | `boolean`             | `false`                            | Cache-busting version query on generated URLs.                                                 |
-| `signedUrlExpiresIn`        | `string \| number`    | `'30 mins'`                        | Default `signedUrl()` expiry; the `fs` driver ignores it (it cannot sign).                     |
-| `fileNameSanitizer`         | `FileNameSanitizer`   | built-in                           | A security control — see [Security model](#security-model) before replacing it.                |
-| `pathGenerator`             | `PathGenerator`       | `DefaultPathGenerator`             | `{prefix}/{mediaId}/{fileName}`.                                                               |
-| `urlGenerator`              | `UrlGenerator`        | `DefaultUrlGenerator`              | Only needed to replace URL generation entirely — a custom CDN hostname is `baseUrl`, not this. |
-| `imageGenerators`           | `ImageGenerator[]`    | `[sharpImageGenerator()]`          | Nothing auto-registers — add pdf/video generators explicitly.                                  |
-| `optimizers`                | `ImageOptimizer[]`    | `[]`                               | See [Image optimizers](#image-optimizers).                                                     |
-| `responsiveWidthCalculator` | `WidthCalculator`     | `FileSizeOptimizedWidthCalculator` | See [Responsive images](#responsive-images).                                                   |
-| `responsivePlaceholders`    | `boolean`             | `true`                             | LQIP generation alongside responsive variants.                                                 |
+| Key                         | Type                  | Default                            | Notes                                                                                                                                       |
+| --------------------------- | --------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `repository`                | `MediaRepository`     | **required**                       | `InMemoryMediaRepository` for tests; `@node-media-library/prisma` for real use.                                                             |
+| `models`                    | `Record<string, {…}>` | **required**                       | `for()` throws `UnknownModelError` for a type absent from this map.                                                                         |
+| `storage`                   | `StorageConfig`       | synthesized from env               | See [Storage disks](#storage-disks).                                                                                                        |
+| `queue`                     | `AnyQueueDriver`      | `syncDriver()`                     | See [Queue drivers](#queue-drivers).                                                                                                        |
+| `maxFileSize`               | `number`              | `10 * 1024 * 1024`                 | Enforced during accumulation, not after the bytes land.                                                                                     |
+| `disallowedExtensions`      | `string[]`            | `DEFAULT_DISALLOWED_EXTENSIONS`    | Checked per dot-segment.                                                                                                                    |
+| `allowedExtensions`         | `string[]`            | none                               | When set, acts as an allowlist instead.                                                                                                     |
+| `versionUrls`               | `boolean`             | `false`                            | Cache-busting version query on generated URLs.                                                                                              |
+| `signedUrlExpiresIn`        | `string \| number`    | `'30 mins'`                        | Default `signedUrl()` expiry; the `fs` driver ignores it (it cannot sign).                                                                  |
+| `fileNameSanitizer`         | `FileNameSanitizer`   | built-in                           | A security control — see [Security model](#security-model) before replacing it.                                                             |
+| `pathGenerator`             | `PathGenerator`       | `DefaultPathGenerator`             | `{prefix}/{mediaId}/{fileName}`.                                                                                                            |
+| `urlGenerator`              | `UrlGenerator`        | `DefaultUrlGenerator`              | Only needed to replace URL generation entirely — a custom CDN hostname is `baseUrl`, not this.                                              |
+| `imageGenerators`           | `ImageGenerator[]`    | `[sharpImageGenerator()]`          | Nothing auto-registers — add pdf/video generators explicitly. Defaults to `[sharpImageGenerator()]`, which needs the optional `sharp` peer. |
+| `optimizers`                | `ImageOptimizer[]`    | `[]`                               | See [Image optimizers](#image-optimizers).                                                                                                  |
+| `responsiveWidthCalculator` | `WidthCalculator`     | `FileSizeOptimizedWidthCalculator` | See [Responsive images](#responsive-images).                                                                                                |
+| `responsivePlaceholders`    | `boolean`             | `true`                             | LQIP generation alongside responsive variants.                                                                                              |
+
+> At upload time `PathGenerator.path()` receives a record that has not been persisted yet — its
+> `createdAt` and `updatedAt` are not set. A layout derived from those dates breaks on the first
+> upload. `customProperties` **is** populated by then, so keying the layout off a custom property
+> works.
 
 ## Custom properties, copy, and move
 
@@ -405,6 +415,39 @@ above (R2 → S3 → GCS → fs).
   `baseUrl`, or serve the file with `signedUrl()`. A custom `urlGenerator` builds URLs its own way and
   is not subject to this — which is also why supplying one downgrades the construction-time check on
   public R2 collections to a warning.
+
+### Seeing your files in development (no S3)
+
+With the local filesystem disk, `url()` throws unless the disk has a `baseUrl` — there is nothing to
+build a URL from. Two ways forward, and the second is recommended.
+
+**Preferred: serve through your own route.** `download()` and `inline()` return a Web `Response`, so
+in any Fetch-based framework this is the whole integration:
+
+```ts
+export async function loader({ params }) {
+  return library.inline(params.id)
+}
+```
+
+Authorization stays in your handler, where it belongs.
+
+**Alternative: set a base URL and serve the root statically.**
+
+```bash
+MEDIA_FS_ROOT=./storage/media
+MEDIA_FS_BASE_URL=http://localhost:3000/media
+```
+
+> **This bypasses private-by-default.** The env-synthesized fs disk is `visibility: 'private'`, but
+> statically serving `MEDIA_FS_ROOT` exposes **every file under that root**, including media in
+> private collections — and nothing in the library stops you. The same class of risk exists on `r2`:
+> a private-only collection on a disk with `baseUrl` set triggers no check at all, and the one
+> related guard that does exist — a disk mixing `.public()` and private collections — only produces a
+> non-blocking `console.warn`, never a refusal to construct. Use this for local development only.
+
+You will also see the `[media-library] Media is stored on the local filesystem in production`
+warning if `NODE_ENV=production` — that is expected with an env-synthesized fs disk, not a bug.
 
 ## Security model
 

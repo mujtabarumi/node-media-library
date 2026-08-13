@@ -1,4 +1,4 @@
-import { MediaLibraryError } from '@node-media-library/core'
+import { MediaLibraryError, matchesMediaFilter } from '@node-media-library/core'
 import type {
   JsonObject,
   MediaFilter,
@@ -12,6 +12,29 @@ import { toCreateData, toMediaRecord } from './mapping.js'
 export interface PrismaAdapterOptions {
   owners?: Record<string, (modelId: string) => boolean | Promise<boolean>>
   iterateBatchSize?: number
+  /**
+   * Push `MediaFilter.customProperties` into the SQL `where` clause using this
+   * database's JSON path syntax. PostgreSQL takes an array path
+   * (`['storeId']`); MySQL and SQLite take a string path (`'$.storeId'`).
+   * Prisma does not normalize the two, and this adapter is structurally typed
+   * — it never imports `@prisma/client` and cannot detect your provider — so
+   * naming the dialect is your call.
+   *
+   * Only keys that are simple identifiers (`/^[A-Za-z_$][A-Za-z0-9_$]*$/`) are
+   * pushed down. A key containing `.`, `"`, `[`, whitespace, or any other
+   * character with meaning in a JSON path would silently change what the
+   * interpolated `$.${key}` path selects (e.g. `'a.b'` becomes the nested
+   * path `$.a.b`), so such keys always fall back to application-side
+   * filtering instead of being interpolated into SQL.
+   *
+   * Omit it to filter in the application instead. That is correct on every
+   * provider, but it reads every row matching `modelType`/`collectionName`
+   * before discarding non-matches.
+   *
+   * Setting the wrong dialect surfaces as a `PrismaClientValidationError` on
+   * the first filtered `iterateAll`, not as a type error.
+   */
+  jsonPathStyle?: 'postgres' | 'mysql'
 }
 
 function prismaErrorCode(e: unknown): string | undefined {
@@ -125,6 +148,45 @@ class PrismaMediaRepository implements MediaRepository {
     if (filter?.modelType !== undefined) filterWhere.modelType = filter.modelType
     if (filter?.collectionName !== undefined) filterWhere.collectionName = filter.collectionName
 
+    // customProperties reaches SQL only when the consumer named their dialect
+    // (see PrismaAdapterOptions.jsonPathStyle), and even then only for scalar
+    // values (string/number/boolean): Prisma's JSON `equals` is unambiguous
+    // for those, but not guaranteed to match this library's deep-equality
+    // semantics for objects, arrays, or null (null in particular usually
+    // needs a Prisma.JsonNull/DbNull sentinel, not a literal `null`, and
+    // array/object `equals` behavior is not guaranteed consistent across
+    // connectors). Non-scalar keys are always applied per row below.
+    //
+    // A key is ALSO held back from push-down (regardless of its value's
+    // type) unless it is a safe identifier. The path is built by raw
+    // interpolation (`$.${key}`) below, so a key containing `.`, `"`, `[`, or
+    // whitespace would silently change which path is queried (`'a.b'` would
+    // become the nested path `$.a.b`) rather than erroring — held-back keys
+    // are filtered by matchesMediaFilter instead, which reads the literal
+    // key.
+    const SAFE_JSON_PATH_KEY = /^[A-Za-z_$][A-Za-z0-9_$]*$/
+    const style = this.opts.jsonPathStyle
+    const entries = filter?.customProperties ? Object.entries(filter.customProperties) : []
+    const pushableEntries = entries.filter(
+      ([key, value]) =>
+        SAFE_JSON_PATH_KEY.test(key) &&
+        (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'),
+    )
+    // Only skip the per-row check below when every key was pushed down —
+    // if even one key was held back (non-scalar or an unsafe key),
+    // matchesMediaFilter is the sole authority for it and must run on every
+    // yielded row.
+    const allPushedDown =
+      style !== undefined && entries.length > 0 && pushableEntries.length === entries.length
+    if (style !== undefined && pushableEntries.length > 0) {
+      filterWhere.AND = pushableEntries.map(([key, value]) => ({
+        customProperties: {
+          path: style === 'postgres' ? [key] : `$.${key}`,
+          equals: value,
+        },
+      }))
+    }
+
     // Keyset pagination on id (not cursor+skip): a row can be deleted between
     // batches (e.g. Plan 6's clean command iterates and deletes concurrently),
     // and cursor+skip would silently truncate if the cursor row itself is gone.
@@ -139,7 +201,12 @@ class PrismaMediaRepository implements MediaRepository {
       })
       if (rows.length === 0) return
       for (const row of rows) {
-        yield toMediaRecord(row)
+        const record = toMediaRecord(row)
+        // Batch termination below counts rows FETCHED, not yielded, so
+        // post-filtering here cannot truncate the iteration early.
+        if (allPushedDown || matchesMediaFilter(record, filter)) {
+          yield record
+        }
       }
       lastId = rows[rows.length - 1]!.id
       if (rows.length < this.batchSize) return

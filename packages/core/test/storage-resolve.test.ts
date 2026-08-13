@@ -35,6 +35,21 @@ describe('resolveStorage', () => {
     expect(resolveStorage({ prefix: 'app' }, { MEDIA_PREFIX: 'ignored' }).prefix).toBe('app')
     expect(resolveStorage(undefined, { MEDIA_PREFIX: 'from-env' }).prefix).toBe('from-env')
   })
+  it('reads MEDIA_FS_BASE_URL into the fs disk baseUrl', () => {
+    const s = resolveStorage(undefined, {
+      MEDIA_FS_ROOT: '/tmp/media',
+      MEDIA_FS_BASE_URL: 'http://localhost:3000/media',
+    })
+    expect(s.diskConfig()).toMatchObject({
+      driver: 'fs',
+      root: '/tmp/media',
+      baseUrl: 'http://localhost:3000/media',
+    })
+  })
+  it('omits baseUrl entirely when MEDIA_FS_BASE_URL is unset', () => {
+    const s = resolveStorage(undefined, { MEDIA_FS_ROOT: '/tmp/media' })
+    expect(s.diskConfig()).not.toHaveProperty('baseUrl')
+  })
 })
 
 describe('R2 env synthesis', () => {

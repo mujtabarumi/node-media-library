@@ -49,8 +49,8 @@ describe('peer range', () => {
     return pkg.peerDependencies['@prisma/client']!
   }
 
-  it('is exactly the range CI proves', () => {
-    expect(peerRange()).toBe('>=7 <8')
+  it('is wider than the range CI proves', () => {
+    expect(peerRange()).toBe('>=6 <8')
   })
 
   it('is quoted verbatim in the README', () => {

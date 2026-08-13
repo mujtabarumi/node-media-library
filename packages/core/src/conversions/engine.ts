@@ -14,6 +14,7 @@ import { responsiveFileName } from '../responsive/naming.js'
 import { renderVariant, tinyPlaceholder } from '../responsive/generator.js'
 import type { ResponsiveVariant, ResponsiveImagesEntry } from '../responsive/types.js'
 import type { ImageOptimizer, OptimizeContext } from './optimizer.js'
+import { loadSharp } from './load-sharp.js'
 
 export interface RegenerateOptions {
   modelType?: string
@@ -146,7 +147,7 @@ export class ConversionEngine {
     format: 'jpeg' | 'png' | 'webp' | 'avif' | null,
     quality: number | null,
   ): Promise<void> {
-    const sharp = (await import('sharp')).default
+    const sharp = await loadSharp()
     const meta = await sharp(source).rotate().metadata()
     if (!meta.width || !meta.height) return
 

@@ -1,4 +1,4 @@
-export const VERSION = '0.0.0'
+export { VERSION } from './version.js'
 export * from './types.js'
 export * from './errors.js'
 export * from './events.js'
@@ -6,6 +6,7 @@ export * from './definitions/conversion.js'
 export * from './definitions/collection.js'
 export * from './repository.js'
 export * from './repository/in-memory.js'
+export { matchesMediaFilter } from './repository/match.js'
 // Named rather than `export *`: the module also exports resolveStorage,
 // normalizeR2, and writeOptionsFor, which are @internal. Without this,
 // `export *` re-widens the public surface silently — exports.test.ts guards it.

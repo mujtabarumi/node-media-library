@@ -48,10 +48,10 @@
     "db:prepare": "prisma db push && prisma generate"
   },
   "dependencies": {
-    "@node-media-library/core": "workspace:*"
+    "@node-media-library/core": "workspace:^"
   },
   "peerDependencies": {
-    "@prisma/client": ">=7 <8"
+    "@prisma/client": ">=6 <8"
   },
   "peerDependenciesMeta": {
     "@prisma/client": {
