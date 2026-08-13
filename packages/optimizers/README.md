@@ -2,6 +2,17 @@
 
 Binary image optimizers for node-media-library: `jpegoptim` for JPEGs and `pngquant` for PNGs, both implementing core's `ImageOptimizer` interface.
 
+## Installation
+
+```bash
+pnpm add @node-media-library/optimizers
+```
+
+No peer dependencies. Unlike `@node-media-library/pdf` and `@node-media-library/video`, this package
+does not need `sharp` — it shells out to the binaries below and hands core back a buffer. The real
+requirement is those binaries, and each optimizer no-ops when its own binary is missing, so adding
+this package can never break a conversion that worked without it.
+
 ## System Requirements
 
 Requires the `jpegoptim` and/or `pngquant` binaries:
