@@ -4,7 +4,7 @@ editUrl: false
 ---
 # Interface: ImageGenerator
 
-Defined in: [packages/core/src/conversions/image-generator.ts:12](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/conversions/image-generator.ts#L12)
+Defined in: [packages/core/src/conversions/image-generator.ts:13](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/conversions/image-generator.ts#L13)
 
 ## Methods
 
@@ -12,7 +12,7 @@ Defined in: [packages/core/src/conversions/image-generator.ts:12](https://github
 
 > **supports**(`mimeType`): `boolean`
 
-Defined in: [packages/core/src/conversions/image-generator.ts:13](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/conversions/image-generator.ts#L13)
+Defined in: [packages/core/src/conversions/image-generator.ts:14](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/conversions/image-generator.ts#L14)
 
 #### Parameters
 
@@ -30,7 +30,7 @@ Defined in: [packages/core/src/conversions/image-generator.ts:13](https://github
 
 > **toImage**(`input`, `def`): `Promise`\<`Buffer`\<`ArrayBufferLike`\>\>
 
-Defined in: [packages/core/src/conversions/image-generator.ts:19](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/conversions/image-generator.ts#L19)
+Defined in: [packages/core/src/conversions/image-generator.ts:20](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/conversions/image-generator.ts#L20)
 
 Applies `def` to the source and returns the derived raster. `input` is
 always the full source file's bytes; generators needing a real file
@@ -56,7 +56,7 @@ always the full source file's bytes; generators needing a real file
 
 > `optional` **toSourceImage**(`input`): `Promise`\<`Buffer`\<`ArrayBufferLike`\>\>
 
-Defined in: [packages/core/src/conversions/image-generator.ts:25](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/conversions/image-generator.ts#L25)
+Defined in: [packages/core/src/conversions/image-generator.ts:26](https://github.com/mujtabarumi/node-media-library/blob/main/packages/core/src/conversions/image-generator.ts#L26)
 
 Optional: renders a plain, conversion-free raster of the source (e.g.
 PDF page 1, video frame at 0s) for use as the original-responsive

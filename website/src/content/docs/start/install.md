@@ -15,8 +15,12 @@ description: What to install, what each package needs, and which optional system
 ## Install
 
 ```bash
-pnpm add @node-media-library/core
+pnpm add @node-media-library/core sharp
 ```
+
+`sharp` is an optional peer dependency, required for image conversions, responsive images, and
+placeholders. Omit it only if you store files without ever converting them, or if you supply your own
+`config.imageGenerators`.
 
 Add the adapters you actually need — nothing is pulled in for you:
 
@@ -52,12 +56,13 @@ thumbnail.
 
 ## Peer dependencies
 
-| Package    | Peer                    | Required?                                     |
-| ---------- | ----------------------- | --------------------------------------------- |
-| `core`     | `@google-cloud/storage` | Optional — only for the `gcs` storage driver. |
-| `prisma`   | `@prisma/client`        | Optional — bring your own version (`>=6 <8`). |
-| `bullmq`   | `bullmq`                | Required (`^5 \|\| ^6`).                      |
-| `rabbitmq` | `amqplib`               | Required (`^0.10`).                           |
+| Package    | Peer                    | Required?                                                                         |
+| ---------- | ----------------------- | --------------------------------------------------------------------------------- |
+| `core`     | `sharp`                 | Optional — needed for conversions, responsive images, placeholders (`>=0.33 <1`). |
+| `core`     | `@google-cloud/storage` | Optional — only for the `gcs` storage driver.                                     |
+| `prisma`   | `@prisma/client`        | Optional — bring your own version (`>=6 <8`).                                     |
+| `bullmq`   | `bullmq`                | Required (`^5 \|\| ^6`).                                                          |
+| `rabbitmq` | `amqplib`               | Required (`^0.10`).                                                               |
 
 ## Nothing auto-registers
 
