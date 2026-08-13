@@ -1,10 +1,13 @@
 # @node-media-library/rabbitmq
 
-RabbitMQ (amqplib) queue driver for `@node-media-library/core`. Pre-release: not yet published to npm.
+RabbitMQ (amqplib) queue driver for `@node-media-library/core`.
 
 ## Install
 
-Once published: `npm install @node-media-library/rabbitmq amqplib`
+```bash
+npm install @node-media-library/rabbitmq amqplib
+```
+
 `amqplib` (`^0.10`) is a required peer dependency.
 
 TypeScript consumers also need `npm install -D @types/amqplib`. `amqplib` ships no bundled types, and

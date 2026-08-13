@@ -1,10 +1,13 @@
 # @node-media-library/bullmq
 
-BullMQ queue driver for `@node-media-library/core`. Pre-release: not yet published to npm.
+BullMQ queue driver for `@node-media-library/core`.
 
 ## Install
 
-Once published: `npm install @node-media-library/bullmq bullmq`
+```bash
+npm install @node-media-library/bullmq bullmq
+```
+
 `bullmq` (`^5 || ^6`) is a required peer dependency. Both majors were verified against a real Redis
 with the full `QueueDriver` contract suite; CI runs whichever version the lockfile pins.
 

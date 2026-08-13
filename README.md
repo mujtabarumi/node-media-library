@@ -25,9 +25,6 @@ pluggable queue (BullMQ and RabbitMQ adapters included), and
 [sharp](https://sharp.pixelplumbing.com) for image work — an optional peer dependency you install
 yourself.
 
-> **Status: pre-release.** Not yet published to npm. Everything below is implemented and tested in this
-> repo today; install from a git checkout until the first release.
-
 ---
 
 ## Requirements
@@ -52,19 +49,8 @@ and a local folder, then swap both out at the end.
 
 ## Step 1 — Install the core package
 
-Nothing is on npm yet, so you install from a checkout. Build it, then pack a tarball:
-
 ```bash
-git clone https://github.com/mujtabarumi/node-media-library.git
-cd node-media-library
-pnpm install && pnpm build
-cd packages/core && pnpm pack --pack-destination ~/nml
-```
-
-Then, in your own project:
-
-```bash
-pnpm add ~/nml/node-media-library-core-1.0.0.tgz sharp
+pnpm add @node-media-library/core sharp
 ```
 
 > **sharp is an optional peer dependency.** It is required for image conversions, responsive images,
@@ -72,18 +58,13 @@ pnpm add ~/nml/node-media-library-core-1.0.0.tgz sharp
 > them, or if you supply your own `config.imageGenerators`. Nothing auto-installs it: npm and pnpm
 > both skip peers marked optional, and Yarn never auto-installs peers at all.
 
-**Pack it — don't link it.** A package's `exports` deliberately points at `src/*.ts` so this
-workspace runs from source; only `pnpm pack` applies the `publishConfig.exports` override that
-repoints entry points at built `dist/`. A `file:` dependency or `pnpm add github:…` skips that step
-and hands your app raw TypeScript that Node cannot load.
+Adapters are separate packages and nothing is pulled in for you — you'll add one in
+[Next steps](#next-steps).
 
-Use pnpm throughout, not npm: each package's `prepack` script deliberately fails under bare `npm
-pack`/`npm publish`, because npm ignores `publishConfig.exports` and would produce exactly that
-broken tarball.
-
-Adapters are separate packages, each packed the same way, and nothing is pulled in for you — you'll
-add one in [Next steps](#next-steps). Once the first release lands, all of this collapses back to
-`pnpm add @node-media-library/core sharp`.
+Working from a checkout of this repo instead? See
+[CONTRIBUTING.md](CONTRIBUTING.md) — a package's `exports` points at `src/*.ts` so the workspace runs
+from source, and only `pnpm pack` applies the `publishConfig.exports` override that repoints entry
+points at built `dist/`, so a `file:` dependency hands your app raw TypeScript that Node cannot load.
 
 ## Step 2 — Create your config
 
