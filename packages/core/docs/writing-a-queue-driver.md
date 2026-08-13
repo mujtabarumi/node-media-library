@@ -89,8 +89,13 @@ dispatcher, and that your handler round-trips a payload through `performConversi
 _every_ requested conversion fails. It resolves when the media record is missing, when no generator
 supports the file, and on partial failure — so a job where two of three conversions failed is acked
 as successful and your DLQ never sees it. This is exactly how `startWorker()` behaves too; it is not
-specific to bridging. Subscribe to the `conversion:failed` event if you need per-conversion failure
-visibility.
+specific to bridging. Subscribe to `conversion:failed` for named-conversion failures, and separately
+to `responsive:failed` for responsive-image failures — including the `'original'` responsive sentinel
+a queued job carries, which never emits `conversion:failed`. When `'original'` is the only item in
+the job, its failure rethrows and does reach your retry path like any other rejection; when the job
+also carries named conversions, the original-responsive failure is instead swallowed with a
+`console.warn` and the job acks as successful, so `responsive:failed` is your only signal for that
+case.
 
 ## The full interface
 

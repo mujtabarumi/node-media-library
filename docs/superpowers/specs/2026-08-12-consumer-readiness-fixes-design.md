@@ -212,9 +212,12 @@ converts an image would otherwise get a raw module-resolution stack trace from d
 conversion engine — a strictly worse failure than today's, where the dependency is always present.
 
 **Loose end this closes:** `packages/core/src/testing/storage-contract.ts:2` imports sharp
-_statically_, and `./testing` is a published entry point. That import becomes dynamic. A consumer
-running the storage contract against their own disk implementation should not need an image library
-to do it.
+_statically_, and `./testing` is a published entry point. That import becomes dynamic, routed through
+`loadSharp()`, so a missing install surfaces its actionable message instead of a raw
+`ERR_MODULE_NOT_FOUND` — but `sharp` remains a genuine requirement to run this contract at all, since
+it generates the fixture image and drives `.withResponsiveImages()` conversions through it; this only
+moves the failure from import time to call time and improves its message, it does not remove the
+dependency.
 
 ## 4. Add `customProperties` to `MediaFilter`
 

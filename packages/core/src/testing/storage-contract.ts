@@ -4,6 +4,7 @@ import { InMemoryMediaRepository } from '../repository/in-memory.js'
 import { collection } from '../definitions/collection.js'
 import { conversion } from '../definitions/conversion.js'
 import { conversionFileName } from '../conversions/naming.js'
+import { loadSharp } from '../conversions/load-sharp.js'
 import type { ResponsiveImagesEntry } from '../responsive/types.js'
 import type { DiskConfig } from '../storage/resolve.js'
 
@@ -19,6 +20,17 @@ import type { DiskConfig } from '../storage/resolve.js'
  * so each is asserted at its real key. A write that lands on the wrong key
  * would otherwise pass: `generatedConversions.thumb` flips true for any
  * resolved `put`, whatever key it used.
+ *
+ * **Requires `sharp`.** This contract generates its fixture image and drives
+ * `.format('png').withResponsiveImages()` conversions through the real
+ * `sharpImageGenerator()`, so `sharp` must be installed to run it — a disk
+ * implementation with no image library of its own still needs it here,
+ * because it is this contract's fixture generator that needs it, not the
+ * disk under test. The `sharp` import itself is dynamic (routed through
+ * `loadSharp()`), so a missing install surfaces `loadSharp()`'s actionable
+ * message instead of a raw `ERR_MODULE_NOT_FOUND` — but that only changes
+ * *when* the error is thrown (first fixture generation, not module import),
+ * not whether `sharp` is needed at all.
  *
  * `opts.publicBaseUrl` opts the run into the public-URL assertion. Omit it for
  * a backend with no public domain attached; the private path (signed URLs) is
@@ -52,7 +64,7 @@ export function runStorageCycleContract(
     })
 
     const png = async () => {
-      const sharp = (await import('sharp')).default
+      const sharp = await loadSharp()
       return sharp({ create: { width: 64, height: 64, channels: 3, background: '#ff0000' } })
         .png()
         .toBuffer()
