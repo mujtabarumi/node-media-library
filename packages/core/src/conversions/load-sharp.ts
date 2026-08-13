@@ -42,6 +42,7 @@ export async function loadSharp(
         'sharp is not installed. It is an optional peer dependency of @node-media-library/core, ' +
           'needed for image conversions and responsive images. Install it (`pnpm add sharp`), or ' +
           'supply your own generators via config.imageGenerators.',
+        'SHARP_NOT_INSTALLED',
       )
     }
 
@@ -50,6 +51,7 @@ export async function loadSharp(
         `sharp is installed but could not be loaded on this platform: ${message}. Reinstall it for ` +
           'this OS and architecture (`pnpm rebuild sharp`), or supply your own generators via ' +
           'config.imageGenerators.',
+        'SHARP_LOAD_FAILED',
       )
     }
 
@@ -58,6 +60,7 @@ export async function loadSharp(
         `"native binary unloadable" signature: ${message}. This may not be an installation or ` +
         'platform problem, so reinstalling or rebuilding sharp is not guaranteed to help — ' +
         'investigate the underlying error, or supply your own generators via config.imageGenerators.',
+      'SHARP_LOAD_FAILED',
     )
   }
 }

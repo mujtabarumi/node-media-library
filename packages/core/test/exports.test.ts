@@ -37,6 +37,15 @@ describe('public exports', () => {
     expect(InMemoryMediaRepository).toBeDefined()
   })
 
+  // Reachable through the root barrel, not just repository/match.js directly:
+  // @node-media-library/prisma imports it across the package boundary
+  // (packages/prisma/src/adapter.ts), so a silently dropped re-export would
+  // break that consumer with no signal from this package's own suite.
+  it('exports matchesMediaFilter', async () => {
+    const { matchesMediaFilter } = await import('../src/index.js')
+    expect(matchesMediaFilter).toBeDefined()
+  })
+
   it('exports TypedEmitter', async () => {
     const { TypedEmitter } = await import('../src/index.js')
     expect(TypedEmitter).toBeDefined()

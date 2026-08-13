@@ -23,6 +23,11 @@ describe('loadSharp', () => {
     await expect(loadSharp(importer)).rejects.toThrow(/imageGenerators/)
   })
 
+  it('codes the absent-module error SHARP_NOT_INSTALLED', async () => {
+    const importer = throwingImporter("Cannot find package 'sharp'", 'ERR_MODULE_NOT_FOUND')
+    await expect(loadSharp(importer)).rejects.toMatchObject({ code: 'SHARP_NOT_INSTALLED' })
+  })
+
   it('distinguishes an unloadable native binary from an absent module', async () => {
     const importer = throwingImporter(
       'Could not load the sharp module using the darwin-arm64 runtime',
@@ -32,10 +37,23 @@ describe('loadSharp', () => {
     await expect(loadSharp(importer)).rejects.toThrow(/could not be loaded on this platform/)
   })
 
+  it('codes the unloadable-native-binary error SHARP_LOAD_FAILED', async () => {
+    const importer = throwingImporter(
+      'Could not load the sharp module using the darwin-arm64 runtime',
+      'ERR_DLOPEN_FAILED',
+    )
+    await expect(loadSharp(importer)).rejects.toMatchObject({ code: 'SHARP_LOAD_FAILED' })
+  })
+
   it('reports the underlying error without prescribing a fix when the cause is unrecognized', async () => {
     const importer = throwingImporter('EACCES: permission denied', 'EACCES')
     await expect(loadSharp(importer)).rejects.toThrow(MediaLibraryError)
     await expect(loadSharp(importer)).rejects.toThrow(/EACCES: permission denied/)
     await expect(loadSharp(importer)).rejects.not.toThrow(/rebuild sharp/)
+  })
+
+  it('codes the unrecognized-cause error SHARP_LOAD_FAILED too', async () => {
+    const importer = throwingImporter('EACCES: permission denied', 'EACCES')
+    await expect(loadSharp(importer)).rejects.toMatchObject({ code: 'SHARP_LOAD_FAILED' })
   })
 })
