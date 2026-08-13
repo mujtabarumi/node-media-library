@@ -157,9 +157,9 @@ shape, take an explicit row lock around the merge or partition per-media work to
 ## Using a different backend
 
 Nothing here is Prisma-specific at the library level. Implement `MediaRepository` and validate it
-against the shared contract exported from `@node-media-library/core/testing`. Every bundled adapter
-runs that same suite, and adding a repository method means adding its cases to the contract so all
-backends are held to it.
+against the shared contract exported from `@node-media-library/core/testing` — see
+[Testing a backend](/reference/testing/). Every bundled adapter runs that same suite, and adding a
+repository method means adding its cases to the contract so all backends are held to it.
 
 ## Next
 

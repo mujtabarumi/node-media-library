@@ -100,7 +100,7 @@ Worth knowing before you plan around them:
 ## Things this has that Laravel doesn't
 
 - **A repository contract suite** you can run against your own backend, exported from
-  `@node-media-library/core/testing`.
+  `@node-media-library/core/testing` — see [Testing a backend](/reference/testing/).
 - **Documented sharp edges.** [Known limitations](/production/limitations/) states where the guarantees
   stop, with anchors linked from the pages where each one bites.
 - **Executable documentation.** The code on most guide pages is imported from files that run in CI, so a

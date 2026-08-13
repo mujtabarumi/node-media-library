@@ -1,4 +1,7 @@
 import { describe, it, expect } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 describe('public exports', () => {
   // Main exports from core
@@ -283,6 +286,29 @@ describe('public exports', () => {
   it('exports runBrokerQueueDriverContract from testing subpath', async () => {
     const { runBrokerQueueDriverContract } = await import('../src/testing/index.js')
     expect(runBrokerQueueDriverContract).toBeDefined()
+  })
+
+  it('exports runStorageCycleContract from testing subpath', async () => {
+    const { runStorageCycleContract } = await import('../src/testing/index.js')
+    expect(runStorageCycleContract).toBeDefined()
+  })
+
+  // `./testing` is a published entry point, but typedoc's entryPoints covers
+  // src/index.ts only, so these contracts get no generated API page and no
+  // regenerate-and-diff gate. This is the substitute: adding a contract without
+  // documenting it fails here.
+  it('every exported contract is documented in the website reference', async () => {
+    const testing = await import('../src/testing/index.js')
+    const contracts = Object.keys(testing).filter((name) => name.startsWith('run'))
+    expect(contracts.length).toBeGreaterThan(0)
+
+    const here = dirname(fileURLToPath(import.meta.url))
+    const docPath = '../../../website/src/content/docs/reference/testing.md'
+    const doc = readFileSync(join(here, docPath), 'utf8')
+
+    for (const name of contracts) {
+      expect(doc, `${docPath} does not document ${name}`).toContain(name)
+    }
   })
 
   // Maintenance
