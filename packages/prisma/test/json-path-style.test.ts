@@ -69,6 +69,54 @@ describe("jsonPathStyle: 'mysql' pushes customProperties into SQL", () => {
     }
     expect(found.length).toBe(1)
   })
+
+  it('pushes down a number value, matching the portable path', async () => {
+    const client = await getTestClient()
+    const pushDown = prismaAdapter(client, { jsonPathStyle: 'mysql' })
+    const portable = prismaAdapter(client)
+
+    await pushDown.create(makeRecord({ customProperties: { priority: 5 } }))
+    await pushDown.create(makeRecord({ customProperties: { priority: 9 } }))
+
+    const filter = { customProperties: { priority: 5 } }
+
+    const pushed: string[] = []
+    for await (const record of pushDown.iterateAll(filter)) {
+      pushed.push(record.id)
+    }
+
+    const scanned: string[] = []
+    for await (const record of portable.iterateAll(filter)) {
+      scanned.push(record.id)
+    }
+
+    expect(pushed.length).toBe(1)
+    expect(pushed.sort()).toEqual(scanned.sort())
+  })
+
+  it('pushes down a boolean value, matching the portable path', async () => {
+    const client = await getTestClient()
+    const pushDown = prismaAdapter(client, { jsonPathStyle: 'mysql' })
+    const portable = prismaAdapter(client)
+
+    await pushDown.create(makeRecord({ customProperties: { archived: true } }))
+    await pushDown.create(makeRecord({ customProperties: { archived: false } }))
+
+    const filter = { customProperties: { archived: true } }
+
+    const pushed: string[] = []
+    for await (const record of pushDown.iterateAll(filter)) {
+      pushed.push(record.id)
+    }
+
+    const scanned: string[] = []
+    for await (const record of portable.iterateAll(filter)) {
+      scanned.push(record.id)
+    }
+
+    expect(pushed.length).toBe(1)
+    expect(pushed.sort()).toEqual(scanned.sort())
+  })
 })
 
 describe('jsonPathStyle push-down applies only to scalar values', () => {
@@ -143,5 +191,36 @@ describe('jsonPathStyle push-down applies only to scalar values', () => {
       found.push(record.id)
     }
     expect(found.length).toBe(1)
+  })
+
+  it('falls back to matchesMediaFilter for a dotted key instead of interpolating it as a nested path', async () => {
+    const client = await getTestClient()
+    const pushDown = prismaAdapter(client, { jsonPathStyle: 'mysql' })
+    const portable = prismaAdapter(client)
+
+    // The literal key contains a dot — this is what the filter below must
+    // match, by exact key, not by walking into a nested object.
+    await pushDown.create(makeRecord({ customProperties: { 'shopify.storeId': 's1' } }))
+    // A genuinely nested record with the same leaf value. A naive adapter
+    // that interpolates the dotted key straight into the SQL JSON path
+    // (`$.shopify.storeId`) would incorrectly match THIS row instead of the
+    // one above, since that path walks into a nested `shopify` object — so
+    // this row is what makes the test discriminate the bug from the fix.
+    await pushDown.create(makeRecord({ customProperties: { shopify: { storeId: 's1' } } }))
+
+    const filter = { customProperties: { 'shopify.storeId': 's1' } }
+
+    const pushed: string[] = []
+    for await (const record of pushDown.iterateAll(filter)) {
+      pushed.push(record.id)
+    }
+
+    const scanned: string[] = []
+    for await (const record of portable.iterateAll(filter)) {
+      scanned.push(record.id)
+    }
+
+    expect(pushed.length).toBe(1)
+    expect(pushed.sort()).toEqual(scanned.sort())
   })
 })

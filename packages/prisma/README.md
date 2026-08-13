@@ -125,6 +125,13 @@ rather than a literal `null`). A filter mixing scalar and non-scalar keys still 
 results, but the non-scalar keys get no performance benefit — the adapter still scans every row
 that matched the pushed-down keys to check them.
 
+**A key is also held back unless it's a simple identifier** (`/^[A-Za-z_$][A-Za-z0-9_$]*$/`). The
+SQL path is built by interpolating the key directly (`` `$.${key}` ``), so a key containing `.`,
+`"`, `[`, or whitespace — `'shopify.storeId'`, say — would silently change which path is queried
+rather than erroring. Such keys always fall back to application-side filtering, same as a
+non-scalar value, and the same "still returns correct results, no performance benefit" tradeoff
+applies.
+
 **Even pushed down, JSON matching is unindexed by default.** On PostgreSQL, add an expression index
 for the key you filter on:
 

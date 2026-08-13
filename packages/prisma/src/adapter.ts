@@ -20,6 +20,13 @@ export interface PrismaAdapterOptions {
    * — it never imports `@prisma/client` and cannot detect your provider — so
    * naming the dialect is your call.
    *
+   * Only keys that are simple identifiers (`/^[A-Za-z_$][A-Za-z0-9_$]*$/`) are
+   * pushed down. A key containing `.`, `"`, `[`, whitespace, or any other
+   * character with meaning in a JSON path would silently change what the
+   * interpolated `$.${key}` path selects (e.g. `'a.b'` becomes the nested
+   * path `$.a.b`), so such keys always fall back to application-side
+   * filtering instead of being interpolated into SQL.
+   *
    * Omit it to filter in the application instead. That is correct on every
    * provider, but it reads every row matching `modelType`/`collectionName`
    * before discarding non-matches.
@@ -149,19 +156,30 @@ class PrismaMediaRepository implements MediaRepository {
     // needs a Prisma.JsonNull/DbNull sentinel, not a literal `null`, and
     // array/object `equals` behavior is not guaranteed consistent across
     // connectors). Non-scalar keys are always applied per row below.
+    //
+    // A key is ALSO held back from push-down (regardless of its value's
+    // type) unless it is a safe identifier. The path is built by raw
+    // interpolation (`$.${key}`) below, so a key containing `.`, `"`, `[`, or
+    // whitespace would silently change which path is queried (`'a.b'` would
+    // become the nested path `$.a.b`) rather than erroring — held-back keys
+    // are filtered by matchesMediaFilter instead, which reads the literal
+    // key.
+    const SAFE_JSON_PATH_KEY = /^[A-Za-z_$][A-Za-z0-9_$]*$/
     const style = this.opts.jsonPathStyle
     const entries = filter?.customProperties ? Object.entries(filter.customProperties) : []
-    const scalarEntries = entries.filter(
-      ([, value]) =>
-        typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean',
+    const pushableEntries = entries.filter(
+      ([key, value]) =>
+        SAFE_JSON_PATH_KEY.test(key) &&
+        (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'),
     )
     // Only skip the per-row check below when every key was pushed down —
-    // if even one key was held back (non-scalar), matchesMediaFilter is the
-    // sole authority for it and must run on every yielded row.
+    // if even one key was held back (non-scalar or an unsafe key),
+    // matchesMediaFilter is the sole authority for it and must run on every
+    // yielded row.
     const allPushedDown =
-      style !== undefined && entries.length > 0 && scalarEntries.length === entries.length
-    if (style !== undefined && scalarEntries.length > 0) {
-      filterWhere.AND = scalarEntries.map(([key, value]) => ({
+      style !== undefined && entries.length > 0 && pushableEntries.length === entries.length
+    if (style !== undefined && pushableEntries.length > 0) {
+      filterWhere.AND = pushableEntries.map(([key, value]) => ({
         customProperties: {
           path: style === 'postgres' ? [key] : `$.${key}`,
           equals: value,
