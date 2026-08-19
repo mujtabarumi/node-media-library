@@ -83,8 +83,8 @@
     }
   },
   "devDependencies": {
-    "@aws-sdk/client-s3": "^3.1106.0",
-    "@aws-sdk/s3-request-presigner": "^3.1106.0",
+    "@aws-sdk/client-s3": "^3.1111.0",
+    "@aws-sdk/s3-request-presigner": "^3.1111.0",
     "@google-cloud/storage": "^7.10.2",
     "@types/archiver": "^8.0.0",
     "@types/node": "^22.0.0",

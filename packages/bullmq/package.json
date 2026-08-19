@@ -54,7 +54,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.20.1",
-    "bullmq": "^6.0.7",
+    "bullmq": "^6.1.2",
     "typescript": "^6.0.3",
     "vitest": "^4.1.10"
   }
