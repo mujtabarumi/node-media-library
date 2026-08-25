@@ -66,6 +66,7 @@ export default defineConfig({
             { label: 'Errors', slug: 'reference/errors' },
             { label: 'CLI', slug: 'reference/cli' },
             { label: 'Packages', slug: 'reference/packages' },
+            { label: 'Testing a backend', slug: 'reference/testing' },
           ],
         },
         {

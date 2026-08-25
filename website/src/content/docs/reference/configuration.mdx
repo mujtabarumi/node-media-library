@@ -50,7 +50,8 @@ The model definition to paste, the opt-in cascading delete, and the adapter's `o
 Any backend works. `MediaRepository` is a plain interface — implement it against Drizzle, Kysely, or a
 raw driver, then run it against the shared contract suite exported from
 `@node-media-library/core/testing`. Every bundled adapter is held to that same suite, so a backend
-that passes it behaves like the ones that ship here.
+that passes it behaves like the ones that ship here — see [Testing a backend](/reference/testing/) for
+what it covers and how to wire it up.
 
 ## A queue driver
 

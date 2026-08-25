@@ -2,16 +2,14 @@
 
 Node.js port of [spatie/laravel-medialibrary](https://github.com/spatie/laravel-medialibrary) — manage media files (images, documents, etc.) for your application models.
 
-> **Pre-release**: Not yet published to npm. The v1 surface covers file upload, storage, retrieval,
-> collection organization, image conversions, responsive images, queue-backed dispatch, downloads/ZIP, a CLI, and
-> offline maintenance (`clean()`), plus Spatie-parity extras: `copyMedia`/`moveMedia`, atomic custom-property
-> updates, an image optimizer seam, and GCS and Cloudflare R2 disk drivers. PDF/video conversion generators live in
-> `@node-media-library/pdf` and `@node-media-library/video`. A little design-spec surface still hasn't shipped —
-> see [Roadmap](#roadmap) below.
+> **What v1 covers**: file upload, storage, retrieval, collection organization, image conversions,
+> responsive images, queue-backed dispatch, downloads/ZIP, a CLI, and offline maintenance (`clean()`),
+> plus Spatie-parity extras: `copyMedia`/`moveMedia`, atomic custom-property updates, an image
+> optimizer seam, and GCS and Cloudflare R2 disk drivers. PDF/video conversion generators live in
+> `@node-media-library/pdf` and `@node-media-library/video`. A little design-spec surface still hasn't
+> shipped — see [Roadmap](#roadmap) below.
 
 ## Installation
-
-Once published:
 
 ```bash
 pnpm add @node-media-library/core sharp

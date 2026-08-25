@@ -1,10 +1,13 @@
 # @node-media-library/prisma
 
-Prisma adapter for `@node-media-library/core`. Pre-release: not yet published to npm.
+Prisma adapter for `@node-media-library/core`.
 
 ## Install
 
-Once published: `npm install @node-media-library/prisma @prisma/client`
+```bash
+npm install @node-media-library/prisma @prisma/client
+```
+
 `@prisma/client` (`>=6 <8`) is an optional peer dependency — bring your own version.
 
 ## Prisma version compatibility
