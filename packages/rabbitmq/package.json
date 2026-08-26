@@ -58,6 +58,6 @@
     "@types/node": "^22.20.1",
     "amqplib": "^0.10.5",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   }
 }
