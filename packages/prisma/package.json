@@ -59,10 +59,10 @@
     }
   },
   "devDependencies": {
-    "@prisma/adapter-better-sqlite3": "^7.9.1",
-    "@prisma/client": "^7.9.1",
-    "@types/node": "^22.20.1",
-    "prisma": "^7.9.1",
+    "@prisma/adapter-better-sqlite3": "^7.10.0",
+    "@prisma/client": "^7.10.0",
+    "@types/node": "^22.20.2",
+    "prisma": "^7.10.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.10"
   }
